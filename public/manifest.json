@@ -1,0 +1,18 @@
+{
+  "name": "TRX Launcher",
+  "short_name": "TRX",
+  "description": "RAM TRX Launcher - Any terrain, a higher standard.",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "landscape",
+  "theme_color": "#07090a",
+  "background_color": "#07090a",
+  "icons": [
+    {
+      "src": "/icon-512.webp",
+      "sizes": "512x512",
+      "type": "image/webp",
+      "purpose": "any"
+    }
+  ]
+}
