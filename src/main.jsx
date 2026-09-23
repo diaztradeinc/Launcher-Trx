@@ -111,7 +111,7 @@ function App() {
     <CommandRail active={active} onNavigate={setActive} />
     <main className="apex-canvas" key={active}>
       {active === 'home' && <HomePage onNavigate={setActive} now={now} live={live} />}
-      {active === 'navigation' && <NavigationPage live={live} />}
+      {active === 'navigation' && <NavigationPage live={live} theme={theme} accent={accent} />}
       {active === 'media' && <MediaPage media={live.media} />}
       {active === 'performance' && <PerformancePage obd={live.obd} />}
       {active === 'apps' && <AppsPage onOpenSettings={function () { setActive('settings'); }} />}
@@ -209,7 +209,7 @@ function HomePage({ onNavigate, now, live }) {
   </section>;
 }
 
-function NavigationPage({ live }) {
+function NavigationPage({ live, theme, accent }) {
   const [layer, setLayer] = useState('terrain');
   const [routing, setRouting] = useState(true);
   const [destination, setDestination] = useState('');
@@ -228,7 +228,7 @@ function NavigationPage({ live }) {
   function startRoute() {
     const match = selected?.label === destination ? selected : null;
     setSuggestions([]); setSearchError('');
-    native.navigate(destination, match?.latitude, match?.longitude, match?.placeId);
+    native.navigate(destination, match?.latitude, match?.longitude, match?.placeId, theme, THEMES[theme].accent, accent);
   }
   function selectSuggestion(item) { setDestination(item.label); setSelected(item); setSuggestions([]); setSearchError(''); }
   return <section className="page navigation-page">

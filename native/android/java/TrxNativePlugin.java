@@ -291,6 +291,10 @@ public class TrxNativePlugin extends Plugin {
         intent.putExtra("destination", call.getString("destination", ""));
         String placeId=call.getString("placeId");
         if(placeId!=null&&!placeId.trim().isEmpty())intent.putExtra("placeId",placeId);
+        intent.putExtra("theme",call.getString("theme","titanium"));
+        intent.putExtra("accentColor",call.getString("accentColor","#f28a32"));
+        Integer accentStrength=call.getInt("accentStrength");
+        if(accentStrength!=null)intent.putExtra("accentStrength",accentStrength);
         Double latitude = call.getDouble("latitude");
         Double longitude = call.getDouble("longitude");
         if (latitude != null && longitude != null) {

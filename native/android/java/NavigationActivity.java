@@ -27,12 +27,15 @@ import androidx.core.content.ContextCompat;
 
 import com.google.android.gms.maps.GoogleMap.CameraPerspective;
 import com.google.android.gms.maps.GoogleMap;
+import com.google.android.gms.maps.model.MapStyleOptions;
 import com.google.android.libraries.navigation.AudioGuidanceSettings;
+import com.google.android.libraries.navigation.ForceNightMode;
 import com.google.android.libraries.navigation.ListenableResultFuture;
 import com.google.android.libraries.navigation.NavigationApi;
 import com.google.android.libraries.navigation.Navigator;
 import com.google.android.libraries.navigation.RoutingOptions;
 import com.google.android.libraries.navigation.NavigationView;
+import com.google.android.libraries.navigation.StylingOptions;
 import com.google.android.libraries.navigation.Waypoint;
 
 import java.util.List;
@@ -49,11 +52,15 @@ public class NavigationActivity extends AppCompatActivity {
     private boolean initializing;
     private boolean satelliteMode;
     private boolean audioEnabled = true;
+    private int accentColor = 0xfff28a32;
+    private int accentStrength = 82;
     private String startupStage = "ACTIVITY WINDOW";
 
     @Override protected void onCreate(Bundle state) {
         super.onCreate(state);
         try {
+            accentColor = parseAccent(getIntent().getStringExtra("accentColor"));
+            accentStrength = Math.max(30, Math.min(100, getIntent().getIntExtra("accentStrength", 82)));
             getWindow().setStatusBarColor(Color.BLACK);
             getWindow().setNavigationBarColor(Color.BLACK);
             startupStage = "NAVIGATION VIEW CONSTRUCTION";
@@ -77,7 +84,7 @@ public class NavigationActivity extends AppCompatActivity {
         searchBar.setGravity(Gravity.CENTER_VERTICAL);
         searchBar.setPadding(dp(18), 0, dp(8), 0);
         GradientDrawable bg = new GradientDrawable();
-        bg.setColor(0xee090a09); bg.setCornerRadius(dp(30)); bg.setStroke(dp(1), 0x88f12d31);
+        bg.setColor(0xf2090a09); bg.setCornerRadius(dp(30)); bg.setStroke(dp(1), withAlpha(accentColor, 0xaa));
         searchBar.setBackground(bg);
         destination = new EditText(this);
         destination.setSingleLine(true); destination.setHint("Search destination"); destination.setHintTextColor(0xff777771);
@@ -94,7 +101,7 @@ public class NavigationActivity extends AppCompatActivity {
         driveControls.setGravity(Gravity.CENTER);
         driveControls.setPadding(dp(10),dp(12),dp(10),dp(12));
         GradientDrawable railBg = new GradientDrawable();
-        railBg.setColor(0xe80a0b0a); railBg.setCornerRadius(dp(48)); railBg.setStroke(dp(1),0x665f625e);
+        railBg.setColor(0xf20a0b0a); railBg.setCornerRadius(dp(48)); railBg.setStroke(dp(1),withAlpha(accentColor, 0x88));
         driveControls.setBackground(railBg);
         Button recenter = railButton("◎\nRECENTER");
         recenter.setOnClickListener(v -> navigationView.getMapAsync(map -> map.followMyLocation(CameraPerspective.TILTED)));
@@ -102,6 +109,7 @@ public class NavigationActivity extends AppCompatActivity {
         satellite.setOnClickListener(v -> navigationView.getMapAsync(map -> {
             satelliteMode = !satelliteMode;
             map.setMapType(satelliteMode ? GoogleMap.MAP_TYPE_HYBRID : GoogleMap.MAP_TYPE_NORMAL);
+            if (!satelliteMode) applyApexMapStyle(map);
             satellite.setText(satelliteMode ? "◇\nSTANDARD" : "◇\nSATELLITE");
         }));
         Button overview = railButton("▱\nOVERVIEW"); overview.setOnClickListener(v -> navigationView.showRouteOverview());
@@ -145,12 +153,18 @@ public class NavigationActivity extends AppCompatActivity {
                     try {
                         navigator = ready; initializing = false;
                         navigationView.setNavigationUiEnabled(true);
+                        navigationView.setForceNightMode(ForceNightMode.FORCE_NIGHT);
+                        navigationView.setStylingOptions(apexStyling());
                         navigationView.setHeaderEnabled(true);
                         navigationView.setEtaCardEnabled(true);
                         navigationView.setRecenterButtonEnabled(true);
                         navigationView.setSpeedometerEnabled(true);
                         navigationView.setSpeedLimitIconEnabled(true);
-                        navigationView.getMapAsync(map -> map.followMyLocation(CameraPerspective.TILTED));
+                        navigationView.getMapAsync(map -> {
+                            applyApexMapStyle(map);
+                            map.setTrafficEnabled(true);
+                            map.followMyLocation(CameraPerspective.TILTED);
+                        });
                         status.setText("NAVIGATION READY");
                         if (!destination.getText().toString().trim().isEmpty()) routeToInput();
                     } catch (Throwable error) { showFatal("NAVIGATION DISPLAY ERROR"); }
@@ -222,13 +236,52 @@ public class NavigationActivity extends AppCompatActivity {
 
     private Button actionButton(String label) {
         Button button = new Button(this); button.setText(label); button.setTextColor(Color.WHITE); button.setTextSize(12);
-        GradientDrawable bg = new GradientDrawable(); bg.setColor(0xffc71f28); bg.setCornerRadius(dp(23)); button.setBackground(bg); return button;
+        GradientDrawable bg = new GradientDrawable(); bg.setColor(accentColor); bg.setCornerRadius(dp(23)); bg.setStroke(dp(1), withAlpha(Color.WHITE, 0x33)); button.setBackground(bg); return button;
     }
 
     private Button railButton(String label) {
-        Button button=new Button(this);button.setText(label);button.setTextColor(0xfff2eee6);button.setTextSize(9);button.setGravity(Gravity.CENTER);button.setAllCaps(false);
-        button.setPadding(0,0,0,0);GradientDrawable bg=new GradientDrawable();bg.setShape(GradientDrawable.OVAL);bg.setColor(0xff111210);bg.setStroke(dp(1),0x886f716c);button.setBackground(bg);
+        Button button=new Button(this);button.setText(label);button.setTextColor(accentColor);button.setTextSize(9);button.setGravity(Gravity.CENTER);button.setAllCaps(false);
+        button.setPadding(0,0,0,0);GradientDrawable bg=new GradientDrawable();bg.setShape(GradientDrawable.OVAL);bg.setColor(0xff0b0c0b);bg.setStroke(dp(1),withAlpha(accentColor,0x99));button.setBackground(bg);
         LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(dp(76),dp(76));lp.topMargin=dp(5);lp.bottomMargin=dp(5);button.setLayoutParams(lp);return button;
+    }
+
+    private StylingOptions apexStyling() {
+        int darkAccent = Color.rgb(
+                Math.round(Color.red(accentColor) * 0.34f),
+                Math.round(Color.green(accentColor) * 0.34f),
+                Math.round(Color.blue(accentColor) * 0.34f));
+        return new StylingOptions()
+                .primaryDayModeThemeColor(0xff080908)
+                .secondaryDayModeThemeColor(darkAccent)
+                .primaryNightModeThemeColor(0xff050605)
+                .secondaryNightModeThemeColor(darkAccent)
+                .headerLargeManeuverIconColor(accentColor)
+                .headerSmallManeuverIconColor(accentColor)
+                .headerNextStepTextColor(accentColor)
+                .headerNextStepTextSize(16f)
+                .headerDistanceValueTextColor(0xfff4f0e8)
+                .headerDistanceUnitsTextColor(accentColor)
+                .headerDistanceValueTextSize(22f)
+                .headerDistanceUnitsTextSize(14f)
+                .headerInstructionsTextColor(0xfff4f0e8)
+                .headerInstructionsFirstRowTextSize(24f)
+                .headerInstructionsSecondRowTextSize(20f)
+                .headerGuidanceRecommendedLaneColor(accentColor);
+    }
+
+    private void applyApexMapStyle(GoogleMap map) {
+        try { map.setMapStyle(MapStyleOptions.loadRawResourceStyle(this, R.raw.apex_navigation_style)); }
+        catch (Throwable error) { Log.w("TRX-NAV", "APEX map style unavailable", error); }
+    }
+
+    private int parseAccent(String value) {
+        try { return Color.parseColor(value == null ? "#f28a32" : value); }
+        catch (Throwable ignored) { return 0xfff28a32; }
+    }
+
+    private int withAlpha(int color, int alpha) {
+        int scaled = Math.round(alpha * (accentStrength / 100f));
+        return Color.argb(scaled, Color.red(color), Color.green(color), Color.blue(color));
     }
 
     private String startupMessage(Throwable error) {
