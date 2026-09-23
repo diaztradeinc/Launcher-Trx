@@ -20,7 +20,13 @@ export const native = {
   reconnectObd: () => safe('reconnectObd', {}, null),
   location: () => safe('getLocation', {}, null),
   searchDestinations: (query) => safe('searchDestinations', { query }, { suggestions: [] }),
-  navigate: (destination, latitude, longitude, placeId, theme, accentColor, accentStrength) => safe('openNavigation', { destination, latitude, longitude, placeId, theme, accentColor, accentStrength }, null),
+  navigate: (destination, latitude, longitude, placeId, theme, accentColor, accentStrength, preferences = {}) => safe('openNavigation', {
+    destination, latitude, longitude, placeId, theme, accentColor, accentStrength,
+    routingStrategy: preferences.routingStrategy || 'fastest',
+    avoidTolls: Boolean(preferences.avoidTolls),
+    mapMode: preferences.mapMode || 'standard',
+    audioEnabled: preferences.audioEnabled !== false
+  }, null),
   settings: (target) => safe('openSystemSettings', { target }, null)
 };
 

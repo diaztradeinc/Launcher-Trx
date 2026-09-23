@@ -295,6 +295,10 @@ public class TrxNativePlugin extends Plugin {
         intent.putExtra("accentColor",call.getString("accentColor","#f28a32"));
         Integer accentStrength=call.getInt("accentStrength");
         if(accentStrength!=null)intent.putExtra("accentStrength",accentStrength);
+        intent.putExtra("routingStrategy", call.getString("routingStrategy", "fastest"));
+        intent.putExtra("avoidTolls", Boolean.TRUE.equals(call.getBoolean("avoidTolls", false)));
+        intent.putExtra("mapMode", call.getString("mapMode", "standard"));
+        intent.putExtra("audioEnabled", !Boolean.FALSE.equals(call.getBoolean("audioEnabled", true)));
         Double latitude = call.getDouble("latitude");
         Double longitude = call.getDouble("longitude");
         if (latitude != null && longitude != null) {

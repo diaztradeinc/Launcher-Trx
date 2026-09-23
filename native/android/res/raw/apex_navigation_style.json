@@ -4,6 +4,7 @@
   {"elementType":"labels.text.stroke","stylers":[{"color":"#080a0a"},{"weight":3}]},
   {"featureType":"administrative","elementType":"geometry.stroke","stylers":[{"color":"#303230"}]},
   {"featureType":"landscape","elementType":"geometry","stylers":[{"color":"#090b0a"}]},
+  {"featureType":"landscape.man_made","elementType":"geometry.fill","stylers":[{"color":"#303633"},{"lightness":14}]},
   {"featureType":"poi","elementType":"geometry","stylers":[{"color":"#111411"}]},
   {"featureType":"poi","elementType":"labels.icon","stylers":[{"visibility":"off"}]},
   {"featureType":"poi.park","elementType":"geometry","stylers":[{"color":"#101813"}]},

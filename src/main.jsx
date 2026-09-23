@@ -71,6 +71,9 @@ function App() {
   const [iconScale, setIconScale] = useState(Number(localStorage.getItem('trx-apex-icons') || 100));
   const [reducedMotion, setReducedMotion] = useState(localStorage.getItem('trx-apex-motion') === 'true');
   const [displayMode, setDisplayMode] = useState('auto');
+  const [calibration, setCalibration] = useState(function () {
+    return readStoredJson('trx-apex-screen-calibration', { scale: 100, x: 0, y: 0, inset: 0 });
+  });
   const [now, setNow] = useState(new Date());
   const live = useVehicleData();
 
@@ -92,11 +95,19 @@ function App() {
     localStorage.setItem('trx-apex-motion', String(reducedMotion));
   }, [theme, accent, iconScale, reducedMotion]);
 
+  useEffect(function () {
+    localStorage.setItem('trx-apex-screen-calibration', JSON.stringify(calibration));
+  }, [calibration]);
+
   const style = {
     '--accent': THEMES[theme].accent,
     '--signal': THEMES[theme].signal,
     '--accent-strength': accent / 100,
-    '--icon-scale': iconScale / 100
+    '--icon-scale': iconScale / 100,
+    '--screen-scale': calibration.scale / 100,
+    '--screen-x': calibration.x + 'px',
+    '--screen-y': calibration.y + 'px',
+    '--screen-inset': calibration.inset + 'px'
   };
 
   function finishCommissioning() {
@@ -107,16 +118,18 @@ function App() {
   if (!commissioned) return <Commissioning onComplete={finishCommissioning} />;
 
   return <div className={'apex-shell theme-' + theme + ' mode-' + displayMode + (reducedMotion ? ' reduce-motion' : '')} style={style}>
-    <StatusBar now={now} live={live} />
-    <CommandRail active={active} onNavigate={setActive} />
-    <main className="apex-canvas" key={active}>
-      {active === 'home' && <HomePage onNavigate={setActive} now={now} live={live} />}
-      {active === 'navigation' && <NavigationPage live={live} theme={theme} accent={accent} />}
-      {active === 'media' && <MediaPage media={live.media} />}
-      {active === 'performance' && <PerformancePage obd={live.obd} />}
-      {active === 'apps' && <AppsPage onOpenSettings={function () { setActive('settings'); }} />}
-      {active === 'settings' && <SettingsPage theme={theme} setTheme={setTheme} accent={accent} setAccent={setAccent} iconScale={iconScale} setIconScale={setIconScale} reducedMotion={reducedMotion} setReducedMotion={setReducedMotion} displayMode={displayMode} setDisplayMode={setDisplayMode} obd={live.obd} />}
-    </main>
+    <div className="calibrated-stage">
+      <StatusBar now={now} live={live} />
+      <CommandRail active={active} onNavigate={setActive} />
+      <main className="apex-canvas" key={active}>
+        {active === 'home' && <HomePage onNavigate={setActive} now={now} live={live} />}
+        {active === 'navigation' && <NavigationPage live={live} theme={theme} accent={accent} />}
+        {active === 'media' && <MediaPage media={live.media} />}
+        {active === 'performance' && <PerformancePage obd={live.obd} />}
+        {active === 'apps' && <AppsPage onOpenSettings={function () { setActive('settings'); }} />}
+        {active === 'settings' && <SettingsPage theme={theme} setTheme={setTheme} accent={accent} setAccent={setAccent} iconScale={iconScale} setIconScale={setIconScale} reducedMotion={reducedMotion} setReducedMotion={setReducedMotion} displayMode={displayMode} setDisplayMode={setDisplayMode} calibration={calibration} setCalibration={setCalibration} obd={live.obd} />}
+      </main>
+    </div>
   </div>;
 }
 
@@ -210,12 +223,15 @@ function HomePage({ onNavigate, now, live }) {
 }
 
 function NavigationPage({ live, theme, accent }) {
-  const [layer, setLayer] = useState('terrain');
-  const [routing, setRouting] = useState(true);
   const [destination, setDestination] = useState('');
   const [suggestions, setSuggestions] = useState([]);
   const [searchError, setSearchError] = useState('');
   const [selected, setSelected] = useState(null);
+  const [preferences, setPreferences] = useState(function () {
+    return readStoredJson('trx-apex-nav-preferences', { routingStrategy: 'fastest', avoidTolls: false, mapMode: 'standard', audioEnabled: true });
+  });
+  const [recents, setRecents] = useState(function () { return readStoredJson('trx-apex-nav-recents', []); });
+  const [favorites, setFavorites] = useState(function () { return readStoredJson('trx-apex-nav-favorites', {}); });
   useEffect(function () {
     const query = destination.trim();
     if (selected?.label === destination || query.length < 3) { setSuggestions([]); setSearchError(''); return; }
@@ -225,30 +241,54 @@ function NavigationPage({ live, theme, accent }) {
     }, 280);
     return function () { current = false; clearTimeout(timer); };
   }, [destination, selected]);
+  useEffect(function () { localStorage.setItem('trx-apex-nav-preferences', JSON.stringify(preferences)); }, [preferences]);
+  function updatePreference(key, value) { setPreferences(function (current) { return { ...current, [key]: value }; }); }
   function startRoute() {
+    if (!destination.trim()) { setSearchError('SELECT A DESTINATION TO START GUIDANCE'); return; }
     const match = selected?.label === destination ? selected : null;
     setSuggestions([]); setSearchError('');
-    native.navigate(destination, match?.latitude, match?.longitude, match?.placeId, theme, THEMES[theme].accent, accent);
+    const item = match || { label: destination, primary: destination, secondary: 'Manual destination' };
+    const next = [item, ...recents.filter(function (recent) { return recent.label !== item.label; })].slice(0, 4);
+    setRecents(next); localStorage.setItem('trx-apex-nav-recents', JSON.stringify(next));
+    native.navigate(destination, match?.latitude, match?.longitude, match?.placeId, theme, THEMES[theme].accent, accent, preferences);
   }
   function selectSuggestion(item) { setDestination(item.label); setSelected(item); setSuggestions([]); setSearchError(''); }
+  function useQuickDestination(key) {
+    if (key === 'gas') { setDestination('Gas stations near me'); setSelected(null); return; }
+    if (key === 'favorites') {
+      const first = favorites.home || favorites.work || recents[0];
+      if (first) selectSuggestion(first); else setSearchError('SAVE HOME OR WORK TO CREATE A FAVORITE');
+      return;
+    }
+    const saved = favorites[key];
+    if (saved) { selectSuggestion(saved); return; }
+    const label = window.prompt('Set ' + key.toUpperCase() + ' address');
+    if (!label?.trim()) return;
+    const item = { label: label.trim(), primary: key.toUpperCase(), secondary: label.trim() };
+    const next = { ...favorites, [key]: item }; setFavorites(next); localStorage.setItem('trx-apex-nav-favorites', JSON.stringify(next)); selectSuggestion(item);
+  }
+  const gpsReady = Boolean(live.location);
+  const vehicleReady = Boolean(live.obd?.connected);
   return <section className="page navigation-page">
-    <div className="map-stage">
-      <img src="/trx-map.webp" alt="Dimensional terrain route" />
-      <div className="map-shade" /><div className="route-ribbon" /><div className="route-arrow">➤</div>
+    <PageTag index="03" title="Navigation" subtitle="Route intelligence" right={<div className="nav-readiness"><i className={gpsReady ? 'ready' : ''} /> GPS {gpsReady ? 'READY' : 'WAITING'} <span /><i className={vehicleReady ? 'ready' : ''} /> VEHICLE {vehicleReady ? 'LINKED' : 'STANDBY'}</div>} />
+    <div className="nav-command-center">
       <div className="nav-command"><Search /><input value={destination} onChange={function (e) { setDestination(e.target.value); setSelected(null); }} onKeyDown={function (e) { if (e.key === 'Enter') startRoute(); }} placeholder="Search destination or command" /><button onClick={startRoute} aria-label="Start navigation"><Navigation /></button><Mic />
         {(suggestions.length > 0 || searchError) && <div className="nav-suggestions">{searchError && <div className="places-error">{searchError}</div>}{suggestions.map(function (item, index) { return <button key={(item.placeId || item.label) + index} onClick={function () { selectSuggestion(item); }}><MapPin /><span><b>{item.primary || item.label}</b><small>{item.secondary}</small></span><ChevronRight /></button>; })}<div className="places-credit"><span>Google</span> Places</div></div>}
       </div>
-      <div className="maneuver"><span>NEXT TURN</span><strong>0.8<small>mi</small></strong><p>Turn right onto<br /><b>Darlington Dr</b></p></div>
-      <div className="lane-guidance"><i>↑</i><i className="active">↗</i><i>↑</i><span>KEEP RIGHT</span></div>
-      <div className="arrival"><span>ARRIVAL</span><strong>10:36</strong><small>12 min · 6.4 mi</small></div>
-      <div className="speed"><strong>{Math.round(live.location?.speedMph || live.obd?.speedMph || 0)}</strong><span>MPH</span><small>SPEED<br />LIMIT<br /><b>--</b></small></div>
-      <div className="thumb-arc">
-        <button onClick={startRoute} className={routing ? 'active' : ''}><LocateFixed /><span>Navigate</span></button>
-        <button onClick={function () { setLayer(layer === 'terrain' ? 'satellite' : 'terrain'); }}><Layers3 /><span>{layer}</span></button>
-        <button><Map /><span>Overview</span></button><button><Volume2 /><span>Audio</span></button>
+      <div className="route-brief">
+        <div className="destination-card"><span>SELECTED DESTINATION</span><h2>{selected?.primary || destination || 'WHERE TO?'}</h2><p>{selected?.secondary || (destination ? 'Ready for Google route calculation' : 'Search above or choose a quick destination')}</p></div>
+        <div className="route-metrics"><div><span>ENGINE</span><b>GOOGLE</b><small>NAVIGATION SDK</small></div><div><span>TRAFFIC</span><b>LIVE</b><small>WHEN GUIDANCE STARTS</small></div><div><span>WEATHER</span><b>{live.weather?.temperature ?? '--'}°</b><small>{live.weather?.condition || 'ACQUIRING'}</small></div><div><span>TOLLS</span><b>{preferences.avoidTolls ? 'AVOID' : 'ALLOW'}</b><small>ROUTE PREFERENCE</small></div></div>
       </div>
-      <div className="road-label">N PRIMA RD</div>
-      <div className="nav-caption">TERRAIN FLOW <span>GOOGLE NAVIGATION SDK</span></div>
+      <div className="route-preferences">
+        <span>ROUTE PROFILE</span>
+        <button className="active" onClick={function () { updatePreference('routingStrategy', preferences.routingStrategy === 'fastest' ? 'shortest' : 'fastest'); }}><Navigation />{preferences.routingStrategy === 'fastest' ? 'FASTEST' : 'SHORTEST'}</button>
+        <button className={preferences.avoidTolls ? 'active' : ''} onClick={function () { updatePreference('avoidTolls', !preferences.avoidTolls); }}><ShieldCheck />NO TOLLS</button>
+        <button className={preferences.mapMode === 'satellite' ? 'active' : ''} onClick={function () { updatePreference('mapMode', preferences.mapMode === 'standard' ? 'satellite' : 'standard'); }}><Layers3 />{preferences.mapMode}</button>
+        <button className={preferences.audioEnabled ? 'active' : ''} onClick={function () { updatePreference('audioEnabled', !preferences.audioEnabled); }}><Volume2 />{preferences.audioEnabled ? 'AUDIO' : 'MUTED'}</button>
+      </div>
+      <div className="quick-destinations"><span>QUICK DESTINATIONS</span>{[['home','HOME',Home],['work','WORK',Activity],['gas','GAS',MapPin],['favorites','FAVORITES',Heart]].map(function (item) { const Icon = item[2]; return <button key={item[0]} onClick={function () { useQuickDestination(item[0]); }}><Icon /><b>{item[1]}</b><small>{favorites[item[0]]?.secondary || (item[0] === 'gas' ? 'NEARBY' : item[0] === 'favorites' ? recents.length + ' RECENT' : 'TAP TO SET')}</small></button>; })}</div>
+      <div className="recent-routes"><span>RECENT DESTINATIONS</span><div>{recents.length ? recents.map(function (item, index) { return <button key={item.label + index} onClick={function () { selectSuggestion(item); }}><MapPin /><span><b>{item.primary || item.label}</b><small>{item.secondary || item.label}</small></span><ChevronRight /></button>; }) : <div className="empty-routes">YOUR COMPLETED SEARCHES WILL APPEAR HERE</div>}</div></div>
+      <div className="nav-launch-strip"><div><i className={vehicleReady ? 'ready' : ''} /><span><b>OBDLINK MX+</b><small>{vehicleReady ? 'CONNECTED' : 'OPTIONAL · STANDBY'}</small></span></div><div><i className={gpsReady ? 'ready' : ''} /><span><b>POSITION</b><small>{gpsReady ? 'GPS READY' : 'REQUESTING FIX'}</small></span></div><button disabled={!destination.trim()} onClick={startRoute}>START GUIDANCE <ChevronRight /></button></div>
     </div>
   </section>;
 }
@@ -397,8 +437,9 @@ function AppDisc({ app }) {
 }
 
 function SettingsPage(props) {
-  const { theme, setTheme, accent, setAccent, iconScale, setIconScale, reducedMotion, setReducedMotion, displayMode, setDisplayMode, obd } = props;
+  const { theme, setTheme, accent, setAccent, iconScale, setIconScale, reducedMotion, setReducedMotion, displayMode, setDisplayMode, calibration, setCalibration, obd } = props;
   const [section, setSection] = useState('appearance');
+  const [calibrationOpen, setCalibrationOpen] = useState(false);
   const sections = [['appearance', 'Drive & Display', Aperture], ['navigation', 'Navigation', Navigation], ['vehicle', 'Vehicle Link', Bluetooth], ['system', 'System', Settings]];
   return <section className="page settings-page">
     <PageTag index="07" title="Studio" subtitle="TRX APEX customization" right={<div className="studio-status"><ShieldCheck /> SETTINGS SAVED</div>} />
@@ -418,11 +459,24 @@ function SettingsPage(props) {
       return <button key={id} onClick={function () { setSection(id); }} className={section === id ? 'active' : ''}><Icon /><span>{label}</span><small>{detail}</small><ChevronRight /></button>;
     })}</div>
     <div className="setting-drawer">
-      {section === 'appearance' && <><Toggle label="REDUCE MOTION" detail="Minimize transitions while driving" value={reducedMotion} setValue={setReducedMotion} /><Action label="SCREEN CALIBRATION" detail="1080 × 1440 · 4:3 portrait" /></>}
+      {section === 'appearance' && <><Toggle label="REDUCE MOTION" detail="Minimize transitions while driving" value={reducedMotion} setValue={setReducedMotion} /><Action label="SCREEN CALIBRATION" detail={calibration.scale + '% · X ' + calibration.x + ' · Y ' + calibration.y + ' · SAFE ' + calibration.inset} onClick={function () { setCalibrationOpen(true); }} /></>}
       {section === 'navigation' && <><Action label="GOOGLE NAVIGATION SDK" detail="Open native turn-by-turn navigation" onClick={function () { native.navigate(''); }} /><Toggle label="3D TERRAIN" detail="Elevation-aware route rendering" value={true} setValue={function () {}} /></>}
       {section === 'vehicle' && <><Action label="OBDLINK MX+" detail={obd?.status || 'Pair adapter in Android Bluetooth'} onClick={function () { native.settings('bluetooth'); }} /><Action label="RECONNECT VEHICLE LINK" detail="Restart read-only OBD telemetry" onClick={function () { native.reconnectObd(); }} /></>}
       {section === 'system' && <><Action label="DEFAULT LAUNCHER" detail="Choose TRX APEX as Android Home" onClick={function () { native.requestPermissionGroup('launcher'); }} /><Action label="APP PERMISSIONS" detail="Location · Bluetooth · Media" onClick={function () { native.settings('app'); }} /></>}
     </div>
+    {calibrationOpen && <div className="calibration-scrim">
+      <div className="calibration-panel">
+        <div className="calibration-head"><span><small>DISPLAY GEOMETRY</small><b>SCREEN CALIBRATION</b><em>Adjust until all four corner targets sit fully inside the visible panel.</em></span><button onClick={function () { setCalibrationOpen(false); }}>×</button></div>
+        <div className="calibration-target"><i className="tl" /><i className="tr" /><i className="bl" /><i className="br" /><div><b>1080 × 1440</b><span>LIVE UI BOUNDS</span></div></div>
+        <div className="calibration-controls">
+          <RangeControl label="UI SCALE" value={calibration.scale} onChange={function (value) { setCalibration({ ...calibration, scale: value }); }} min={86} max={104} suffix="%" />
+          <RangeControl label="HORIZONTAL OFFSET" value={calibration.x} onChange={function (value) { setCalibration({ ...calibration, x: value }); }} min={-60} max={60} suffix=" px" />
+          <RangeControl label="VERTICAL OFFSET" value={calibration.y} onChange={function (value) { setCalibration({ ...calibration, y: value }); }} min={-80} max={80} suffix=" px" />
+          <RangeControl label="SAFE EDGE" value={calibration.inset} onChange={function (value) { setCalibration({ ...calibration, inset: value }); }} min={0} max={36} suffix=" px" />
+        </div>
+        <div className="calibration-actions"><button onClick={function () { setCalibration({ scale: 100, x: 0, y: 0, inset: 0 }); }}>RESET FACTORY</button><button className="primary" onClick={function () { setCalibrationOpen(false); }}><Check /> SAVE CALIBRATION</button></div>
+      </div>
+    </div>}
   </section>;
 }
 

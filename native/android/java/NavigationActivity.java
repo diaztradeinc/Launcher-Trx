@@ -3,10 +3,15 @@ package com.diaztradeinc.trxlauncher;
 import android.Manifest;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.Paint;
 import android.graphics.drawable.GradientDrawable;
 import android.location.Address;
 import android.location.Geocoder;
+import android.location.Location;
 import android.os.Bundle;
 import android.view.Gravity;
 import android.widget.Button;
@@ -28,12 +33,17 @@ import androidx.core.content.ContextCompat;
 import com.google.android.gms.maps.GoogleMap.CameraPerspective;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.model.MapStyleOptions;
+import com.google.android.gms.maps.model.BitmapDescriptorFactory;
+import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.Marker;
+import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.libraries.navigation.AudioGuidanceSettings;
 import com.google.android.libraries.navigation.ForceNightMode;
 import com.google.android.libraries.navigation.ListenableResultFuture;
 import com.google.android.libraries.navigation.NavigationApi;
 import com.google.android.libraries.navigation.Navigator;
 import com.google.android.libraries.navigation.RoutingOptions;
+import com.google.android.libraries.navigation.RoadSnappedLocationProvider;
 import com.google.android.libraries.navigation.NavigationView;
 import com.google.android.libraries.navigation.StylingOptions;
 import com.google.android.libraries.navigation.Waypoint;
@@ -52,6 +62,15 @@ public class NavigationActivity extends AppCompatActivity {
     private boolean initializing;
     private boolean satelliteMode;
     private boolean audioEnabled = true;
+    private boolean avoidTolls;
+    private String routingStrategy = "fastest";
+    private GoogleMap googleMap;
+    private Marker trxMarker;
+    private RoadSnappedLocationProvider roadSnappedLocationProvider;
+    private boolean locationListenerRegistered;
+    private final RoadSnappedLocationProvider.LocationListener roadLocationListener = new RoadSnappedLocationProvider.LocationListener() {
+        @Override public void onLocationChanged(@NonNull Location location) { updateTrxMarker(location); }
+    };
     private int accentColor = 0xfff28a32;
     private int accentStrength = 82;
     private String startupStage = "ACTIVITY WINDOW";
@@ -61,6 +80,10 @@ public class NavigationActivity extends AppCompatActivity {
         try {
             accentColor = parseAccent(getIntent().getStringExtra("accentColor"));
             accentStrength = Math.max(30, Math.min(100, getIntent().getIntExtra("accentStrength", 82)));
+            satelliteMode = "satellite".equals(getIntent().getStringExtra("mapMode"));
+            audioEnabled = getIntent().getBooleanExtra("audioEnabled", true);
+            avoidTolls = getIntent().getBooleanExtra("avoidTolls", false);
+            routingStrategy = getIntent().getStringExtra("routingStrategy");
             getWindow().setStatusBarColor(Color.BLACK);
             getWindow().setNavigationBarColor(Color.BLACK);
             startupStage = "NAVIGATION VIEW CONSTRUCTION";
@@ -161,10 +184,16 @@ public class NavigationActivity extends AppCompatActivity {
                         navigationView.setSpeedometerEnabled(true);
                         navigationView.setSpeedLimitIconEnabled(true);
                         navigationView.getMapAsync(map -> {
-                            applyApexMapStyle(map);
+                            googleMap = map;
+                            map.setBuildingsEnabled(true);
+                            map.setMapType(satelliteMode ? GoogleMap.MAP_TYPE_HYBRID : GoogleMap.MAP_TYPE_NORMAL);
+                            if (!satelliteMode) applyApexMapStyle(map);
                             map.setTrafficEnabled(true);
+                            try { map.setMyLocationEnabled(false); } catch (SecurityException ignored) {}
                             map.followMyLocation(CameraPerspective.TILTED);
                         });
+                        roadSnappedLocationProvider = NavigationApi.getRoadSnappedLocationProvider(getApplication());
+                        registerRoadLocationListener();
                         status.setText("NAVIGATION READY");
                         if (!destination.getText().toString().trim().isEmpty()) routeToInput();
                     } catch (Throwable error) { showFatal("NAVIGATION DISPLAY ERROR"); }
@@ -219,12 +248,14 @@ public class NavigationActivity extends AppCompatActivity {
 
     private void calculateRoute(Waypoint waypoint){
         status.setVisibility(android.view.View.VISIBLE);status.setText("CALCULATING ROUTE…");
-        RoutingOptions options=new RoutingOptions();options.travelMode(RoutingOptions.TravelMode.DRIVING);
+        RoutingOptions options=new RoutingOptions();
+        options.travelMode(RoutingOptions.TravelMode.DRIVING).avoidTolls(avoidTolls);
+        options.routingStrategy("shortest".equals(routingStrategy) ? RoutingOptions.RoutingStrategy.SHORTER : RoutingOptions.RoutingStrategy.DEFAULT_BEST);
         ListenableResultFuture<Navigator.RouteStatus> pending=navigator.setDestination(waypoint,options);
         pending.setOnResultListener(routeStatus -> runOnUiThread(() -> {
             try{
                 if(routeStatus==Navigator.RouteStatus.OK){
-                    AudioGuidanceSettings audio=AudioGuidanceSettings.builder().setGuidanceMode(AudioGuidanceSettings.GuidanceMode.VOICE_ALERTS_AND_GUIDANCE).build();
+                    AudioGuidanceSettings audio=AudioGuidanceSettings.builder().setGuidanceMode(audioEnabled ? AudioGuidanceSettings.GuidanceMode.VOICE_ALERTS_AND_GUIDANCE : AudioGuidanceSettings.GuidanceMode.SILENT).build();
                     navigator.setAudioGuidanceSettings(audio);navigator.startGuidance();status.setVisibility(android.view.View.GONE);destination.clearFocus();
                     searchBar.setVisibility(View.GONE);driveControls.setVisibility(View.VISIBLE);
                     InputMethodManager keyboard=(InputMethodManager)getSystemService(Context.INPUT_METHOD_SERVICE);
@@ -274,6 +305,53 @@ public class NavigationActivity extends AppCompatActivity {
         catch (Throwable error) { Log.w("TRX-NAV", "APEX map style unavailable", error); }
     }
 
+    private void registerRoadLocationListener() {
+        if (roadSnappedLocationProvider == null || locationListenerRegistered) return;
+        roadSnappedLocationProvider.addLocationListener(roadLocationListener);
+        locationListenerRegistered = true;
+    }
+
+    private void unregisterRoadLocationListener() {
+        if (roadSnappedLocationProvider == null || !locationListenerRegistered) return;
+        roadSnappedLocationProvider.removeLocationListener(roadLocationListener);
+        locationListenerRegistered = false;
+    }
+
+    private void updateTrxMarker(Location location) {
+        if (googleMap == null || location == null) return;
+        LatLng position = new LatLng(location.getLatitude(), location.getLongitude());
+        if (trxMarker == null) {
+            trxMarker = googleMap.addMarker(new MarkerOptions()
+                    .position(position)
+                    .icon(BitmapDescriptorFactory.fromBitmap(createTrxMarkerBitmap()))
+                    .anchor(0.5f, 0.54f)
+                    .flat(true)
+                    .zIndex(1000f));
+        }
+        if (trxMarker != null) {
+            trxMarker.setPosition(position);
+            if (location.hasBearing()) trxMarker.setRotation(location.getBearing());
+        }
+    }
+
+    private Bitmap createTrxMarkerBitmap() {
+        int width = dp(72), height = dp(98);
+        Bitmap output = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+        Canvas canvas = new Canvas(output);
+        Paint halo = new Paint(Paint.ANTI_ALIAS_FLAG);
+        halo.setColor(withAlpha(accentColor, 0x56));
+        canvas.drawCircle(width / 2f, height * 0.56f, dp(27), halo);
+        halo.setStyle(Paint.Style.STROKE); halo.setStrokeWidth(dp(2)); halo.setColor(withAlpha(accentColor, 0xdd));
+        canvas.drawCircle(width / 2f, height * 0.56f, dp(29), halo);
+        Bitmap source = BitmapFactory.decodeResource(getResources(), R.drawable.apex_trx_marker);
+        if (source != null) {
+            Bitmap scaled = Bitmap.createScaledBitmap(source, dp(54), dp(81), true);
+            canvas.drawBitmap(scaled, (width - scaled.getWidth()) / 2f, dp(7), new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG));
+            if (scaled != source) scaled.recycle();
+        }
+        return output;
+    }
+
     private int parseAccent(String value) {
         try { return Color.parseColor(value == null ? "#f28a32" : value); }
         catch (Throwable ignored) { return 0xfff28a32; }
@@ -308,11 +386,11 @@ public class NavigationActivity extends AppCompatActivity {
         else if (requestCode == LOCATION_REQUEST) showFatal("LOCATION PERMISSION REQUIRED");
     }
 
-    @Override protected void onStart() { super.onStart(); if (navigationView != null) navigationView.onStart(); }
+    @Override protected void onStart() { super.onStart(); if (navigationView != null) navigationView.onStart(); registerRoadLocationListener(); }
     @Override protected void onResume() { super.onResume(); if (navigationView != null) navigationView.onResume(); }
     @Override protected void onPause() { if (navigationView != null) navigationView.onPause(); super.onPause(); }
-    @Override protected void onStop() { if (navigationView != null) navigationView.onStop(); super.onStop(); }
-    @Override protected void onDestroy() { if (navigationView != null) navigationView.onDestroy(); super.onDestroy(); }
+    @Override protected void onStop() { unregisterRoadLocationListener(); if (navigationView != null) navigationView.onStop(); super.onStop(); }
+    @Override protected void onDestroy() { unregisterRoadLocationListener(); if (trxMarker != null) trxMarker.remove(); if (navigationView != null) navigationView.onDestroy(); super.onDestroy(); }
     @Override public void onTrimMemory(int level) { super.onTrimMemory(level); if (navigationView != null) navigationView.onTrimMemory(level); }
     @Override public void onConfigurationChanged(@NonNull Configuration configuration) {
         super.onConfigurationChanged(configuration);
