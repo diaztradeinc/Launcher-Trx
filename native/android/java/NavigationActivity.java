@@ -9,8 +9,6 @@ import android.location.Address;
 import android.location.Geocoder;
 import android.os.Bundle;
 import android.view.Gravity;
-import android.view.WindowInsets;
-import android.view.WindowInsetsController;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.FrameLayout;
@@ -50,10 +48,6 @@ public class NavigationActivity extends AppCompatActivity {
         try {
             getWindow().setStatusBarColor(Color.BLACK);
             getWindow().setNavigationBarColor(Color.BLACK);
-            if (android.os.Build.VERSION.SDK_INT >= 30 && getWindow().getInsetsController() != null) {
-                getWindow().getInsetsController().hide(WindowInsets.Type.statusBars());
-                getWindow().getInsetsController().setSystemBarsBehavior(WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
-            }
             startupStage = "NAVIGATION VIEW CONSTRUCTION";
             buildUi(state);
             startupStage = "NAVIGATION VIEW ONCREATE";
