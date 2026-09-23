@@ -368,7 +368,7 @@ function PerformancePage({ obd }) {
     <div className="dynamics-stage">
       <div className="rpm-readout"><strong>{rpm.toLocaleString()}</strong><span>RPM</span><div className="gear-readout"><b>M4</b><small>TOW / HAUL OFF</small></div></div>
       <div className="tach-arc"><div className="tach-fill" style={{ '--rpm': (rpm / 70) + '%' }} />{[1,2,3,4,5,6,7].map(function (n) { return <i key={n} style={{ '--i': n }}>{n}</i>; })}</div>
-      <div className="xray-truck"><img src="/trx-hero.webp" alt="RAM TRX vehicle telemetry model" /><div className="thermal engine" /><div className="thermal rear" /></div>
+      <div className="xray-truck"><img src="/trx-hero.webp" alt="RAM TRX vehicle telemetry model" /><div className="thermal headlight-left" /><div className="thermal headlight-right" /></div>
       <svg className="callout-lines" viewBox="0 0 900 460" preserveAspectRatio="none"><path d="M450 190 L230 95 L96 95"/><path d="M525 218 L720 105 L850 105"/><path d="M397 250 L210 340 L80 340"/><path d="M615 280 L760 340 L868 340"/></svg>
       <div className="telemetry-grid">{telemetry.map(function (item) { return <div className={'telemetry ' + item[3]} key={item[0]}><span>{item[0]}</span><strong>{item[1]}<small>{item[2]}</small></strong></div>; })}</div>
       <div className="power-surface"><span>LIVE POWER CURVE</span><svg viewBox="0 0 500 160" preserveAspectRatio="none"><path className="gridline" d="M0 130H500M0 90H500M0 50H500"/><path className="hp" d="M0 140 C100 135 125 95 205 88 S330 25 500 35"/><path className="torque" d="M0 145 C90 125 125 58 220 50 S365 62 500 77"/></svg><div><b>HP 702</b><b>TQ 650</b></div></div>
@@ -382,7 +382,9 @@ function AppsPage() {
   const [query, setQuery] = useState('');
   const [installed, setInstalled] = useState([]);
   const [editing, setEditing] = useState(false);
+  const [mode, setMode] = useState('recent');
   const [favoritePackages, setFavoritePackages] = useState(function () { return readStoredJson('trx-apex-orbit-favorites', []); });
+  const [recentPackages, setRecentPackages] = useState(function () { return readStoredJson('trx-apex-recent-apps', []); });
   useEffect(function () {
     native.apps().then(function (result) { if (result?.apps?.length) setInstalled(result.apps); });
   }, []);
@@ -394,6 +396,7 @@ function AppsPage() {
     localStorage.setItem('trx-apex-orbit-favorites', JSON.stringify(defaults));
   }, [installed, favoritePackages.length]);
   const favorites = favoritePackages.map(function (packageName) { return source.find(function (app) { return app.packageName === packageName; }); }).filter(Boolean).slice(0, 8);
+  const recentApps = recentPackages.map(function (packageName) { return source.find(function (app) { return app.packageName === packageName; }); }).filter(Boolean);
   function toggleFavorite(app) {
     if (!app.packageName) return;
     setFavoritePackages(function (current) {
@@ -404,19 +407,27 @@ function AppsPage() {
     });
   }
   const filtered = useMemo(function () {
-    return source.filter(function (item) { return item.name.toLowerCase().includes(query.toLowerCase()); });
+    return source.filter(function (item) { return item.name.toLowerCase().includes(query.toLowerCase()); }).sort(function (a, b) { return a.name.localeCompare(b.name); });
   }, [query, installed]);
+  function launchApp(app) {
+    if (!app.packageName) return;
+    const next = [app.packageName, ...recentPackages.filter(function (item) { return item !== app.packageName; })].slice(0, 10);
+    setRecentPackages(next); localStorage.setItem('trx-apex-recent-apps', JSON.stringify(next)); native.launchApp(app.packageName);
+  }
+  const flowApps = recentApps.length ? recentApps : source.slice(0, 10);
+  const showAll = mode === 'all' || Boolean(query);
   return <section className="page apps-page">
     <PageTag index="06" title="Orbit" subtitle={editing ? 'Tap apps below to add · tap orbit to remove' : 'Applications in motion'} right={<button className={'edit-apps' + (editing ? ' active' : '')} onClick={function () { setEditing(!editing); }}><SlidersHorizontal /> {editing ? 'DONE' : 'CUSTOMIZE'}</button>} />
     <div className="app-search"><Search /><input value={query} onChange={function (e) { setQuery(e.target.value); }} placeholder="Search apps, settings, vehicle…" /><Sparkles /></div>
-    {!query && <div className={'app-orbit' + (editing ? ' editing' : '')}><div className="orbit-emblem">TRX<small>{editing ? (favorites.length + ' / 8 SELECTED') : 'FAVORITES'}</small></div>{(favorites.length ? favorites : source.slice(0, 8)).map(function (item, i) { return <AppButton key={item.packageName || item.name} app={item} style={{ '--i': i }} editing={editing} onPress={editing ? function () { toggleFavorite(item); } : null} />; })}</div>}
-    <div className={'app-flow' + (query ? ' searching' : '') + (editing ? ' editing' : '')}>{filtered.map(function (item) { return <AppButton key={item.packageName || item.name} app={item} editing={editing && favoritePackages.includes(item.packageName)} onPress={editing ? function () { toggleFavorite(item); } : null} />; })}</div>
-    <div className="alphabet">{'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map(function (letter) { return <span key={letter}>{letter}</span>; })}</div>
-    <div className="app-mode"><button className="active">RECENT</button><button>ALL APPS</button></div>
+    {!showAll && <div className={'app-orbit' + (editing ? ' editing' : '')}><div className="orbit-emblem">TRX<small>{editing ? (favorites.length + ' / 8 SELECTED') : 'FAVORITES'}</small></div>{(favorites.length ? favorites : source.slice(0, 8)).map(function (item, i) { return <AppButton key={item.packageName || item.name} app={item} style={{ '--i': i }} editing={editing} onPress={editing ? function () { toggleFavorite(item); } : null} onLaunch={launchApp} />; })}</div>}
+    {!showAll && <div className={'app-flow' + (editing ? ' editing' : '')}>{flowApps.map(function (item) { return <AppButton key={item.packageName || item.name} app={item} editing={editing && favoritePackages.includes(item.packageName)} onPress={editing ? function () { toggleFavorite(item); } : null} onLaunch={launchApp} />; })}</div>}
+    {showAll && <div className={'all-apps-grid' + (editing ? ' editing' : '')}>{filtered.map(function (item) { return <AppButton key={item.packageName || item.name} app={item} editing={editing && favoritePackages.includes(item.packageName)} onPress={editing ? function () { toggleFavorite(item); } : null} onLaunch={launchApp} />; })}</div>}
+    {showAll && <div className="alphabet">{'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map(function (letter) { return <button key={letter} onClick={function () { const target = filtered.find(function (app) { return app.name.toUpperCase().startsWith(letter); }); if (target) document.getElementById('app-' + target.packageName)?.scrollIntoView({ block: 'center' }); }}>{letter}</button>; })}</div>}
+    <div className="app-mode"><button className={mode === 'recent' ? 'active' : ''} onClick={function () { setMode('recent'); setQuery(''); }}>RECENT</button><button className={mode === 'all' ? 'active' : ''} onClick={function () { setMode('all'); }}>ALL APPS</button></div>
   </section>;
 }
 
-function AppButton({ app, style, onPress, editing }) {
+function AppButton({ app, style, onPress, onLaunch, editing }) {
   let held = false;
   let timer;
   function down() {
@@ -426,9 +437,9 @@ function AppButton({ app, style, onPress, editing }) {
   function up() {
     clearTimeout(timer);
     if (!held && onPress) onPress();
-    else if (!held && app.packageName) native.launchApp(app.packageName);
+    else if (!held && app.packageName) (onLaunch ? onLaunch(app) : native.launchApp(app.packageName));
   }
-  return <button className={editing ? 'favorite-selected' : ''} style={style} onPointerDown={down} onPointerUp={up} onPointerCancel={function () { clearTimeout(timer); }}><AppDisc app={app} />{editing && <i className="favorite-mark">✓</i>}</button>;
+  return <button id={app.packageName ? 'app-' + app.packageName : undefined} className={editing ? 'favorite-selected' : ''} style={style} onPointerDown={down} onPointerUp={up} onPointerCancel={function () { clearTimeout(timer); }}><AppDisc app={app} />{editing && <i className="favorite-mark">✓</i>}</button>;
 }
 
 function AppDisc({ app }) {

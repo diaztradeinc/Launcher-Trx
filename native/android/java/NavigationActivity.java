@@ -59,6 +59,8 @@ public class NavigationActivity extends AppCompatActivity {
     private TextView status;
     private LinearLayout searchBar;
     private LinearLayout driveControls;
+    private FrameLayout navigationRoot;
+    private Button railToggle;
     private boolean initializing;
     private boolean satelliteMode;
     private boolean audioEnabled = true;
@@ -96,11 +98,11 @@ public class NavigationActivity extends AppCompatActivity {
     }
 
     private void buildUi(Bundle state) {
-        FrameLayout root = new FrameLayout(this);
-        root.setBackgroundColor(0xff050605);
+        navigationRoot = new FrameLayout(this);
+        navigationRoot.setBackgroundColor(0xff050605);
         navigationView = new NavigationView(this);
-        root.addView(navigationView, new FrameLayout.LayoutParams(-1, -1));
-        setContentView(root);
+        navigationRoot.addView(navigationView, new FrameLayout.LayoutParams(-1, -1));
+        setContentView(navigationRoot);
 
         searchBar = new LinearLayout(this);
         searchBar.setOrientation(LinearLayout.HORIZONTAL);
@@ -117,12 +119,12 @@ public class NavigationActivity extends AppCompatActivity {
         searchBar.addView(go, new LinearLayout.LayoutParams(dp(74), dp(46)));
         FrameLayout.LayoutParams searchLp = new FrameLayout.LayoutParams(-1, dp(58));
         searchLp.leftMargin = dp(24); searchLp.rightMargin = dp(24); searchLp.topMargin = dp(26);
-        root.addView(searchBar, searchLp);
+        navigationRoot.addView(searchBar, searchLp);
 
         driveControls = new LinearLayout(this);
         driveControls.setOrientation(LinearLayout.VERTICAL);
         driveControls.setGravity(Gravity.CENTER);
-        driveControls.setPadding(dp(10),dp(12),dp(10),dp(12));
+        driveControls.setPadding(dp(7),dp(9),dp(7),dp(9));
         GradientDrawable railBg = new GradientDrawable();
         railBg.setColor(0xf20a0b0a); railBg.setCornerRadius(dp(48)); railBg.setStroke(dp(1),withAlpha(accentColor, 0x88));
         driveControls.setBackground(railBg);
@@ -146,13 +148,19 @@ public class NavigationActivity extends AppCompatActivity {
         Button exit = railButton("×\nEXIT"); exit.setOnClickListener(v -> finish());
         driveControls.addView(recenter); driveControls.addView(satellite); driveControls.addView(overview); driveControls.addView(audio); driveControls.addView(exit);
         driveControls.setVisibility(View.GONE);
-        FrameLayout.LayoutParams railLp = new FrameLayout.LayoutParams(dp(102), -2, Gravity.RIGHT | Gravity.CENTER_VERTICAL);
-        railLp.rightMargin=dp(18);root.addView(driveControls,railLp);
+        FrameLayout.LayoutParams railLp = new FrameLayout.LayoutParams(dp(70), -2, Gravity.RIGHT | Gravity.CENTER_VERTICAL);
+        railLp.rightMargin=dp(10);navigationRoot.addView(driveControls,railLp);
+
+        railToggle = new Button(this);
+        railToggle.setText("›"); railToggle.setTextColor(accentColor); railToggle.setTextSize(22); railToggle.setPadding(0,0,0,0);
+        GradientDrawable toggleBg = new GradientDrawable(); toggleBg.setColor(0xf3070807); toggleBg.setCornerRadius(dp(18)); toggleBg.setStroke(dp(1),withAlpha(accentColor,0xcc));
+        railToggle.setBackground(toggleBg); railToggle.setOnClickListener(v -> toggleDriveControls()); railToggle.setVisibility(View.GONE);
+        positionRailToggle(false);
 
         status = new TextView(this);
         status.setText("INITIALIZING GOOGLE NAVIGATION…"); status.setTextColor(0xfff4f0e8); status.setTextSize(12);
         status.setGravity(Gravity.CENTER); status.setBackgroundColor(0xdd050605);
-        FrameLayout.LayoutParams statusLp = new FrameLayout.LayoutParams(-1, dp(34), Gravity.BOTTOM); root.addView(status, statusLp);
+        FrameLayout.LayoutParams statusLp = new FrameLayout.LayoutParams(-1, dp(34), Gravity.BOTTOM); navigationRoot.addView(status, statusLp);
 
         String requested = getIntent().getStringExtra("destination");
         if (requested != null) destination.setText(requested);
@@ -257,7 +265,7 @@ public class NavigationActivity extends AppCompatActivity {
                 if(routeStatus==Navigator.RouteStatus.OK){
                     AudioGuidanceSettings audio=AudioGuidanceSettings.builder().setGuidanceMode(audioEnabled ? AudioGuidanceSettings.GuidanceMode.VOICE_ALERTS_AND_GUIDANCE : AudioGuidanceSettings.GuidanceMode.SILENT).build();
                     navigator.setAudioGuidanceSettings(audio);navigator.startGuidance();status.setVisibility(android.view.View.GONE);destination.clearFocus();
-                    searchBar.setVisibility(View.GONE);driveControls.setVisibility(View.VISIBLE);
+                    searchBar.setVisibility(View.GONE);driveControls.setVisibility(View.VISIBLE);railToggle.setVisibility(View.VISIBLE);positionRailToggle(false);
                     InputMethodManager keyboard=(InputMethodManager)getSystemService(Context.INPUT_METHOD_SERVICE);
                     if(keyboard!=null)keyboard.hideSoftInputFromWindow(destination.getWindowToken(),0);
                 }else status.setText("ROUTE UNAVAILABLE · "+routeStatus);
@@ -271,9 +279,23 @@ public class NavigationActivity extends AppCompatActivity {
     }
 
     private Button railButton(String label) {
-        Button button=new Button(this);button.setText(label);button.setTextColor(accentColor);button.setTextSize(9);button.setGravity(Gravity.CENTER);button.setAllCaps(false);
+        Button button=new Button(this);button.setText(label);button.setTextColor(accentColor);button.setTextSize(7.5f);button.setGravity(Gravity.CENTER);button.setAllCaps(false);
         button.setPadding(0,0,0,0);GradientDrawable bg=new GradientDrawable();bg.setShape(GradientDrawable.OVAL);bg.setColor(0xff0b0c0b);bg.setStroke(dp(1),withAlpha(accentColor,0x99));button.setBackground(bg);
-        LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(dp(76),dp(76));lp.topMargin=dp(5);lp.bottomMargin=dp(5);button.setLayoutParams(lp);return button;
+        LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(dp(52),dp(52));lp.topMargin=dp(4);lp.bottomMargin=dp(4);button.setLayoutParams(lp);return button;
+    }
+
+    private void toggleDriveControls() {
+        boolean collapse = driveControls.getVisibility() == View.VISIBLE;
+        driveControls.setVisibility(collapse ? View.GONE : View.VISIBLE);
+        railToggle.setText(collapse ? "‹" : "›");
+        positionRailToggle(collapse);
+    }
+
+    private void positionRailToggle(boolean collapsed) {
+        if (railToggle == null || navigationRoot == null) return;
+        FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(dp(34), dp(64), Gravity.RIGHT | Gravity.CENTER_VERTICAL);
+        lp.rightMargin = dp(collapsed ? 5 : 82);
+        if (railToggle.getParent() == null) navigationRoot.addView(railToggle, lp); else railToggle.setLayoutParams(lp);
     }
 
     private StylingOptions apexStyling() {
@@ -335,21 +357,9 @@ public class NavigationActivity extends AppCompatActivity {
     }
 
     private Bitmap createTrxMarkerBitmap() {
-        int width = dp(72), height = dp(98);
-        Bitmap output = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
-        Canvas canvas = new Canvas(output);
-        Paint halo = new Paint(Paint.ANTI_ALIAS_FLAG);
-        halo.setColor(withAlpha(accentColor, 0x56));
-        canvas.drawCircle(width / 2f, height * 0.56f, dp(27), halo);
-        halo.setStyle(Paint.Style.STROKE); halo.setStrokeWidth(dp(2)); halo.setColor(withAlpha(accentColor, 0xdd));
-        canvas.drawCircle(width / 2f, height * 0.56f, dp(29), halo);
         Bitmap source = BitmapFactory.decodeResource(getResources(), R.drawable.apex_trx_marker);
-        if (source != null) {
-            Bitmap scaled = Bitmap.createScaledBitmap(source, dp(54), dp(81), true);
-            canvas.drawBitmap(scaled, (width - scaled.getWidth()) / 2f, dp(7), new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG));
-            if (scaled != source) scaled.recycle();
-        }
-        return output;
+        if (source == null) return Bitmap.createBitmap(dp(2), dp(2), Bitmap.Config.ARGB_8888);
+        return Bitmap.createScaledBitmap(source, dp(58), dp(84), true);
     }
 
     private int parseAccent(String value) {
