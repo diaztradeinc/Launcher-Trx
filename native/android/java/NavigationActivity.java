@@ -204,7 +204,6 @@ public class NavigationActivity extends AppCompatActivity {
     @Override protected void onPause() { if (navigationView != null) navigationView.onPause(); super.onPause(); }
     @Override protected void onStop() { if (navigationView != null) navigationView.onStop(); super.onStop(); }
     @Override protected void onDestroy() { if (navigationView != null) navigationView.onDestroy(); super.onDestroy(); }
-    @Override public void onLowMemory() { super.onLowMemory(); if (navigationView != null) navigationView.onLowMemory(); }
     @Override protected void onSaveInstanceState(@NonNull Bundle state) {
         if (navigationView != null) navigationView.onSaveInstanceState(state);
         super.onSaveInstanceState(state);
