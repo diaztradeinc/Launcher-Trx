@@ -46,7 +46,12 @@ jobs:
           packages: 'platform-tools platforms;android-36 build-tools;35.0.0'
 
       - name: Create native Android project
-        run: npx cap add android
+        run: |
+          # The repository keeps generated Android files for inspection, while
+          # native/android is the authoritative build template. Recreate the
+          # generated platform on every CI run to avoid stale Capacitor state.
+          rm -rf android
+          npx cap add android
 
       - name: Install TRX APEX native integrations
         run: |
