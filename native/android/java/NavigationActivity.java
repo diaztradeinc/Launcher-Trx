@@ -16,6 +16,9 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 import android.util.Log;
+import android.view.View;
+import android.view.inputmethod.InputMethodManager;
+import android.content.Context;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
@@ -23,6 +26,7 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
 import com.google.android.gms.maps.GoogleMap.CameraPerspective;
+import com.google.android.gms.maps.GoogleMap;
 import com.google.android.libraries.navigation.AudioGuidanceSettings;
 import com.google.android.libraries.navigation.ListenableResultFuture;
 import com.google.android.libraries.navigation.NavigationApi;
@@ -40,7 +44,11 @@ public class NavigationActivity extends AppCompatActivity {
     private Navigator navigator;
     private EditText destination;
     private TextView status;
+    private LinearLayout searchBar;
+    private LinearLayout driveControls;
     private boolean initializing;
+    private boolean satelliteMode;
+    private boolean audioEnabled = true;
     private String startupStage = "ACTIVITY WINDOW";
 
     @Override protected void onCreate(Bundle state) {
@@ -64,26 +72,51 @@ public class NavigationActivity extends AppCompatActivity {
         root.addView(navigationView, new FrameLayout.LayoutParams(-1, -1));
         setContentView(root);
 
-        LinearLayout search = new LinearLayout(this);
-        search.setOrientation(LinearLayout.HORIZONTAL);
-        search.setGravity(Gravity.CENTER_VERTICAL);
-        search.setPadding(dp(18), 0, dp(8), 0);
+        searchBar = new LinearLayout(this);
+        searchBar.setOrientation(LinearLayout.HORIZONTAL);
+        searchBar.setGravity(Gravity.CENTER_VERTICAL);
+        searchBar.setPadding(dp(18), 0, dp(8), 0);
         GradientDrawable bg = new GradientDrawable();
         bg.setColor(0xee090a09); bg.setCornerRadius(dp(30)); bg.setStroke(dp(1), 0x88f12d31);
-        search.setBackground(bg);
+        searchBar.setBackground(bg);
         destination = new EditText(this);
         destination.setSingleLine(true); destination.setHint("Search destination"); destination.setHintTextColor(0xff777771);
         destination.setTextColor(Color.WHITE); destination.setTextSize(17); destination.setBackgroundColor(Color.TRANSPARENT);
-        search.addView(destination, new LinearLayout.LayoutParams(0, dp(58), 1));
+        searchBar.addView(destination, new LinearLayout.LayoutParams(0, dp(58), 1));
         Button go = actionButton("GO"); go.setOnClickListener(v -> routeToInput());
-        search.addView(go, new LinearLayout.LayoutParams(dp(74), dp(46)));
+        searchBar.addView(go, new LinearLayout.LayoutParams(dp(74), dp(46)));
         FrameLayout.LayoutParams searchLp = new FrameLayout.LayoutParams(-1, dp(58));
         searchLp.leftMargin = dp(24); searchLp.rightMargin = dp(24); searchLp.topMargin = dp(26);
-        root.addView(search, searchLp);
+        root.addView(searchBar, searchLp);
 
-        Button close = actionButton("EXIT"); close.setOnClickListener(v -> finish());
-        FrameLayout.LayoutParams closeLp = new FrameLayout.LayoutParams(dp(82), dp(46), Gravity.BOTTOM | Gravity.RIGHT);
-        closeLp.rightMargin = dp(22); closeLp.bottomMargin = dp(24); root.addView(close, closeLp);
+        driveControls = new LinearLayout(this);
+        driveControls.setOrientation(LinearLayout.VERTICAL);
+        driveControls.setGravity(Gravity.CENTER);
+        driveControls.setPadding(dp(10),dp(12),dp(10),dp(12));
+        GradientDrawable railBg = new GradientDrawable();
+        railBg.setColor(0xe80a0b0a); railBg.setCornerRadius(dp(48)); railBg.setStroke(dp(1),0x665f625e);
+        driveControls.setBackground(railBg);
+        Button recenter = railButton("◎\nRECENTER");
+        recenter.setOnClickListener(v -> navigationView.getMapAsync(map -> map.followMyLocation(CameraPerspective.TILTED)));
+        Button satellite = railButton("◇\nSATELLITE");
+        satellite.setOnClickListener(v -> navigationView.getMapAsync(map -> {
+            satelliteMode = !satelliteMode;
+            map.setMapType(satelliteMode ? GoogleMap.MAP_TYPE_HYBRID : GoogleMap.MAP_TYPE_NORMAL);
+            satellite.setText(satelliteMode ? "◇\nSTANDARD" : "◇\nSATELLITE");
+        }));
+        Button overview = railButton("▱\nOVERVIEW"); overview.setOnClickListener(v -> navigationView.showRouteOverview());
+        Button audio = railButton("◖))\nAUDIO");
+        audio.setOnClickListener(v -> {
+            audioEnabled = !audioEnabled;
+            AudioGuidanceSettings setting = AudioGuidanceSettings.builder().setGuidanceMode(audioEnabled ? AudioGuidanceSettings.GuidanceMode.VOICE_ALERTS_AND_GUIDANCE : AudioGuidanceSettings.GuidanceMode.SILENT).build();
+            if (navigator != null) navigator.setAudioGuidanceSettings(setting);
+            audio.setText(audioEnabled ? "◖))\nAUDIO" : "◖×\nMUTED");
+        });
+        Button exit = railButton("×\nEXIT"); exit.setOnClickListener(v -> finish());
+        driveControls.addView(recenter); driveControls.addView(satellite); driveControls.addView(overview); driveControls.addView(audio); driveControls.addView(exit);
+        driveControls.setVisibility(View.GONE);
+        FrameLayout.LayoutParams railLp = new FrameLayout.LayoutParams(dp(102), -2, Gravity.RIGHT | Gravity.CENTER_VERTICAL);
+        railLp.rightMargin=dp(18);root.addView(driveControls,railLp);
 
         status = new TextView(this);
         status.setText("INITIALIZING GOOGLE NAVIGATION…"); status.setTextColor(0xfff4f0e8); status.setTextSize(12);
@@ -179,6 +212,9 @@ public class NavigationActivity extends AppCompatActivity {
                 if(routeStatus==Navigator.RouteStatus.OK){
                     AudioGuidanceSettings audio=AudioGuidanceSettings.builder().setGuidanceMode(AudioGuidanceSettings.GuidanceMode.VOICE_ALERTS_AND_GUIDANCE).build();
                     navigator.setAudioGuidanceSettings(audio);navigator.startGuidance();status.setVisibility(android.view.View.GONE);destination.clearFocus();
+                    searchBar.setVisibility(View.GONE);driveControls.setVisibility(View.VISIBLE);
+                    InputMethodManager keyboard=(InputMethodManager)getSystemService(Context.INPUT_METHOD_SERVICE);
+                    if(keyboard!=null)keyboard.hideSoftInputFromWindow(destination.getWindowToken(),0);
                 }else status.setText("ROUTE UNAVAILABLE · "+routeStatus);
             }catch(Throwable error){Log.e("TRX-NAV","Guidance start failed",error);status.setText("GUIDANCE COULD NOT START");}
         }));
@@ -187,6 +223,12 @@ public class NavigationActivity extends AppCompatActivity {
     private Button actionButton(String label) {
         Button button = new Button(this); button.setText(label); button.setTextColor(Color.WHITE); button.setTextSize(12);
         GradientDrawable bg = new GradientDrawable(); bg.setColor(0xffc71f28); bg.setCornerRadius(dp(23)); button.setBackground(bg); return button;
+    }
+
+    private Button railButton(String label) {
+        Button button=new Button(this);button.setText(label);button.setTextColor(0xfff2eee6);button.setTextSize(9);button.setGravity(Gravity.CENTER);button.setAllCaps(false);
+        button.setPadding(0,0,0,0);GradientDrawable bg=new GradientDrawable();bg.setShape(GradientDrawable.OVAL);bg.setColor(0xff111210);bg.setStroke(dp(1),0x886f716c);button.setBackground(bg);
+        LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(dp(76),dp(76));lp.topMargin=dp(5);lp.bottomMargin=dp(5);button.setLayoutParams(lp);return button;
     }
 
     private String startupMessage(Throwable error) {

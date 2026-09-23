@@ -74,6 +74,6 @@ jobs:
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: TRX-APEX-v5.6.1-NAV-WINDOW-FIX-SIGNED-APK
+          name: TRX-APEX-v5.7-DRIVE-CONTROLS-SIGNED-APK
           path: android/app/build/outputs/apk/debug/*.apk
           retention-days: 30
