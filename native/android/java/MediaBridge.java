@@ -251,6 +251,12 @@ public class MediaBridge extends NotificationListenerService {
                 ids.add(item.getQueueId());
                 Bitmap image=descriptionArtwork(d);
                 if(image==null)image=artworkCache.get(trackKey(track,performer));
+                // Many automotive media sessions omit queue-item bitmaps even when all
+                // queued tracks belong to the current artist/album. Reuse the live
+                // session artwork only for that matching artist instead of showing a
+                // misleading generic glyph.
+                if(image==null&&artwork!=null&&!artist.trim().isEmpty()&&
+                    (performer.trim().isEmpty()||performer.trim().equalsIgnoreCase(artist.trim())))image=artwork;
                 images.add(image);if(titles.size()>=3)break;
             }
             queueTitles=titles.toArray(new String[0]);queueArtists=artists.toArray(new String[0]);queueArtwork=images.toArray(new Bitmap[0]);

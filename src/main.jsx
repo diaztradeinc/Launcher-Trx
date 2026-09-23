@@ -31,6 +31,11 @@ const APP_LIST = [
   ['Weather', '☀'], ['Play Store', '▷'], ['Netflix', 'N']
 ];
 
+function readStoredJson(key, fallback) {
+  try { const value = JSON.parse(localStorage.getItem(key)); return value ?? fallback; }
+  catch (_) { return fallback; }
+}
+
 function useVehicleData() {
   const [media, setMedia] = useState(null);
   const [obd, setObd] = useState(null);
@@ -253,10 +258,11 @@ function MediaPage({ media }) {
   const [liked, setLiked] = useState(media?.liked ?? false);
   const [sourceOpen, setSourceOpen] = useState(false);
   const [mediaApps, setMediaApps] = useState([]);
+  const [selectedSource, setSelectedSource] = useState(function () { return readStoredJson('trx-apex-media-source', null); });
   const duration = Math.max(1, media?.durationMs || 1);
   const progress = Math.min(100, Math.round((media?.positionMs || 0) * 100 / duration));
   const queue = media?.queue?.length ? media.queue : [{ title: 'Queue unavailable' }];
-  const source = media?.source ? media.source.split('.').pop().toUpperCase() : 'MEDIA';
+  const source = selectedSource?.name || (media?.source ? media.source.split('.').pop().toUpperCase() : 'MEDIA');
   useEffect(function () {
     if (!sourceOpen || mediaApps.length) return;
     native.apps().then(function (result) {
@@ -272,7 +278,18 @@ function MediaPage({ media }) {
     const result = await native.mediaCommand('favorite');
     if (result?.success) setLiked(result.liked);
   }
-  function chooseSource(app) { native.launchApp(app.packageName); setSourceOpen(false); }
+  function chooseSource(app) {
+    const saved = { packageName: app.packageName, name: app.name };
+    setSelectedSource(saved);
+    localStorage.setItem('trx-apex-media-source', JSON.stringify(saved));
+    native.launchApp(app.packageName);
+    setSourceOpen(false);
+  }
+  function handlePlay() {
+    if (media?.hasAccess === false) { native.requestPermissionGroup('media'); return; }
+    if (!playing && selectedSource?.packageName) { native.launchApp(selectedSource.packageName); return; }
+    native.mediaCommand('toggle');
+  }
   function formatMs(value) { const seconds = Math.floor((value || 0) / 1000); return Math.floor(seconds / 60) + ':' + String(seconds % 60).padStart(2, '0'); }
   return <section className="page media-page">
     <PageTag index="04" title="Sonic" subtitle="Spatial media environment" right={<button className="source-pill" onClick={function () { setSourceOpen(true); }}><Radio /> {source} <ChevronRight /></button>} />
@@ -288,11 +305,11 @@ function MediaPage({ media }) {
       <div className={'record' + (playing ? ' spinning' : '')}><img src={media?.artwork || '/trx-radio.webp'} alt="Current album artwork" /><div className="record-hole" /></div>
       <div className="track-editorial"><span>{media?.hasAccess === false ? 'MEDIA ACCESS REQUIRED' : 'NOW PLAYING · LIVE SESSION'}</span><h2>{media?.title || 'NO ACTIVE'}<br />{media?.title ? '' : 'MEDIA'}</h2><p>{media?.artist || 'Start music to begin'}</p></div>
       <div className="transport-arc">
-        <button onClick={function () { native.mediaCommand('previous'); }}><SkipBack /></button><button className="transport-main" onClick={function () { media?.hasAccess === false ? native.requestPermissionGroup('media') : native.mediaCommand('toggle'); }}>{playing ? <Pause /> : <Play />}</button><button onClick={function () { native.mediaCommand('next'); }}><SkipForward /></button>
+        <button onClick={function () { native.mediaCommand('previous'); }}><SkipBack /></button><button className="transport-main" onClick={handlePlay}>{playing ? <Pause /> : <Play />}</button><button onClick={function () { native.mediaCommand('next'); }}><SkipForward /></button>
         <button className={liked ? 'liked' : ''} onClick={toggleLike} aria-label={liked ? 'Remove from favorites' : 'Add to favorites'}><Heart fill={liked ? 'currentColor' : 'none'} /></button>
       </div>
       <div className="progress-line"><span>{formatMs(media?.positionMs)}</span><input type="range" value={progress} onChange={function (e) { native.mediaCommand('seek', Math.round(Number(e.target.value) * duration / 100)); }} /><span>{formatMs(media?.durationMs)}</span></div>
-      <div className="up-next-curve"><span>UP NEXT</span>{queue.slice(0,3).map(function (item, i) { return <button key={(item.title || '') + i} onClick={function () { if (media?.queue?.length) native.mediaCommand('queue', 0, i); }}>{item.artwork ? <img src={item.artwork} alt="" /> : <i className="queue-placeholder"><Music2 /></i>}<span><b>{item.title}</b><small>{item.artist || 'UPCOMING TRACK'}</small></span><ChevronRight /></button>; })}</div>
+      <div className="up-next-curve"><span>UP NEXT</span>{queue.slice(0,3).map(function (item, i) { const art = item.artwork || (media?.artwork && (!item.artist || item.artist.toLowerCase() === (media?.artist || '').toLowerCase()) ? media.artwork : ''); return <button key={(item.title || '') + i} onClick={function () { if (media?.queue?.length) native.mediaCommand('queue', 0, i); }}>{art ? <img src={art} alt="" /> : <i className="queue-placeholder"><Music2 /></i>}<span><b>{item.title}</b><small>{item.artist || 'UPCOMING TRACK'}</small></span><ChevronRight /></button>; })}</div>
       <div className="audio-output"><Volume2 /><span>UCONNECT 12</span><b>18</b></div>
     </div>
   </section>;
@@ -309,7 +326,7 @@ function PerformancePage({ obd }) {
   return <section className="page performance-page">
     <PageTag index="05" title="Dynamics" subtitle="Live vehicle intelligence" right={<button className="mx-live" onClick={function () { native.reconnectObd(); }}><i /> {obd?.deviceName || 'OBDLINK MX+'} <b>{obd?.connected ? 'LIVE' : 'CONNECT'}</b></button>} />
     <div className="dynamics-stage">
-      <div className="rpm-readout"><strong>{rpm.toLocaleString()}</strong><span>RPM</span><b>M4</b><small>TOW / HAUL OFF</small></div>
+      <div className="rpm-readout"><strong>{rpm.toLocaleString()}</strong><span>RPM</span><div className="gear-readout"><b>M4</b><small>TOW / HAUL OFF</small></div></div>
       <div className="tach-arc"><div className="tach-fill" style={{ '--rpm': (rpm / 70) + '%' }} />{[1,2,3,4,5,6,7].map(function (n) { return <i key={n} style={{ '--i': n }}>{n}</i>; })}</div>
       <div className="xray-truck"><img src="/trx-hero.webp" alt="RAM TRX vehicle telemetry model" /><div className="thermal engine" /><div className="thermal rear" /></div>
       <svg className="callout-lines" viewBox="0 0 900 460" preserveAspectRatio="none"><path d="M450 190 L230 95 L96 95"/><path d="M525 218 L720 105 L850 105"/><path d="M397 250 L210 340 L80 340"/><path d="M615 280 L760 340 L868 340"/></svg>
@@ -321,38 +338,57 @@ function PerformancePage({ obd }) {
   </section>;
 }
 
-function AppsPage({ onOpenSettings }) {
+function AppsPage() {
   const [query, setQuery] = useState('');
   const [installed, setInstalled] = useState([]);
+  const [editing, setEditing] = useState(false);
+  const [favoritePackages, setFavoritePackages] = useState(function () { return readStoredJson('trx-apex-orbit-favorites', []); });
   useEffect(function () {
     native.apps().then(function (result) { if (result?.apps?.length) setInstalled(result.apps); });
   }, []);
   const source = installed.length ? installed : APP_LIST.map(function (item) { return { name: item[0], glyph: item[1], packageName: '' }; });
+  useEffect(function () {
+    if (!installed.length || favoritePackages.length) return;
+    const defaults = installed.slice(0, 8).map(function (app) { return app.packageName; });
+    setFavoritePackages(defaults);
+    localStorage.setItem('trx-apex-orbit-favorites', JSON.stringify(defaults));
+  }, [installed, favoritePackages.length]);
+  const favorites = favoritePackages.map(function (packageName) { return source.find(function (app) { return app.packageName === packageName; }); }).filter(Boolean).slice(0, 8);
+  function toggleFavorite(app) {
+    if (!app.packageName) return;
+    setFavoritePackages(function (current) {
+      const exists = current.includes(app.packageName);
+      const next = exists ? current.filter(function (item) { return item !== app.packageName; }) : current.length < 8 ? [...current, app.packageName] : [...current.slice(1), app.packageName];
+      localStorage.setItem('trx-apex-orbit-favorites', JSON.stringify(next));
+      return next;
+    });
+  }
   const filtered = useMemo(function () {
     return source.filter(function (item) { return item.name.toLowerCase().includes(query.toLowerCase()); });
   }, [query, installed]);
   return <section className="page apps-page">
-    <PageTag index="06" title="Orbit" subtitle="Applications in motion" right={<button className="edit-apps" onClick={onOpenSettings}><SlidersHorizontal /> CUSTOMIZE</button>} />
+    <PageTag index="06" title="Orbit" subtitle={editing ? 'Tap apps below to add · tap orbit to remove' : 'Applications in motion'} right={<button className={'edit-apps' + (editing ? ' active' : '')} onClick={function () { setEditing(!editing); }}><SlidersHorizontal /> {editing ? 'DONE' : 'CUSTOMIZE'}</button>} />
     <div className="app-search"><Search /><input value={query} onChange={function (e) { setQuery(e.target.value); }} placeholder="Search apps, settings, vehicle…" /><Sparkles /></div>
-    {!query && <div className="app-orbit"><div className="orbit-emblem">TRX<small>FAVORITES</small></div>{source.slice(0, 8).map(function (item, i) { return <AppButton key={item.packageName || item.name} app={item} style={{ '--i': i }} />; })}</div>}
-    <div className={'app-flow' + (query ? ' searching' : '')}>{filtered.map(function (item) { return <AppButton key={item.packageName || item.name} app={item} />; })}</div>
+    {!query && <div className={'app-orbit' + (editing ? ' editing' : '')}><div className="orbit-emblem">TRX<small>{editing ? (favorites.length + ' / 8 SELECTED') : 'FAVORITES'}</small></div>{(favorites.length ? favorites : source.slice(0, 8)).map(function (item, i) { return <AppButton key={item.packageName || item.name} app={item} style={{ '--i': i }} editing={editing} onPress={editing ? function () { toggleFavorite(item); } : null} />; })}</div>}
+    <div className={'app-flow' + (query ? ' searching' : '') + (editing ? ' editing' : '')}>{filtered.map(function (item) { return <AppButton key={item.packageName || item.name} app={item} editing={editing && favoritePackages.includes(item.packageName)} onPress={editing ? function () { toggleFavorite(item); } : null} />; })}</div>
     <div className="alphabet">{'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map(function (letter) { return <span key={letter}>{letter}</span>; })}</div>
     <div className="app-mode"><button className="active">RECENT</button><button>ALL APPS</button></div>
   </section>;
 }
 
-function AppButton({ app, style }) {
+function AppButton({ app, style, onPress, editing }) {
   let held = false;
   let timer;
   function down() {
     held = false;
-    timer = setTimeout(function () { held = true; if (app.packageName) native.appAction(app.packageName, 'info'); }, 650);
+    timer = setTimeout(function () { held = true; if (!onPress && app.packageName) native.appAction(app.packageName, 'info'); }, 650);
   }
   function up() {
     clearTimeout(timer);
-    if (!held && app.packageName) native.launchApp(app.packageName);
+    if (!held && onPress) onPress();
+    else if (!held && app.packageName) native.launchApp(app.packageName);
   }
-  return <button style={style} onPointerDown={down} onPointerUp={up} onPointerCancel={function () { clearTimeout(timer); }}><AppDisc app={app} /></button>;
+  return <button className={editing ? 'favorite-selected' : ''} style={style} onPointerDown={down} onPointerUp={up} onPointerCancel={function () { clearTimeout(timer); }}><AppDisc app={app} />{editing && <i className="favorite-mark">✓</i>}</button>;
 }
 
 function AppDisc({ app }) {

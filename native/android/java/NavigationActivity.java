@@ -29,7 +29,7 @@ import com.google.android.libraries.navigation.ListenableResultFuture;
 import com.google.android.libraries.navigation.NavigationApi;
 import com.google.android.libraries.navigation.Navigator;
 import com.google.android.libraries.navigation.RoutingOptions;
-import com.google.android.libraries.navigation.SupportNavigationFragment;
+import com.google.android.libraries.navigation.NavigationView;
 import com.google.android.libraries.navigation.Waypoint;
 
 import java.util.List;
@@ -37,7 +37,7 @@ import java.util.Locale;
 
 public class NavigationActivity extends AppCompatActivity {
     private static final int LOCATION_REQUEST = 731;
-    private SupportNavigationFragment navigationFragment;
+    private NavigationView navigationView;
     private Navigator navigator;
     private EditText destination;
     private TextView status;
@@ -52,16 +52,18 @@ public class NavigationActivity extends AppCompatActivity {
                 getWindow().getInsetsController().hide(WindowInsets.Type.statusBars());
                 getWindow().getInsetsController().setSystemBarsBehavior(WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
             }
-            buildUi();
+            buildUi(state);
+            navigationView.onCreate(state);
             ensureLocationAndInitialize();
         } catch (Throwable error) { Log.e("TRX-NAV","Navigation startup failed",error); showFatal("NAV START ERROR · "+error.getClass().getSimpleName()); }
     }
 
-    private void buildUi() {
-        setContentView(R.layout.activity_navigation);
-        FrameLayout root=findViewById(R.id.navigation_root);
-        navigationFragment=(SupportNavigationFragment)getSupportFragmentManager().findFragmentById(R.id.navigation_fragment);
-        if(navigationFragment==null)throw new IllegalStateException("Navigation fragment unavailable");
+    private void buildUi(Bundle state) {
+        FrameLayout root = new FrameLayout(this);
+        root.setBackgroundColor(0xff050605);
+        navigationView = new NavigationView(this);
+        root.addView(navigationView, new FrameLayout.LayoutParams(-1, -1));
+        setContentView(root);
 
         LinearLayout search = new LinearLayout(this);
         search.setOrientation(LinearLayout.HORIZONTAL);
@@ -110,13 +112,13 @@ public class NavigationActivity extends AppCompatActivity {
                 @Override public void onNavigatorReady(Navigator ready) {
                     try {
                         navigator = ready; initializing = false;
-                        navigationFragment.setNavigationUiEnabled(true);
-                        navigationFragment.setHeaderEnabled(true);
-                        navigationFragment.setEtaCardEnabled(true);
-                        navigationFragment.setRecenterButtonEnabled(true);
-                        navigationFragment.setSpeedometerEnabled(true);
-                        navigationFragment.setSpeedLimitIconEnabled(true);
-                        navigationFragment.getMapAsync(map -> map.followMyLocation(CameraPerspective.TILTED));
+                        navigationView.setNavigationUiEnabled(true);
+                        navigationView.setHeaderEnabled(true);
+                        navigationView.setEtaCardEnabled(true);
+                        navigationView.setRecenterButtonEnabled(true);
+                        navigationView.setSpeedometerEnabled(true);
+                        navigationView.setSpeedLimitIconEnabled(true);
+                        navigationView.getMapAsync(map -> map.followMyLocation(CameraPerspective.TILTED));
                         status.setText("NAVIGATION READY");
                         if (!destination.getText().toString().trim().isEmpty()) routeToInput();
                     } catch (Throwable error) { showFatal("NAVIGATION DISPLAY ERROR"); }
@@ -195,5 +197,16 @@ public class NavigationActivity extends AppCompatActivity {
         super.onRequestPermissionsResult(requestCode, permissions, results);
         if (requestCode == LOCATION_REQUEST && results.length > 0 && results[0] == PackageManager.PERMISSION_GRANTED) initializeNavigator();
         else if (requestCode == LOCATION_REQUEST) showFatal("LOCATION PERMISSION REQUIRED");
+    }
+
+    @Override protected void onStart() { super.onStart(); if (navigationView != null) navigationView.onStart(); }
+    @Override protected void onResume() { super.onResume(); if (navigationView != null) navigationView.onResume(); }
+    @Override protected void onPause() { if (navigationView != null) navigationView.onPause(); super.onPause(); }
+    @Override protected void onStop() { if (navigationView != null) navigationView.onStop(); super.onStop(); }
+    @Override protected void onDestroy() { if (navigationView != null) navigationView.onDestroy(); super.onDestroy(); }
+    @Override public void onLowMemory() { super.onLowMemory(); if (navigationView != null) navigationView.onLowMemory(); }
+    @Override protected void onSaveInstanceState(@NonNull Bundle state) {
+        if (navigationView != null) navigationView.onSaveInstanceState(state);
+        super.onSaveInstanceState(state);
     }
 }
