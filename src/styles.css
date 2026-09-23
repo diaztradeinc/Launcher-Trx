@@ -398,7 +398,7 @@ svg { stroke-width: 1.65; }
 .record::after { content:""; position:absolute; inset:0; border-radius:50%; background: conic-gradient(transparent, rgba(255,255,255,.12), transparent 22%, rgba(255,255,255,.05), transparent); }
 .record img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; filter: contrast(1.15) saturate(.85); }
 .record-hole { position: absolute; z-index: 2; left: 47%; top: 47%; width: 6%; height: 6%; border-radius: 50%; background: #050605; box-shadow: 0 0 0 4px #c8bdad; }
-.record.spinning { animation: recordSpin 18s linear infinite; }
+.record.spinning { animation: recordFloat 4s ease-in-out infinite; }
 .track-editorial { position: absolute; z-index: 4; left: 50%; top: 12%; }
 .track-editorial > span { color: var(--accent); font: 600 10px "Barlow Condensed"; letter-spacing: .25em; }
 .track-editorial h2 { margin: 12px 0 4px; font: 500 clamp(60px, 8vw, 104px) "Barlow Condensed"; text-transform: uppercase; line-height: .77; letter-spacing: -.05em; }
@@ -517,7 +517,10 @@ input[type=range] { accent-color: var(--accent); }
 @keyframes scan { 0%,100%{top:8%;opacity:.2}50%{top:90%;opacity:1} }
 @keyframes heroDrift { from{transform:scale(1.04) translateX(-.5%)}to{transform:scale(1.09) translateX(.8%)} }
 @keyframes wave { from{transform:scaleY(.36);opacity:.35}to{transform:scaleY(1);opacity:1} }
-@keyframes recordSpin { to{transform:perspective(900px) rotateY(15deg) rotateX(7deg) rotate(360deg)} }
+@keyframes recordFloat {
+  0%,100%{transform:perspective(900px) rotateY(15deg) rotateX(7deg) translateY(0)}
+  50%{transform:perspective(900px) rotateY(12deg) rotateX(5deg) translateY(-7px)}
+}
 @keyframes thermal { from{opacity:.42;transform:scale(.84)}to{opacity:.8;transform:scale(1.13)} }
 
 @media (max-aspect-ratio: 3/4) {
