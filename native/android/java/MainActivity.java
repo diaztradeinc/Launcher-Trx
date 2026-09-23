@@ -11,7 +11,7 @@ public class MainActivity extends BridgeActivity {
         MediaBridge.ensureConnected(this);
     }
 
-    @Override protected void onResume() {
+    @Override public void onResume() {
         super.onResume();
         ObdBridge.start(this);
         MediaBridge.ensureConnected(this);

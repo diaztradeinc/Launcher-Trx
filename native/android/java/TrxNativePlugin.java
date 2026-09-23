@@ -89,7 +89,7 @@ public class TrxNativePlugin extends Plugin {
             }
             JSObject result = new JSObject(); result.put("opened", true); call.resolve(result);
         } catch (Throwable error) {
-            call.reject("Unable to open default launcher settings", error);
+            call.reject("Unable to open default launcher settings", error.getMessage());
         }
     }
 
@@ -111,7 +111,7 @@ public class TrxNativePlugin extends Plugin {
                     result.put(app);
                 }
                 JSObject payload = new JSObject(); payload.put("apps", result); call.resolve(payload);
-            } catch (Throwable error) { call.reject("Unable to load installed apps", error); }
+            } catch (Throwable error) { call.reject("Unable to load installed apps", error.getMessage()); }
         });
     }
 
@@ -134,7 +134,7 @@ public class TrxNativePlugin extends Plugin {
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             getContext().startActivity(intent);
             call.resolve();
-        } catch (Throwable error) { call.reject("Unable to launch app", error); }
+        } catch (Throwable error) { call.reject("Unable to launch app", error.getMessage()); }
     }
 
     @PluginMethod public void appAction(PluginCall call) {
@@ -146,7 +146,7 @@ public class TrxNativePlugin extends Plugin {
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             getContext().startActivity(intent);
             call.resolve();
-        } catch (Throwable error) { call.reject("Unable to open app action", error); }
+        } catch (Throwable error) { call.reject("Unable to open app action", error.getMessage()); }
     }
 
     @PluginMethod public void getMediaState(PluginCall call) {
@@ -234,7 +234,7 @@ public class TrxNativePlugin extends Plugin {
             result.put("longitude", best.getLongitude());
             result.put("speedMph", Math.max(0, best.getSpeed() * 2.236936));
             call.resolve(result);
-        } catch (Throwable error) { call.reject("Location unavailable", error); }
+        } catch (Throwable error) { call.reject("Location unavailable", error.getMessage()); }
     }
 
     @PluginMethod public void openNavigation(PluginCall call) {

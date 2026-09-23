@@ -23,7 +23,6 @@ import com.google.android.libraries.navigation.NavigationView;
 import com.google.android.libraries.navigation.Navigator;
 import com.google.android.libraries.navigation.RoutingOptions;
 import com.google.android.libraries.navigation.Waypoint;
-import com.google.android.gms.maps.model.LatLng;
 
 import java.util.List;
 import java.util.Locale;
@@ -122,7 +121,7 @@ public class NavigationActivity extends Activity {
                 List<Address> matches = new Geocoder(this, Locale.US).getFromLocationName(query, 1);
                 if (matches == null || matches.isEmpty()) throw new IllegalArgumentException("Destination not found");
                 Address found = matches.get(0);
-                Waypoint waypoint = new Waypoint.Builder().setLatLng(new LatLng(found.getLatitude(), found.getLongitude())).setTitle(query).build();
+                Waypoint waypoint = new Waypoint.Builder().setLatLng(found.getLatitude(), found.getLongitude()).setTitle(query).build();
                 RoutingOptions options = new RoutingOptions();
                 options.travelMode(RoutingOptions.TravelMode.DRIVING);
                 runOnUiThread(() -> {
@@ -143,6 +142,6 @@ public class NavigationActivity extends Activity {
     @Override protected void onPause(){navigationView.onPause();super.onPause();}
     @Override protected void onStop(){navigationView.onStop();super.onStop();}
     @Override protected void onDestroy(){navigationView.onDestroy();super.onDestroy();}
-    @Override public void onLowMemory(){super.onLowMemory();navigationView.onLowMemory();}
+    @Override public void onLowMemory(){super.onLowMemory();}
     @Override protected void onSaveInstanceState(Bundle out){super.onSaveInstanceState(out);navigationView.onSaveInstanceState(out);}
 }
