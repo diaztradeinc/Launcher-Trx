@@ -232,13 +232,33 @@ function NavigationPage({ live }) {
 function MediaPage({ media }) {
   const playing = media?.playing ?? false;
   const [liked, setLiked] = useState(true);
+  const [sourceOpen, setSourceOpen] = useState(false);
+  const [mediaApps, setMediaApps] = useState([]);
   const duration = Math.max(1, media?.durationMs || 1);
   const progress = Math.min(100, Math.round((media?.positionMs || 0) * 100 / duration));
   const queue = media?.queue?.length ? media.queue : [{ title: 'Queue unavailable' }];
   const source = media?.source ? media.source.split('.').pop().toUpperCase() : 'MEDIA';
+  useEffect(function () {
+    if (!sourceOpen || mediaApps.length) return;
+    native.apps().then(function (result) {
+      const apps = result?.apps || [];
+      const likely = apps.filter(function (app) {
+        return /(spotify|music|youtube|vlc|pandora|tidal|amazon|iheartradio|sirius|soundcloud|poweramp|audible|podcast|plex|radio)/i.test(app.name + ' ' + app.packageName);
+      });
+      setMediaApps(likely.length ? likely : apps);
+    });
+  }, [sourceOpen, mediaApps.length]);
+  function chooseSource(app) { native.launchApp(app.packageName); setSourceOpen(false); }
   function formatMs(value) { const seconds = Math.floor((value || 0) / 1000); return Math.floor(seconds / 60) + ':' + String(seconds % 60).padStart(2, '0'); }
   return <section className="page media-page">
-    <PageTag index="04" title="Sonic" subtitle="Spatial media environment" right={<button className="source-pill" onClick={function () { if (!media?.hasAccess) native.requestPermissionGroup('media'); }}><Radio /> {source} <ChevronRight /></button>} />
+    <PageTag index="04" title="Sonic" subtitle="Spatial media environment" right={<button className="source-pill" onClick={function () { setSourceOpen(true); }}><Radio /> {source} <ChevronRight /></button>} />
+    {sourceOpen && <div className="source-scrim" onClick={function () { setSourceOpen(false); }}>
+      <div className="source-drawer" onClick={function (event) { event.stopPropagation(); }}>
+        <div className="source-drawer-head"><span><small>AUDIO ROUTING</small><b>CHOOSE SOURCE</b></span><button onClick={function () { setSourceOpen(false); }}>×</button></div>
+        <div className="source-apps">{mediaApps.length ? mediaApps.map(function (app) { return <button key={app.packageName} onClick={function () { chooseSource(app); }}>{app.icon ? <img src={app.icon} alt="" /> : <Radio />}<span><b>{app.name}</b><small>OPEN PLAYER</small></span><ChevronRight /></button>; }) : <div className="source-loading">SCANNING INSTALLED MEDIA APPS…</div>}</div>
+        <button className="source-access" onClick={function () { native.requestPermissionGroup('media'); }}><ShieldCheck /><span><b>MEDIA CONTROL ACCESS</b><small>{media?.hasAccess ? 'ENABLED · LIVE SESSION CONTROL' : 'ENABLE TRACK INFO AND CONTROLS'}</small></span><ChevronRight /></button>
+      </div>
+    </div>}
     <div className="sonic-stage">
       <div className="wave-field">{Array.from({ length: 64 }, function (_, i) { return <i key={i} style={{ '--h': (18 + Math.abs(Math.sin(i * .61)) * 70) + '%', '--d': (i * -36) + 'ms' }} />; })}</div>
       <div className={'record' + (playing ? ' spinning' : '')}><img src={media?.artwork || '/trx-radio.webp'} alt="Current album artwork" /><div className="record-hole" /></div>

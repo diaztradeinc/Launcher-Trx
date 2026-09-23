@@ -1,6 +1,8 @@
 apply plugin: 'com.android.application'
 
 def mapsApiKey = System.getenv('MAPS_API_KEY') ?: (project.findProperty('MAPS_API_KEY') ?: '')
+def apexKeystorePath = System.getenv('APEX_KEYSTORE_PATH')
+def apexKeystorePassword = System.getenv('APEX_KEYSTORE_PASSWORD')
 
 android {
     namespace = "com.diaztradeinc.trxlauncher"
@@ -9,8 +11,8 @@ android {
         applicationId "com.diaztradeinc.trxlauncher"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 50100
-        versionName "5.1.0"
+        versionCode 50200
+        versionName "5.2.0"
         manifestPlaceholders = [MAPS_API_KEY: mapsApiKey]
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
@@ -19,9 +21,27 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        if (apexKeystorePath && apexKeystorePassword) {
+            apexPermanent {
+                storeFile file(apexKeystorePath)
+                storePassword apexKeystorePassword
+                keyAlias 'trxapex'
+                keyPassword apexKeystorePassword
+            }
+        }
+    }
     buildTypes {
+        debug {
+            if (apexKeystorePath && apexKeystorePassword) {
+                signingConfig signingConfigs.apexPermanent
+            }
+        }
         release {
             minifyEnabled false
+            if (apexKeystorePath && apexKeystorePassword) {
+                signingConfig signingConfigs.apexPermanent
+            }
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
