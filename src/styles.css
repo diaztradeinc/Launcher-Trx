@@ -346,6 +346,8 @@ svg { stroke-width: 1.65; }
 .nav-command { position: absolute; z-index: 4; top: 28px; left: 4%; right: 15%; height: 58px; border: 1px solid rgba(221,213,199,.38); border-radius: 29px; background: rgba(8,10,10,.76); backdrop-filter: blur(16px); display: flex; align-items: center; gap: 14px; padding: 0 20px; box-shadow: inset 0 1px rgba(255,255,255,.06); }
 .nav-command input { flex: 1; border: 0; outline: 0; background: transparent; color: #eeeae3; font-size: 16px; }
 .nav-command svg { color: #c7c3ba; }
+.nav-command button { width:42px;height:42px;border:1px solid color-mix(in srgb,var(--accent) 55%,#333);border-radius:50%;background:color-mix(in srgb,var(--accent) 18%,#0b0c0b);display:grid;place-items:center; }
+.nav-command button svg { width:20px;color:var(--accent); }
 .route-ribbon { position: absolute; z-index: 3; left: 51%; top: 17%; bottom: 3%; width: 12px; border-radius: 99px; background: var(--accent); box-shadow: 0 0 13px 4px color-mix(in srgb, var(--accent) 52%, transparent), 0 0 0 2px rgba(255,255,255,.18); transform: perspective(600px) rotate(-14deg) skewY(21deg); clip-path: polygon(0 0,100% 0,100% 33%,0 42%,20% 68%,100% 100%,0 100%,0 70%,78% 42%,0 36%); }
 .route-arrow { position: absolute; z-index: 5; left: 56%; top: 45%; color: var(--accent); font-size: 68px; transform: rotate(-23deg); text-shadow: 0 0 22px var(--accent); }
 .maneuver { position: absolute; z-index: 4; left: 4%; top: 13%; width: 310px; }
@@ -421,6 +423,7 @@ input[type=range] { accent-color: var(--accent); }
 /* Performance */
 .performance-page { background: radial-gradient(circle at 54% 43%, color-mix(in srgb, var(--accent) 11%, transparent), transparent 38%), linear-gradient(135deg,#0a0b09,#030403); }
 .mx-live { display:flex; align-items:center; gap:8px; font:600 11px "Barlow Condensed"; letter-spacing:.11em; color:#c5c0b7; }
+.mx-live { border:0;background:none; }
 .mx-live i { width:8px;height:8px;border-radius:50%;background:var(--signal);box-shadow:0 0 11px var(--signal); }
 .mx-live b { color:var(--signal); }
 .dynamics-stage { position:absolute; inset:100px 0 0; overflow:hidden; }
@@ -454,6 +457,7 @@ input[type=range] { accent-color: var(--accent); }
 .zero-sixty { position:absolute;right:4%;bottom:5%;width:28%;height:20%;border:1px solid rgba(220,214,201,.28);background:linear-gradient(145deg,rgba(29,29,25,.78),rgba(8,9,8,.9));display:grid;align-content:center;text-align:left;padding:20px;border-radius:4px; }
 .zero-sixty > span,.zero-sixty > em{font:600 10px "Barlow Condensed";letter-spacing:.15em;color:#a9a59b}.zero-sixty strong{font:500 62px "Barlow Condensed";line-height:.9}.zero-sixty strong small{font-size:18px}.zero-sixty em{color:var(--accent);font-style:normal}
 .rpm-control { position:absolute;right:4%;top:5%;width:22%;opacity:.5; }
+.rpm-control { color:var(--signal);font:600 9px "Barlow Condensed";letter-spacing:.12em;text-align:right; }
 
 /* Apps */
 .apps-page { background: radial-gradient(ellipse at 48% 45%, color-mix(in srgb,var(--accent) 10%,transparent),transparent 36%), linear-gradient(#0a0b0a,#030403); }
@@ -465,6 +469,7 @@ input[type=range] { accent-color: var(--accent); }
 .orbit-emblem small{font:600 8px "Barlow Condensed";letter-spacing:.38em;color:var(--accent)}
 .app-orbit > button { position:absolute;left:calc(50% + cos(calc(var(--i) * 45deg)) * 46%);top:calc(50% + sin(calc(var(--i) * 45deg)) * 43%);transform:translate(-50%,-50%) rotateX(-18deg);border:0;background:none;display:grid;gap:5px;justify-items:center; }
 .disc { width:calc(62px * var(--icon-scale));height:calc(62px * var(--icon-scale));border:1px solid rgba(225,218,204,.27);border-radius:50%;background:radial-gradient(circle at 35% 28%,color-mix(in srgb,var(--accent) 30%,#292a27),#0c0d0c 72%);display:grid;place-items:center;color:#f5f1e9;font:600 18px "Barlow Condensed";box-shadow:0 10px 22px rgba(0,0,0,.45),inset 0 1px rgba(255,255,255,.1); }
+.disc img { width:74%;height:74%;object-fit:contain;border-radius:18%; }
 .disc-spotify{color:#54e28b}.disc-youtube{color:#ff4a4f}.disc-obdlink{color:var(--signal)}.disc-netflix{color:#ef3037}.disc-vlc{color:#ff9f36}
 .app-orbit b,.app-flow b{font:500 10px "Barlow Condensed";color:#bbb7ad;white-space:nowrap}
 .app-flow { position:absolute;left:12%;right:10%;bottom:8%;height:150px;border-top:1px solid var(--line);display:flex;align-items:center;gap:25px;overflow-x:auto;padding:18px 10px 4px;scrollbar-width:none; }
