@@ -1,5 +1,6 @@
 import { StrictMode, useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
+import { StatusBar as NativeStatusBar, Style } from '@capacitor/status-bar';
 import {
   Activity, Aperture, Bluetooth, Check, ChevronRight, CloudSun, Gauge, Grid2X2,
   Heart, Home, Layers3, LocateFixed, Map, MapPin, Mic, Moon, Music2, Navigation,
@@ -40,6 +41,12 @@ function App() {
   const [reducedMotion, setReducedMotion] = useState(localStorage.getItem('trx-apex-motion') === 'true');
   const [displayMode, setDisplayMode] = useState('auto');
   const [now, setNow] = useState(new Date());
+
+  useEffect(function () {
+    NativeStatusBar.setOverlaysWebView({ overlay: false }).catch(function () {});
+    NativeStatusBar.setStyle({ style: Style.Dark }).catch(function () {});
+    NativeStatusBar.hide().catch(function () {});
+  }, []);
 
   useEffect(function () {
     const timer = setInterval(function () { setNow(new Date()); }, 30000);
