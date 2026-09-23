@@ -47,6 +47,7 @@ jobs:
 
       - name: Install TRX APEX native integrations
         run: |
+          sed -i 's/com.android.tools.build:gradle:8.13.0/com.android.tools.build:gradle:8.13.2/' android/build.gradle
           cp native/android/app-build.gradle android/app/build.gradle
           cp native/android/AndroidManifest.xml android/app/src/main/AndroidManifest.xml
           mkdir -p android/app/src/main/java/com/diaztradeinc/trxlauncher
