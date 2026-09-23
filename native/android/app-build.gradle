@@ -11,8 +11,8 @@ android {
         applicationId "com.diaztradeinc.trxlauncher"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 50300
-        versionName "5.3.0"
+        versionCode 50400
+        versionName "5.4.0"
         manifestPlaceholders = [MAPS_API_KEY: mapsApiKey]
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
@@ -70,6 +70,7 @@ dependencies {
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
     implementation project(':capacitor-cordova-android-plugins')
     implementation 'com.google.android.libraries.navigation:navigation:7.9.0'
+    implementation 'com.google.android.libraries.places:places:5.1.1'
 }
 
 apply from: 'capacitor.build.gradle'

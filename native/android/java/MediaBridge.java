@@ -5,6 +5,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.media.MediaMetadata;
+import android.media.Rating;
 import android.media.session.MediaController;
 import android.media.session.MediaSessionManager;
 import android.media.session.PlaybackState;
@@ -22,6 +23,7 @@ public class MediaBridge extends NotificationListenerService {
     public static volatile String source = "";
     public static volatile Bitmap artwork;
     public static volatile boolean playing;
+    public static volatile boolean liked;
     public static volatile long durationMs;
     public static volatile String[] queueTitles=new String[0];
     public static volatile String[] queueArtists=new String[0];
@@ -170,6 +172,13 @@ public class MediaBridge extends NotificationListenerService {
                 return;
             }
             durationMs = Math.max(0,metadata.getLong(MediaMetadata.METADATA_KEY_DURATION));
+            try {
+                Rating rating=metadata.getRating(MediaMetadata.METADATA_KEY_USER_RATING);
+                if(rating!=null&&rating.isRated()){
+                    if(rating.getRatingStyle()==Rating.RATING_HEART)liked=rating.hasHeart();
+                    else if(rating.getRatingStyle()==Rating.RATING_THUMB_UP_DOWN)liked=rating.isThumbUp();
+                }
+            } catch(Throwable ignored) { }
             String nextTitle = metadata.getString(MediaMetadata.METADATA_KEY_TITLE);
             if (nextTitle == null || nextTitle.trim().isEmpty())
                 nextTitle = metadata.getString(MediaMetadata.METADATA_KEY_DISPLAY_TITLE);
@@ -189,6 +198,31 @@ public class MediaBridge extends NotificationListenerService {
         } catch (Throwable ignored) { }
     }
     private static volatile long[] queueIds=new long[0];
+    public static boolean toggleFavorite(Context context){
+        MediaController active=controller;
+        if(active==null){android.widget.Toast.makeText(context,"No active media session",android.widget.Toast.LENGTH_SHORT).show();return false;}
+        try{
+            PlaybackState state=active.getPlaybackState();
+            if(state!=null){
+                PlaybackState.CustomAction best=null;int bestScore=-1;
+                for(PlaybackState.CustomAction action:state.getCustomActions()){
+                    String key=(action.getAction()+" "+action.getName()).toLowerCase(java.util.Locale.US);
+                    if(key.contains("dislike")||key.contains("thumb_down"))continue;
+                    boolean add=key.contains("like")||key.contains("favorite")||key.contains("favourite")||key.contains("heart")||key.contains("save")||key.contains("thumb_up")||key.contains("library");
+                    if(!add)continue;
+                    boolean remove=key.contains("unlike")||key.contains("remove")||key.contains("unsave");
+                    int score=(liked==remove?4:1)+(key.contains("heart")||key.contains("favorite")?2:0);
+                    if(score>bestScore){best=action;bestScore=score;}
+                }
+                if(best!=null){active.getTransportControls().sendCustomAction(best,best.getExtras());liked=!liked;return true;}
+                if((state.getActions()&PlaybackState.ACTION_SET_RATING)!=0){
+                    active.getTransportControls().setRating(Rating.newHeartRating(!liked));liked=!liked;return true;
+                }
+            }
+        }catch(Throwable ignored){ }
+        android.widget.Toast.makeText(context,"This player does not expose a favorite action",android.widget.Toast.LENGTH_SHORT).show();
+        return false;
+    }
     public static void playQueueItem(Context context,int index){
         long[] ids=queueIds;
         if(controller!=null&&index>=0&&index<ids.length){

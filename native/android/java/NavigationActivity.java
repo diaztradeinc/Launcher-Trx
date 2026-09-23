@@ -16,6 +16,7 @@ import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.util.Log;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
@@ -36,7 +37,6 @@ import java.util.Locale;
 
 public class NavigationActivity extends AppCompatActivity {
     private static final int LOCATION_REQUEST = 731;
-    private static final int MAP_HOST_ID = 0x4101;
     private SupportNavigationFragment navigationFragment;
     private Navigator navigator;
     private EditText destination;
@@ -52,26 +52,16 @@ public class NavigationActivity extends AppCompatActivity {
                 getWindow().getInsetsController().hide(WindowInsets.Type.statusBars());
                 getWindow().getInsetsController().setSystemBarsBehavior(WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
             }
-            buildUi(state);
+            buildUi();
             ensureLocationAndInitialize();
-        } catch (Throwable error) { showFatal("NAVIGATION COULD NOT START"); }
+        } catch (Throwable error) { Log.e("TRX-NAV","Navigation startup failed",error); showFatal("NAV START ERROR · "+error.getClass().getSimpleName()); }
     }
 
-    private void buildUi(Bundle state) {
-        FrameLayout root = new FrameLayout(this);
-        root.setBackgroundColor(0xff050605);
-        FrameLayout mapHost = new FrameLayout(this);
-        int mapId = MAP_HOST_ID;
-        mapHost.setId(mapId);
-        root.addView(mapHost, new FrameLayout.LayoutParams(-1, -1));
-        setContentView(root);
-
-        navigationFragment = state == null ? SupportNavigationFragment.newInstance() :
-            (SupportNavigationFragment)getSupportFragmentManager().findFragmentByTag("apex-navigation");
-        if (navigationFragment == null) navigationFragment = SupportNavigationFragment.newInstance();
-        if (!navigationFragment.isAdded()) {
-            getSupportFragmentManager().beginTransaction().replace(mapId, navigationFragment, "apex-navigation").commitNow();
-        }
+    private void buildUi() {
+        setContentView(R.layout.activity_navigation);
+        FrameLayout root=findViewById(R.id.navigation_root);
+        navigationFragment=(SupportNavigationFragment)getSupportFragmentManager().findFragmentById(R.id.navigation_fragment);
+        if(navigationFragment==null)throw new IllegalStateException("Navigation fragment unavailable");
 
         LinearLayout search = new LinearLayout(this);
         search.setOrientation(LinearLayout.HORIZONTAL);
@@ -146,6 +136,10 @@ public class NavigationActivity extends AppCompatActivity {
         String query = destination.getText().toString().trim();
         if (query.isEmpty()) { Toast.makeText(this, "Enter a destination", Toast.LENGTH_SHORT).show(); return; }
         if (navigator == null) { status.setText("NAVIGATION IS STILL INITIALIZING"); return; }
+        String placeId=getIntent().getStringExtra("placeId");
+        if(placeId!=null&&!placeId.trim().isEmpty()){
+            getIntent().removeExtra("placeId");routeToPlaceId(query,placeId);return;
+        }
         if (getIntent().hasExtra("latitude") && getIntent().hasExtra("longitude")) {
             routeToCoordinates(query, getIntent().getDoubleExtra("latitude", 0), getIntent().getDoubleExtra("longitude", 0));
             getIntent().removeExtra("latitude"); getIntent().removeExtra("longitude"); return;
@@ -161,23 +155,32 @@ public class NavigationActivity extends AppCompatActivity {
         }, "apex-route-lookup").start();
     }
 
+    private void routeToPlaceId(String title,String placeId){
+        try{
+            Waypoint waypoint=Waypoint.builder().setPlaceIdString(placeId).setTitle(title).build();
+            calculateRoute(waypoint);
+        }catch(Throwable error){Log.e("TRX-NAV","Place route failed",error);status.setText("SELECTED PLACE COULD NOT BE ROUTED");}
+    }
+
     private void routeToCoordinates(String title, double latitude, double longitude) {
         try {
-            status.setText("CALCULATING ROUTE…");
             Waypoint waypoint = new Waypoint.Builder().setLatLng(latitude, longitude).setTitle(title).build();
-            RoutingOptions options = new RoutingOptions(); options.travelMode(RoutingOptions.TravelMode.DRIVING);
-            ListenableResultFuture<Navigator.RouteStatus> pending = navigator.setDestination(waypoint, options);
-            pending.setOnResultListener(routeStatus -> runOnUiThread(() -> {
-                try {
-                    if (routeStatus == Navigator.RouteStatus.OK) {
-                        AudioGuidanceSettings audio = AudioGuidanceSettings.builder()
-                            .setGuidanceMode(AudioGuidanceSettings.GuidanceMode.VOICE_ALERTS_AND_GUIDANCE).build();
-                        navigator.setAudioGuidanceSettings(audio);
-                        navigator.startGuidance(); status.setVisibility(android.view.View.GONE); destination.clearFocus();
-                    } else status.setText("ROUTE UNAVAILABLE · " + routeStatus);
-                } catch (Throwable error) { status.setText("GUIDANCE COULD NOT START"); }
-            }));
+            calculateRoute(waypoint);
         } catch (Throwable error) { status.setText("ROUTE COULD NOT BE CREATED"); }
+    }
+
+    private void calculateRoute(Waypoint waypoint){
+        status.setVisibility(android.view.View.VISIBLE);status.setText("CALCULATING ROUTE…");
+        RoutingOptions options=new RoutingOptions();options.travelMode(RoutingOptions.TravelMode.DRIVING);
+        ListenableResultFuture<Navigator.RouteStatus> pending=navigator.setDestination(waypoint,options);
+        pending.setOnResultListener(routeStatus -> runOnUiThread(() -> {
+            try{
+                if(routeStatus==Navigator.RouteStatus.OK){
+                    AudioGuidanceSettings audio=AudioGuidanceSettings.builder().setGuidanceMode(AudioGuidanceSettings.GuidanceMode.VOICE_ALERTS_AND_GUIDANCE).build();
+                    navigator.setAudioGuidanceSettings(audio);navigator.startGuidance();status.setVisibility(android.view.View.GONE);destination.clearFocus();
+                }else status.setText("ROUTE UNAVAILABLE · "+routeStatus);
+            }catch(Throwable error){Log.e("TRX-NAV","Guidance start failed",error);status.setText("GUIDANCE COULD NOT START");}
+        }));
     }
 
     private Button actionButton(String label) {

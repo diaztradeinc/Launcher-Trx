@@ -15,8 +15,6 @@ import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.location.Location;
 import android.location.LocationManager;
-import android.location.Address;
-import android.location.Geocoder;
 import android.net.Uri;
 import android.os.Build;
 import android.provider.Settings;
@@ -30,6 +28,10 @@ import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
 import com.getcapacitor.annotation.Permission;
 import com.getcapacitor.annotation.PermissionCallback;
+import com.google.android.libraries.places.api.Places;
+import com.google.android.libraries.places.api.model.AutocompletePrediction;
+import com.google.android.libraries.places.api.net.FindAutocompletePredictionsRequest;
+import com.google.android.libraries.places.api.net.PlacesClient;
 
 import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
@@ -47,10 +49,12 @@ import java.util.Locale;
     }
 )
 public class TrxNativePlugin extends Plugin {
+    private PlacesClient placesClient;
     @Override public void load() {
         super.load();
         ObdBridge.start(getContext());
         MediaBridge.ensureConnected(getContext());
+        initializePlaces();
     }
 
     @PluginMethod public void requestPermissionGroup(PluginCall call) {
@@ -160,6 +164,7 @@ public class TrxNativePlugin extends Plugin {
         result.put("artist", MediaBridge.artist);
         result.put("source", MediaBridge.source);
         result.put("playing", MediaBridge.playing);
+        result.put("liked", MediaBridge.liked);
         result.put("positionMs", MediaBridge.currentPositionMs());
         result.put("durationMs", MediaBridge.durationMs);
         result.put("artwork", bitmapDataUrl(MediaBridge.artwork));
@@ -190,49 +195,48 @@ public class TrxNativePlugin extends Plugin {
         else if ("next".equals(command)) MediaBridge.next(getContext());
         else if ("seek".equals(command)) MediaBridge.seekTo(getContext(), call.getLong("positionMs", 0L));
         else if ("queue".equals(command)) MediaBridge.playQueueItem(getContext(), call.getInt("index", 0));
-        else MediaBridge.toggle(getContext());
-        call.resolve();
+        else if ("favorite".equals(command)) {
+            boolean success=MediaBridge.toggleFavorite(getContext());
+            JSObject result=new JSObject();result.put("success",success);result.put("liked",MediaBridge.liked);call.resolve(result);return;
+        } else MediaBridge.toggle(getContext());
+        JSObject result=new JSObject();result.put("success",true);call.resolve(result);
     }
 
     @PluginMethod public void searchDestinations(PluginCall call) {
         final String query = call.getString("query", "").trim();
-        if (query.length() < 2) {
+        if (query.length() < 3) {
             JSObject payload = new JSObject(); payload.put("suggestions", new JSArray()); call.resolve(payload); return;
         }
-        new Thread(() -> {
+        initializePlaces();
+        if(placesClient==null){
+            JSObject payload=new JSObject();payload.put("suggestions",new JSArray());payload.put("error","GOOGLE PLACES IS NOT CONFIGURED");call.resolve(payload);return;
+        }
+        FindAutocompletePredictionsRequest request=FindAutocompletePredictionsRequest.builder()
+            .setQuery(query).setCountries("US").setRegionCode("US").build();
+        placesClient.findAutocompletePredictions(request).addOnSuccessListener(response -> {
             JSArray suggestions = new JSArray();
-            try {
-                List<Address> matches = new Geocoder(getContext(), Locale.US).getFromLocationName(query, 6);
-                if (matches != null) for (Address address : matches) {
-                    if (!address.hasLatitude() || !address.hasLongitude()) continue;
-                    String primary = firstNonEmpty(address.getFeatureName(), address.getThoroughfare(), address.getLocality(), query);
-                    String secondary = joinAddress(address);
-                    String label = secondary.isEmpty() ? primary : primary + " · " + secondary;
-                    JSObject item = new JSObject();
-                    item.put("label", label); item.put("primary", primary); item.put("secondary", secondary);
-                    item.put("latitude", address.getLatitude()); item.put("longitude", address.getLongitude());
-                    suggestions.put(item);
-                }
-            } catch (Throwable ignored) { }
+            for(AutocompletePrediction prediction:response.getAutocompletePredictions()){
+                String primary=prediction.getPrimaryText(null).toString();
+                String secondary=prediction.getSecondaryText(null).toString();
+                JSObject item=new JSObject();item.put("placeId",prediction.getPlaceId());item.put("primary",primary);item.put("secondary",secondary);
+                item.put("label",secondary.isEmpty()?primary:primary+", "+secondary);suggestions.put(item);
+            }
             JSObject payload = new JSObject(); payload.put("suggestions", suggestions);
-            getActivity().runOnUiThread(() -> call.resolve(payload));
-        }, "apex-destination-search").start();
+            call.resolve(payload);
+        }).addOnFailureListener(error -> {
+            JSObject payload=new JSObject();payload.put("suggestions",new JSArray());payload.put("error","GOOGLE PLACES UNAVAILABLE · CHECK PLACES API (NEW)");call.resolve(payload);
+        });
     }
 
-    private String firstNonEmpty(String... values) {
-        for (String value : values) if (value != null && !value.trim().isEmpty()) return value.trim();
-        return "Destination";
-    }
-
-    private String joinAddress(Address address) {
-        ArrayList<String> parts = new ArrayList<>();
-        String street = address.getThoroughfare();
-        if (street != null && address.getSubThoroughfare() != null) street = address.getSubThoroughfare() + " " + street;
-        if (street != null && !street.trim().isEmpty() && !street.equalsIgnoreCase(address.getFeatureName())) parts.add(street.trim());
-        if (address.getLocality() != null) parts.add(address.getLocality());
-        if (address.getAdminArea() != null) parts.add(address.getAdminArea());
-        if (address.getPostalCode() != null) parts.add(address.getPostalCode());
-        return android.text.TextUtils.join(", ", parts);
+    private void initializePlaces(){
+        if(placesClient!=null)return;
+        try{
+            ApplicationInfo info=getContext().getPackageManager().getApplicationInfo(getContext().getPackageName(),PackageManager.GET_META_DATA);
+            String apiKey=info.metaData==null?"":info.metaData.getString("com.google.android.geo.API_KEY","");
+            if(apiKey==null||apiKey.trim().isEmpty())return;
+            if(!Places.isInitialized())Places.initializeWithNewPlacesApiEnabled(getContext().getApplicationContext(),apiKey);
+            placesClient=Places.createClient(getContext());
+        }catch(Throwable ignored){placesClient=null;}
     }
 
     @PluginMethod public void getObdState(PluginCall call) {
@@ -285,6 +289,8 @@ public class TrxNativePlugin extends Plugin {
     @PluginMethod public void openNavigation(PluginCall call) {
         Intent intent = new Intent(getContext(), NavigationActivity.class);
         intent.putExtra("destination", call.getString("destination", ""));
+        String placeId=call.getString("placeId");
+        if(placeId!=null&&!placeId.trim().isEmpty())intent.putExtra("placeId",placeId);
         Double latitude = call.getDouble("latitude");
         Double longitude = call.getDouble("longitude");
         if (latitude != null && longitude != null) {

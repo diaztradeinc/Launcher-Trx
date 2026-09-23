@@ -161,7 +161,7 @@ function StatusBar({ now, live }) {
 }
 
 function CommandRail({ active, onNavigate }) {
-  return <nav className="command-rail" aria-label="Main navigation">
+  return <nav className={'command-rail ' + active + '-active'} aria-label="Main navigation">
     <div className="ram-mark">RAM</div><div className="rail-line" />
     {NAV.map(function (item) {
       const id = item[0], label = item[1], Icon = item[2];
@@ -209,28 +209,29 @@ function NavigationPage({ live }) {
   const [routing, setRouting] = useState(true);
   const [destination, setDestination] = useState('');
   const [suggestions, setSuggestions] = useState([]);
+  const [searchError, setSearchError] = useState('');
   const [selected, setSelected] = useState(null);
   useEffect(function () {
     const query = destination.trim();
-    if (selected?.label === destination || query.length < 2) { setSuggestions([]); return; }
+    if (selected?.label === destination || query.length < 3) { setSuggestions([]); setSearchError(''); return; }
     let current = true;
     const timer = setTimeout(function () {
-      native.searchDestinations(query).then(function (result) { if (current) setSuggestions(result?.suggestions || []); });
+      native.searchDestinations(query).then(function (result) { if (current) { setSuggestions(result?.suggestions || []); setSearchError(result?.error || ''); } });
     }, 280);
     return function () { current = false; clearTimeout(timer); };
   }, [destination, selected]);
   function startRoute() {
     const match = selected?.label === destination ? selected : null;
-    setSuggestions([]);
-    native.navigate(destination, match?.latitude, match?.longitude);
+    setSuggestions([]); setSearchError('');
+    native.navigate(destination, match?.latitude, match?.longitude, match?.placeId);
   }
-  function selectSuggestion(item) { setDestination(item.label); setSelected(item); setSuggestions([]); }
+  function selectSuggestion(item) { setDestination(item.label); setSelected(item); setSuggestions([]); setSearchError(''); }
   return <section className="page navigation-page">
     <div className="map-stage">
       <img src="/trx-map.webp" alt="Dimensional terrain route" />
       <div className="map-shade" /><div className="route-ribbon" /><div className="route-arrow">➤</div>
       <div className="nav-command"><Search /><input value={destination} onChange={function (e) { setDestination(e.target.value); setSelected(null); }} onKeyDown={function (e) { if (e.key === 'Enter') startRoute(); }} placeholder="Search destination or command" /><button onClick={startRoute} aria-label="Start navigation"><Navigation /></button><Mic />
-        {suggestions.length > 0 && <div className="nav-suggestions">{suggestions.map(function (item, index) { return <button key={item.label + index} onClick={function () { selectSuggestion(item); }}><MapPin /><span><b>{item.primary || item.label}</b><small>{item.secondary}</small></span><ChevronRight /></button>; })}</div>}
+        {(suggestions.length > 0 || searchError) && <div className="nav-suggestions">{searchError && <div className="places-error">{searchError}</div>}{suggestions.map(function (item, index) { return <button key={(item.placeId || item.label) + index} onClick={function () { selectSuggestion(item); }}><MapPin /><span><b>{item.primary || item.label}</b><small>{item.secondary}</small></span><ChevronRight /></button>; })}<div className="places-credit"><span>Google</span> Places</div></div>}
       </div>
       <div className="maneuver"><span>NEXT TURN</span><strong>0.8<small>mi</small></strong><p>Turn right onto<br /><b>Darlington Dr</b></p></div>
       <div className="lane-guidance"><i>↑</i><i className="active">↗</i><i>↑</i><span>KEEP RIGHT</span></div>
@@ -249,7 +250,7 @@ function NavigationPage({ live }) {
 
 function MediaPage({ media }) {
   const playing = media?.playing ?? false;
-  const [liked, setLiked] = useState(true);
+  const [liked, setLiked] = useState(media?.liked ?? false);
   const [sourceOpen, setSourceOpen] = useState(false);
   const [mediaApps, setMediaApps] = useState([]);
   const duration = Math.max(1, media?.durationMs || 1);
@@ -266,6 +267,11 @@ function MediaPage({ media }) {
       setMediaApps(likely.length ? likely : apps);
     });
   }, [sourceOpen, mediaApps.length]);
+  useEffect(function () { if (typeof media?.liked === 'boolean') setLiked(media.liked); }, [media?.liked, media?.title]);
+  async function toggleLike() {
+    const result = await native.mediaCommand('favorite');
+    if (result?.success) setLiked(result.liked);
+  }
   function chooseSource(app) { native.launchApp(app.packageName); setSourceOpen(false); }
   function formatMs(value) { const seconds = Math.floor((value || 0) / 1000); return Math.floor(seconds / 60) + ':' + String(seconds % 60).padStart(2, '0'); }
   return <section className="page media-page">
@@ -283,7 +289,7 @@ function MediaPage({ media }) {
       <div className="track-editorial"><span>{media?.hasAccess === false ? 'MEDIA ACCESS REQUIRED' : 'NOW PLAYING · LIVE SESSION'}</span><h2>{media?.title || 'NO ACTIVE'}<br />{media?.title ? '' : 'MEDIA'}</h2><p>{media?.artist || 'Start music to begin'}</p></div>
       <div className="transport-arc">
         <button onClick={function () { native.mediaCommand('previous'); }}><SkipBack /></button><button className="transport-main" onClick={function () { media?.hasAccess === false ? native.requestPermissionGroup('media') : native.mediaCommand('toggle'); }}>{playing ? <Pause /> : <Play />}</button><button onClick={function () { native.mediaCommand('next'); }}><SkipForward /></button>
-        <button className={liked ? 'liked' : ''} onClick={function () { setLiked(!liked); }}><Heart fill={liked ? 'currentColor' : 'none'} /></button>
+        <button className={liked ? 'liked' : ''} onClick={toggleLike} aria-label={liked ? 'Remove from favorites' : 'Add to favorites'}><Heart fill={liked ? 'currentColor' : 'none'} /></button>
       </div>
       <div className="progress-line"><span>{formatMs(media?.positionMs)}</span><input type="range" value={progress} onChange={function (e) { native.mediaCommand('seek', Math.round(Number(e.target.value) * duration / 100)); }} /><span>{formatMs(media?.durationMs)}</span></div>
       <div className="up-next-curve"><span>UP NEXT</span>{queue.slice(0,3).map(function (item, i) { return <button key={(item.title || '') + i} onClick={function () { if (media?.queue?.length) native.mediaCommand('queue', 0, i); }}>{item.artwork ? <img src={item.artwork} alt="" /> : <i className="queue-placeholder"><Music2 /></i>}<span><b>{item.title}</b><small>{item.artist || 'UPCOMING TRACK'}</small></span><ChevronRight /></button>; })}</div>

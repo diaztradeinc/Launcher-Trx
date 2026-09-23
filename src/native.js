@@ -20,7 +20,7 @@ export const native = {
   reconnectObd: () => safe('reconnectObd', {}, null),
   location: () => safe('getLocation', {}, null),
   searchDestinations: (query) => safe('searchDestinations', { query }, { suggestions: [] }),
-  navigate: (destination, latitude, longitude) => safe('openNavigation', { destination, latitude, longitude }, null),
+  navigate: (destination, latitude, longitude, placeId) => safe('openNavigation', { destination, latitude, longitude, placeId }, null),
   settings: (target) => safe('openSystemSettings', { target }, null)
 };
 
