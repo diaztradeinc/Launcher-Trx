@@ -2,6 +2,7 @@ package com.diaztradeinc.trxlauncher;
 
 import android.Manifest;
 import android.content.pm.PackageManager;
+import android.content.res.Configuration;
 import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
 import android.location.Address;
@@ -42,6 +43,7 @@ public class NavigationActivity extends AppCompatActivity {
     private EditText destination;
     private TextView status;
     private boolean initializing;
+    private String startupStage = "ACTIVITY WINDOW";
 
     @Override protected void onCreate(Bundle state) {
         super.onCreate(state);
@@ -52,10 +54,13 @@ public class NavigationActivity extends AppCompatActivity {
                 getWindow().getInsetsController().hide(WindowInsets.Type.statusBars());
                 getWindow().getInsetsController().setSystemBarsBehavior(WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
             }
+            startupStage = "NAVIGATION VIEW CONSTRUCTION";
             buildUi(state);
+            startupStage = "NAVIGATION VIEW ONCREATE";
             navigationView.onCreate(state);
+            startupStage = "NAVIGATOR INITIALIZATION";
             ensureLocationAndInitialize();
-        } catch (Throwable error) { Log.e("TRX-NAV","Navigation startup failed",error); showFatal("NAV START ERROR · "+error.getClass().getSimpleName()); }
+        } catch (Throwable error) { Log.e("TRX-NAV","Navigation startup failed at "+startupStage,error); showFatal(startupMessage(error)); }
     }
 
     private void buildUi(Bundle state) {
@@ -190,7 +195,22 @@ public class NavigationActivity extends AppCompatActivity {
         GradientDrawable bg = new GradientDrawable(); bg.setColor(0xffc71f28); bg.setCornerRadius(dp(23)); button.setBackground(bg); return button;
     }
 
-    private void showFatal(String message) { if (status != null) status.setText(message); else Toast.makeText(this, message, Toast.LENGTH_LONG).show(); }
+    private String startupMessage(Throwable error) {
+        Throwable root = error;
+        while (root.getCause() != null && root.getCause() != root) root = root.getCause();
+        String detail = root.getMessage();
+        if (detail == null || detail.trim().isEmpty()) detail = root.getClass().getSimpleName();
+        StackTraceElement[] trace = root.getStackTrace();
+        String where = trace.length == 0 ? "" : " · " + trace[0].getClassName().replace("com.google.android.", "g.") + ":" + trace[0].getLineNumber();
+        return "NAV FAILURE · " + startupStage + "\n" + root.getClass().getSimpleName() + " · " + detail + where;
+    }
+    private void showFatal(String message) {
+        if (status != null) { status.setVisibility(android.view.View.VISIBLE); status.setText(message); return; }
+        TextView report = new TextView(this);
+        report.setText(message + "\n\nGoogle Play services and graphics compatibility are checked before API authorization.");
+        report.setTextColor(Color.WHITE); report.setTextSize(15); report.setGravity(Gravity.CENTER); report.setPadding(dp(28),dp(28),dp(28),dp(28));
+        report.setBackgroundColor(0xff151615); setContentView(report);
+    }
     private int dp(int value) { return Math.round(value * getResources().getDisplayMetrics().density); }
 
     @Override public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] results) {
@@ -204,6 +224,11 @@ public class NavigationActivity extends AppCompatActivity {
     @Override protected void onPause() { if (navigationView != null) navigationView.onPause(); super.onPause(); }
     @Override protected void onStop() { if (navigationView != null) navigationView.onStop(); super.onStop(); }
     @Override protected void onDestroy() { if (navigationView != null) navigationView.onDestroy(); super.onDestroy(); }
+    @Override public void onTrimMemory(int level) { super.onTrimMemory(level); if (navigationView != null) navigationView.onTrimMemory(level); }
+    @Override public void onConfigurationChanged(@NonNull Configuration configuration) {
+        super.onConfigurationChanged(configuration);
+        if (navigationView != null) navigationView.onConfigurationChanged(configuration);
+    }
     @Override protected void onSaveInstanceState(@NonNull Bundle state) {
         if (navigationView != null) navigationView.onSaveInstanceState(state);
         super.onSaveInstanceState(state);

@@ -34,6 +34,8 @@ public class MediaBridge extends NotificationListenerService {
         new java.util.LinkedHashMap<String,Bitmap>(64,.75f,true){
             @Override protected boolean removeEldestEntry(java.util.Map.Entry<String,Bitmap> eldest){return size()>64;}
         });
+    private static final java.util.Set<String> artworkRequests=java.util.Collections.synchronizedSet(new java.util.HashSet<>());
+    private static final java.util.concurrent.ExecutorService artworkExecutor=java.util.concurrent.Executors.newFixedThreadPool(2);
 
     @Override public void onListenerConnected() {
         super.onListenerConnected();
@@ -251,6 +253,7 @@ public class MediaBridge extends NotificationListenerService {
                 ids.add(item.getQueueId());
                 Bitmap image=descriptionArtwork(d);
                 if(image==null)image=artworkCache.get(trackKey(track,performer));
+                if(image==null){String remote=descriptionArtworkUrl(d);if(remote!=null)requestRemoteArtwork(track,performer,remote);}
                 // Many automotive media sessions omit queue-item bitmaps even when all
                 // queued tracks belong to the current artist/album. Reuse the live
                 // session artwork only for that matching artist instead of showing a
@@ -289,6 +292,39 @@ public class MediaBridge extends NotificationListenerService {
         java.io.InputStream stream=null;
         try{stream=instance.getContentResolver().openInputStream(uri);return android.graphics.BitmapFactory.decodeStream(stream);}
         catch(Throwable ignored){return null;}finally{try{if(stream!=null)stream.close();}catch(Throwable ignored){}}
+    }
+
+    private static String descriptionArtworkUrl(android.media.MediaDescription description){
+        if(description==null)return null;
+        android.net.Uri icon=description.getIconUri();
+        if(icon!=null&&(icon.getScheme()!=null)&&(icon.getScheme().equals("http")||icon.getScheme().equals("https")))return icon.toString();
+        try{
+            android.os.Bundle extras=description.getExtras();
+            if(extras!=null)for(String key:extras.keySet()){
+                String lower=key==null?"":key.toLowerCase(java.util.Locale.US);
+                if(!(lower.contains("art")||lower.contains("album")||lower.contains("icon")||lower.contains("image")||lower.contains("thumb")))continue;
+                Object value;try{value=extras.get(key);}catch(Throwable ignored){continue;}
+                String candidate=value instanceof android.net.Uri?value.toString():value instanceof String?(String)value:null;
+                if(candidate!=null&&(candidate.startsWith("https://")||candidate.startsWith("http://")))return candidate;
+            }
+        }catch(Throwable ignored){}
+        return null;
+    }
+
+    private static void requestRemoteArtwork(String track,String performer,String address){
+        final String key=trackKey(track,performer);
+        if(artworkCache.containsKey(key)||!artworkRequests.add(key))return;
+        artworkExecutor.execute(() -> {
+            java.net.HttpURLConnection connection=null;java.io.InputStream stream=null;
+            try{
+                connection=(java.net.HttpURLConnection)new java.net.URL(address).openConnection();
+                connection.setConnectTimeout(5000);connection.setReadTimeout(7000);connection.setInstanceFollowRedirects(true);
+                connection.setRequestProperty("User-Agent","TRX-APEX/5.6 Android");
+                stream=connection.getInputStream();Bitmap bitmap=android.graphics.BitmapFactory.decodeStream(stream);
+                if(bitmap!=null)artworkCache.put(key,bitmap);
+            }catch(Throwable ignored){}
+            finally{artworkRequests.remove(key);try{if(stream!=null)stream.close();}catch(Throwable ignored){}if(connection!=null)connection.disconnect();}
+        });
     }
 
     private static String trackKey(String track,String performer){

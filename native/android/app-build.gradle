@@ -11,8 +11,8 @@ android {
         applicationId "com.diaztradeinc.trxlauncher"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 50500
-        versionName "5.5.0"
+        versionCode 50600
+        versionName "5.6.0"
         manifestPlaceholders = [MAPS_API_KEY: mapsApiKey]
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
@@ -70,6 +70,9 @@ dependencies {
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
     implementation project(':capacitor-cordova-android-plugins')
     implementation 'com.google.android.libraries.navigation:navigation:7.9.0'
+    // Google includes this in the official Nav SDK sample. Automotive Android
+    // boxes do not always expose a system Cronet provider through Play services.
+    implementation 'org.chromium.net:cronet-fallback:119.6045.31'
     implementation('com.google.android.libraries.places:places:5.1.1') {
         // Navigation SDK already bundles the Maps classes.
         exclude group: 'com.google.android.gms', module: 'play-services-maps'
