@@ -210,6 +210,9 @@ public class MediaBridge extends NotificationListenerService {
                 android.media.MediaDescription d=item.getDescription();
                 CharSequence t=d==null?null:d.getTitle(),a=d==null?null:d.getSubtitle();
                 String track=t==null?"UPCOMING TRACK":t.toString(),performer=a==null?"":a.toString();
+                boolean sameAsCurrent=track.trim().equalsIgnoreCase(title.trim())&&
+                    (artist.trim().isEmpty()||performer.trim().isEmpty()||performer.trim().equalsIgnoreCase(artist.trim()));
+                if(sameAsCurrent)continue;
                 titles.add(track);artists.add(performer);
                 ids.add(item.getQueueId());
                 Bitmap image=descriptionArtwork(d);

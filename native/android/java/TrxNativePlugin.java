@@ -15,6 +15,8 @@ import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.location.Location;
 import android.location.LocationManager;
+import android.location.Address;
+import android.location.Geocoder;
 import android.net.Uri;
 import android.os.Build;
 import android.provider.Settings;
@@ -34,6 +36,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 
 @CapacitorPlugin(
     name = "TrxNative",
@@ -186,8 +189,50 @@ public class TrxNativePlugin extends Plugin {
         if ("previous".equals(command)) MediaBridge.previous(getContext());
         else if ("next".equals(command)) MediaBridge.next(getContext());
         else if ("seek".equals(command)) MediaBridge.seekTo(getContext(), call.getLong("positionMs", 0L));
+        else if ("queue".equals(command)) MediaBridge.playQueueItem(getContext(), call.getInt("index", 0));
         else MediaBridge.toggle(getContext());
         call.resolve();
+    }
+
+    @PluginMethod public void searchDestinations(PluginCall call) {
+        final String query = call.getString("query", "").trim();
+        if (query.length() < 2) {
+            JSObject payload = new JSObject(); payload.put("suggestions", new JSArray()); call.resolve(payload); return;
+        }
+        new Thread(() -> {
+            JSArray suggestions = new JSArray();
+            try {
+                List<Address> matches = new Geocoder(getContext(), Locale.US).getFromLocationName(query, 6);
+                if (matches != null) for (Address address : matches) {
+                    if (!address.hasLatitude() || !address.hasLongitude()) continue;
+                    String primary = firstNonEmpty(address.getFeatureName(), address.getThoroughfare(), address.getLocality(), query);
+                    String secondary = joinAddress(address);
+                    String label = secondary.isEmpty() ? primary : primary + " · " + secondary;
+                    JSObject item = new JSObject();
+                    item.put("label", label); item.put("primary", primary); item.put("secondary", secondary);
+                    item.put("latitude", address.getLatitude()); item.put("longitude", address.getLongitude());
+                    suggestions.put(item);
+                }
+            } catch (Throwable ignored) { }
+            JSObject payload = new JSObject(); payload.put("suggestions", suggestions);
+            getActivity().runOnUiThread(() -> call.resolve(payload));
+        }, "apex-destination-search").start();
+    }
+
+    private String firstNonEmpty(String... values) {
+        for (String value : values) if (value != null && !value.trim().isEmpty()) return value.trim();
+        return "Destination";
+    }
+
+    private String joinAddress(Address address) {
+        ArrayList<String> parts = new ArrayList<>();
+        String street = address.getThoroughfare();
+        if (street != null && address.getSubThoroughfare() != null) street = address.getSubThoroughfare() + " " + street;
+        if (street != null && !street.trim().isEmpty() && !street.equalsIgnoreCase(address.getFeatureName())) parts.add(street.trim());
+        if (address.getLocality() != null) parts.add(address.getLocality());
+        if (address.getAdminArea() != null) parts.add(address.getAdminArea());
+        if (address.getPostalCode() != null) parts.add(address.getPostalCode());
+        return android.text.TextUtils.join(", ", parts);
     }
 
     @PluginMethod public void getObdState(PluginCall call) {
@@ -240,6 +285,11 @@ public class TrxNativePlugin extends Plugin {
     @PluginMethod public void openNavigation(PluginCall call) {
         Intent intent = new Intent(getContext(), NavigationActivity.class);
         intent.putExtra("destination", call.getString("destination", ""));
+        Double latitude = call.getDouble("latitude");
+        Double longitude = call.getDouble("longitude");
+        if (latitude != null && longitude != null) {
+            intent.putExtra("latitude", latitude); intent.putExtra("longitude", longitude);
+        }
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         getContext().startActivity(intent);
         call.resolve();

@@ -15,11 +15,12 @@ export const native = {
   launchApp: (packageName) => safe('launchApp', { packageName }, null),
   appAction: (packageName, action) => safe('appAction', { packageName, action }, null),
   media: () => safe('getMediaState', {}, null),
-  mediaCommand: (command, positionMs) => safe('mediaCommand', { command, positionMs }, null),
+  mediaCommand: (command, positionMs, index) => safe('mediaCommand', { command, positionMs, index }, null),
   obd: () => safe('getObdState', {}, null),
   reconnectObd: () => safe('reconnectObd', {}, null),
   location: () => safe('getLocation', {}, null),
-  navigate: (destination) => safe('openNavigation', { destination }, null),
+  searchDestinations: (query) => safe('searchDestinations', { query }, { suggestions: [] }),
+  navigate: (destination, latitude, longitude) => safe('openNavigation', { destination, latitude, longitude }, null),
   settings: (target) => safe('openSystemSettings', { target }, null)
 };
 

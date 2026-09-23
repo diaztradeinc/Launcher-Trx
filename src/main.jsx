@@ -208,12 +208,30 @@ function NavigationPage({ live }) {
   const [layer, setLayer] = useState('terrain');
   const [routing, setRouting] = useState(true);
   const [destination, setDestination] = useState('');
-  function startRoute() { native.navigate(destination); }
+  const [suggestions, setSuggestions] = useState([]);
+  const [selected, setSelected] = useState(null);
+  useEffect(function () {
+    const query = destination.trim();
+    if (selected?.label === destination || query.length < 2) { setSuggestions([]); return; }
+    let current = true;
+    const timer = setTimeout(function () {
+      native.searchDestinations(query).then(function (result) { if (current) setSuggestions(result?.suggestions || []); });
+    }, 280);
+    return function () { current = false; clearTimeout(timer); };
+  }, [destination, selected]);
+  function startRoute() {
+    const match = selected?.label === destination ? selected : null;
+    setSuggestions([]);
+    native.navigate(destination, match?.latitude, match?.longitude);
+  }
+  function selectSuggestion(item) { setDestination(item.label); setSelected(item); setSuggestions([]); }
   return <section className="page navigation-page">
     <div className="map-stage">
       <img src="/trx-map.webp" alt="Dimensional terrain route" />
       <div className="map-shade" /><div className="route-ribbon" /><div className="route-arrow">➤</div>
-      <div className="nav-command"><Search /><input value={destination} onChange={function (e) { setDestination(e.target.value); }} onKeyDown={function (e) { if (e.key === 'Enter') startRoute(); }} placeholder="Search destination or command" /><button onClick={startRoute} aria-label="Start navigation"><Navigation /></button><Mic /></div>
+      <div className="nav-command"><Search /><input value={destination} onChange={function (e) { setDestination(e.target.value); setSelected(null); }} onKeyDown={function (e) { if (e.key === 'Enter') startRoute(); }} placeholder="Search destination or command" /><button onClick={startRoute} aria-label="Start navigation"><Navigation /></button><Mic />
+        {suggestions.length > 0 && <div className="nav-suggestions">{suggestions.map(function (item, index) { return <button key={item.label + index} onClick={function () { selectSuggestion(item); }}><MapPin /><span><b>{item.primary || item.label}</b><small>{item.secondary}</small></span><ChevronRight /></button>; })}</div>}
+      </div>
       <div className="maneuver"><span>NEXT TURN</span><strong>0.8<small>mi</small></strong><p>Turn right onto<br /><b>Darlington Dr</b></p></div>
       <div className="lane-guidance"><i>↑</i><i className="active">↗</i><i>↑</i><span>KEEP RIGHT</span></div>
       <div className="arrival"><span>ARRIVAL</span><strong>10:36</strong><small>12 min · 6.4 mi</small></div>
@@ -268,7 +286,7 @@ function MediaPage({ media }) {
         <button className={liked ? 'liked' : ''} onClick={function () { setLiked(!liked); }}><Heart fill={liked ? 'currentColor' : 'none'} /></button>
       </div>
       <div className="progress-line"><span>{formatMs(media?.positionMs)}</span><input type="range" value={progress} onChange={function (e) { native.mediaCommand('seek', Math.round(Number(e.target.value) * duration / 100)); }} /><span>{formatMs(media?.durationMs)}</span></div>
-      <div className="up-next-curve"><span>UP NEXT</span>{queue.slice(0,4).map(function (item, i) { return <button key={(item.title || '') + i} style={{ '--i': i }}><img src={item.artwork || media?.artwork || '/trx-radio.webp'} alt="" /><b>{item.title}</b></button>; })}</div>
+      <div className="up-next-curve"><span>UP NEXT</span>{queue.slice(0,3).map(function (item, i) { return <button key={(item.title || '') + i} onClick={function () { if (media?.queue?.length) native.mediaCommand('queue', 0, i); }}>{item.artwork ? <img src={item.artwork} alt="" /> : <i className="queue-placeholder"><Music2 /></i>}<span><b>{item.title}</b><small>{item.artist || 'UPCOMING TRACK'}</small></span><ChevronRight /></button>; })}</div>
       <div className="audio-output"><Volume2 /><span>UCONNECT 12</span><b>18</b></div>
     </div>
   </section>;
