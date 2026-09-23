@@ -28,8 +28,8 @@ svg { stroke-width: 1.65; }
 .apex-shell {
   width: 100%;
   height: 100%;
-  min-width: 720px;
-  min-height: 900px;
+  min-width: 0;
+  min-height: 0;
   position: relative;
   overflow: hidden;
   background:
@@ -584,4 +584,49 @@ input[type=range] { accent-color: var(--accent); }
   .record{left:4%;width:48vw}.transport-arc{left:44%;width:52%}
   .studio-preview{width:39%}.theme-materials,.studio-controls{left:47%}
   .studio-sections{grid-template-columns:1fr 1fr;height:27%}.setting-drawer{top:80%;bottom:2%}
+}
+
+/* Ottocast/Uconnect exposes a smaller logical WebView than its 1080x1440
+   physical panel. Keep every control inside that viewport instead of forcing
+   the desktop-sized 720x900 minimum canvas beyond the visible edges. */
+@media (max-width: 719px), (max-height: 899px) {
+  :root { --rail: 68px; --status: 50px; }
+  .status-bar { padding: 0 14px; }
+  .coordinates { font-size: 10px; }
+  .coordinates span { margin-left: 5px; }
+  .apex-wordmark { font-size: 15px; gap: 6px; }
+  .system-status { gap: 7px; font-size: 11px; }
+  .system-status svg { width: 13px; }
+  .system-status b { font-size: 13px; }
+  .command-rail { gap: 8px; padding: 12px 6px; }
+  .command-rail button { width: 48px; height: 48px; }
+  .command-rail button.active { width: 54px; }
+  .command-rail button.active span { display: none; }
+  .command-rail button svg { width: calc(20px * var(--icon-scale)); height: calc(20px * var(--icon-scale)); }
+  .ram-mark { top: 11px; font-size: 11px; }
+  .page-tag { top: 14px; left: 18px; right: 18px; height: 58px; }
+  .page-tag h1 { font-size: 27px; }
+  .page-tag small { font-size: 9px; }
+
+  .studio-preview { left: 3%; top: 84px; width: 37%; height: 29%; }
+  .studio-preview strong { font-size: 38px; }
+  .theme-materials { left: 43%; right: 3%; top: 84px; height: 16%; }
+  .theme-materials button i { width: 43px; height: 43px; }
+  .theme-materials button { font-size: 7px; gap: 4px; }
+  .studio-controls { left: 43%; right: 3%; top: 27%; height: 15%; gap: 8px 12px; }
+  .mode-control button { height: 30px; padding: 0 8px; font-size: 8px; }
+  .studio-sections { left: 3%; right: 3%; top: 45%; height: 24%; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .studio-sections button { padding: 10px; }
+  .studio-sections button span { font-size: 12px; }
+  .studio-sections button small { font-size: 8px; }
+  .setting-drawer { left: 3%; right: 3%; top: 71%; bottom: 3%; gap: 8px; }
+  .drawer-row { padding: 9px 12px; }
+  .drawer-row b { font-size: 10px; }
+  .drawer-row small { font-size: 8px; }
+
+  .calibration-scrim { padding: 12px; align-items: start; overflow-y: auto; }
+  .calibration-panel { width: 100%; max-height: none; margin: 8px 0 90px; padding: 14px; grid-template-columns: 1fr; gap: 12px; }
+  .calibration-head, .calibration-actions { grid-column: 1; }
+  .calibration-target { min-height: 150px; }
+  .calibration-actions { position: sticky; bottom: 0; padding-top: 8px; background: #090a09; }
 }
