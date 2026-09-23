@@ -72,7 +72,21 @@ function App() {
   const [reducedMotion, setReducedMotion] = useState(localStorage.getItem('trx-apex-motion') === 'true');
   const [displayMode, setDisplayMode] = useState('auto');
   const [calibration, setCalibration] = useState(function () {
-    return readStoredJson('trx-apex-screen-calibration', { scale: 100, x: 0, y: 0, inset: 0 });
+    const saved = readStoredJson('trx-apex-screen-calibration', { scale: 100, x: 0, y: 0, inset: 0 });
+    // v5.11 used compositor scaling, which softened text on automotive WebViews.
+    // Preserve safe-edge adjustments but migrate the old magnification to 100%.
+    if (localStorage.getItem('trx-apex-v512-density-migrated') !== 'true') {
+      localStorage.setItem('trx-apex-v512-density-migrated', 'true');
+      return { ...saved, scale: 100 };
+    }
+    return saved;
+  });
+  const [viewport, setViewport] = useState(function () {
+    return {
+      width: Math.round(window.visualViewport?.width || window.innerWidth),
+      height: Math.round(window.visualViewport?.height || window.innerHeight),
+      dpr: Number(window.devicePixelRatio || 1).toFixed(2)
+    };
   });
   const [now, setNow] = useState(new Date());
   const live = useVehicleData();
@@ -81,6 +95,23 @@ function App() {
     NativeStatusBar.setOverlaysWebView({ overlay: false }).catch(function () {});
     NativeStatusBar.setStyle({ style: Style.Dark }).catch(function () {});
     NativeStatusBar.hide().catch(function () {});
+  }, []);
+
+  useEffect(function () {
+    function measure() {
+      setViewport({
+        width: Math.round(window.visualViewport?.width || window.innerWidth),
+        height: Math.round(window.visualViewport?.height || window.innerHeight),
+        dpr: Number(window.devicePixelRatio || 1).toFixed(2)
+      });
+    }
+    measure();
+    window.addEventListener('resize', measure);
+    window.visualViewport?.addEventListener('resize', measure);
+    return function () {
+      window.removeEventListener('resize', measure);
+      window.visualViewport?.removeEventListener('resize', measure);
+    };
   }, []);
 
   useEffect(function () {
@@ -104,7 +135,6 @@ function App() {
     '--signal': THEMES[theme].signal,
     '--accent-strength': accent / 100,
     '--icon-scale': iconScale / 100,
-    '--screen-scale': calibration.scale / 100,
     '--screen-x': calibration.x + 'px',
     '--screen-y': calibration.y + 'px',
     '--screen-inset': calibration.inset + 'px'
@@ -117,7 +147,7 @@ function App() {
 
   if (!commissioned) return <Commissioning onComplete={finishCommissioning} />;
 
-  return <div className={'apex-shell theme-' + theme + ' mode-' + displayMode + (reducedMotion ? ' reduce-motion' : '')} style={style}>
+  return <div className={'apex-shell theme-' + theme + ' mode-' + displayMode + (reducedMotion ? ' reduce-motion' : '') + (viewport.width < 720 ? ' uconnect-portrait' : '')} style={style}>
     <div className="calibrated-stage">
       <StatusBar now={now} live={live} />
       <CommandRail active={active} onNavigate={setActive} />
@@ -127,7 +157,7 @@ function App() {
         {active === 'media' && <MediaPage media={live.media} />}
         {active === 'performance' && <PerformancePage obd={live.obd} />}
         {active === 'apps' && <AppsPage onOpenSettings={function () { setActive('settings'); }} />}
-        {active === 'settings' && <SettingsPage theme={theme} setTheme={setTheme} accent={accent} setAccent={setAccent} iconScale={iconScale} setIconScale={setIconScale} reducedMotion={reducedMotion} setReducedMotion={setReducedMotion} displayMode={displayMode} setDisplayMode={setDisplayMode} calibration={calibration} setCalibration={setCalibration} obd={live.obd} />}
+        {active === 'settings' && <SettingsPage theme={theme} setTheme={setTheme} accent={accent} setAccent={setAccent} iconScale={iconScale} setIconScale={setIconScale} reducedMotion={reducedMotion} setReducedMotion={setReducedMotion} displayMode={displayMode} setDisplayMode={setDisplayMode} calibration={calibration} setCalibration={setCalibration} viewport={viewport} obd={live.obd} />}
       </main>
     </div>
   </div>;
@@ -448,7 +478,7 @@ function AppDisc({ app }) {
 }
 
 function SettingsPage(props) {
-  const { theme, setTheme, accent, setAccent, iconScale, setIconScale, reducedMotion, setReducedMotion, displayMode, setDisplayMode, calibration, setCalibration, obd } = props;
+  const { theme, setTheme, accent, setAccent, iconScale, setIconScale, reducedMotion, setReducedMotion, displayMode, setDisplayMode, calibration, setCalibration, viewport, obd } = props;
   const [section, setSection] = useState('appearance');
   const [calibrationOpen, setCalibrationOpen] = useState(false);
   const sections = [['appearance', 'Drive & Display', Aperture], ['navigation', 'Navigation', Navigation], ['vehicle', 'Vehicle Link', Bluetooth], ['system', 'System', Settings]];
@@ -470,7 +500,7 @@ function SettingsPage(props) {
       return <button key={id} onClick={function () { setSection(id); }} className={section === id ? 'active' : ''}><Icon /><span>{label}</span><small>{detail}</small><ChevronRight /></button>;
     })}</div>
     <div className="setting-drawer">
-      {section === 'appearance' && <><Toggle label="REDUCE MOTION" detail="Minimize transitions while driving" value={reducedMotion} setValue={setReducedMotion} /><Action label="SCREEN CALIBRATION" detail={calibration.scale + '% · X ' + calibration.x + ' · Y ' + calibration.y + ' · SAFE ' + calibration.inset} onClick={function () { setCalibrationOpen(true); }} /></>}
+      {section === 'appearance' && <><Toggle label="REDUCE MOTION" detail="Minimize transitions while driving" value={reducedMotion} setValue={setReducedMotion} /><Action label="SCREEN CALIBRATION" detail={viewport.width + '×' + viewport.height + ' · DPR ' + viewport.dpr + ' · SAFE ' + calibration.inset} onClick={function () { setCalibrationOpen(true); }} /></>}
       {section === 'navigation' && <><Action label="GOOGLE NAVIGATION SDK" detail="Open native turn-by-turn navigation" onClick={function () { native.navigate(''); }} /><Toggle label="3D TERRAIN" detail="Elevation-aware route rendering" value={true} setValue={function () {}} /></>}
       {section === 'vehicle' && <><Action label="OBDLINK MX+" detail={obd?.status || 'Pair adapter in Android Bluetooth'} onClick={function () { native.settings('bluetooth'); }} /><Action label="RECONNECT VEHICLE LINK" detail="Restart read-only OBD telemetry" onClick={function () { native.reconnectObd(); }} /></>}
       {section === 'system' && <><Action label="DEFAULT LAUNCHER" detail="Choose TRX APEX as Android Home" onClick={function () { native.requestPermissionGroup('launcher'); }} /><Action label="APP PERMISSIONS" detail="Location · Bluetooth · Media" onClick={function () { native.settings('app'); }} /></>}
@@ -480,12 +510,12 @@ function SettingsPage(props) {
         <div className="calibration-head"><span><small>DISPLAY GEOMETRY</small><b>SCREEN CALIBRATION</b><em>Adjust until all four corner targets sit fully inside the visible panel.</em></span><button onClick={function () { setCalibrationOpen(false); }}>×</button></div>
         <div className="calibration-target"><i className="tl" /><i className="tr" /><i className="bl" /><i className="br" /><div><b>1080 × 1440</b><span>LIVE UI BOUNDS</span></div></div>
         <div className="calibration-controls">
-          <RangeControl label="UI SCALE" value={calibration.scale} onChange={function (value) { setCalibration({ ...calibration, scale: value }); }} min={86} max={104} suffix="%" />
+          <RangeControl label="UI DENSITY" value={calibration.scale} onChange={function (value) { setCalibration({ ...calibration, scale: value }); }} min={90} max={100} suffix="%" />
           <RangeControl label="HORIZONTAL OFFSET" value={calibration.x} onChange={function (value) { setCalibration({ ...calibration, x: value }); }} min={-60} max={60} suffix=" px" />
           <RangeControl label="VERTICAL OFFSET" value={calibration.y} onChange={function (value) { setCalibration({ ...calibration, y: value }); }} min={-80} max={80} suffix=" px" />
           <RangeControl label="SAFE EDGE" value={calibration.inset} onChange={function (value) { setCalibration({ ...calibration, inset: value }); }} min={0} max={36} suffix=" px" />
         </div>
-        <div className="calibration-actions"><button onClick={function () { setCalibration({ scale: 100, x: 0, y: 0, inset: 0 }); }}>RESET FACTORY</button><button className="primary" onClick={function () { setCalibrationOpen(false); }}><Check /> SAVE CALIBRATION</button></div>
+        <div className="calibration-actions"><button onClick={function () { setCalibration({ scale: 100, x: 0, y: 0, inset: 0 }); }}>RESET UCONNECT</button><button className="primary" onClick={function () { setCalibrationOpen(false); }}><Check /> SAVE CALIBRATION</button></div>
       </div>
     </div>}
   </section>;

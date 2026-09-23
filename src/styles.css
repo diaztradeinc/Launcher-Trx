@@ -51,7 +51,7 @@ svg { stroke-width: 1.65; }
 .calibrated-stage {
   position: absolute;
   inset: var(--screen-inset);
-  transform: translate(var(--screen-x), var(--screen-y)) scale(var(--screen-scale));
+  transform: translate(var(--screen-x), var(--screen-y));
   transform-origin: center;
   overflow: hidden;
 }
@@ -630,3 +630,154 @@ input[type=range] { accent-color: var(--accent); }
   .calibration-target { min-height: 150px; }
   .calibration-actions { position: sticky; bottom: 0; padding-top: 8px; background: #090a09; }
 }
+
+/* v5.12 Uconnect native portrait composition.
+   Ottocast reports a compact logical WebView while Uconnect permanently owns
+   the lower launcher area. These rules render directly at device density and
+   reserve that space instead of shrinking a desktop canvas into it. */
+.uconnect-portrait {
+  --rail: 64px;
+  --status: 48px;
+  --dock-safe: 92px;
+}
+.uconnect-portrait .calibrated-stage { transform: translate(var(--screen-x), var(--screen-y)); }
+.uconnect-portrait .apex-canvas { bottom: var(--dock-safe); }
+.uconnect-portrait .status-bar { padding: 0 10px; grid-template-columns: 1fr auto 1fr; }
+.uconnect-portrait .coordinates { font-size: 9px; white-space: nowrap; }
+.uconnect-portrait .coordinates span { margin-left: 4px; }
+.uconnect-portrait .apex-wordmark { font-size: 14px; gap: 5px; }
+.uconnect-portrait .system-status { gap: 5px; font-size: 10px; }
+.uconnect-portrait .system-status svg { width: 12px; }
+.uconnect-portrait .system-status b { font-size: 12px; }
+.uconnect-portrait .command-rail { gap: 6px; padding: 9px 5px; }
+.uconnect-portrait .command-rail button { width: 46px; height: 46px; border-radius: 13px; }
+.uconnect-portrait .command-rail button.active { width: 50px; }
+.uconnect-portrait .command-rail button.active span { display: none; }
+.uconnect-portrait .command-rail button svg { width: calc(19px * var(--icon-scale)); height: calc(19px * var(--icon-scale)); }
+.uconnect-portrait .ram-mark { top: 9px; font-size: 10px; }
+.uconnect-portrait .rail-line { top: 52px; bottom: 26px; }
+.uconnect-portrait .page-tag { top: 10px; left: 16px; right: 16px; height: 54px; }
+.uconnect-portrait .page-tag h1 { font-size: 27px; }
+.uconnect-portrait .page-tag small { font-size: 8px; }
+.uconnect-portrait .page-tag > div > span { font-size: 9px; }
+
+/* Home */
+.uconnect-portrait .home-hero > img { object-position: 60% center; transform: none; animation: none; }
+.uconnect-portrait .solar-arc { left: 18%; right: 8%; top: 22px; height: 62px; font-size: 8px; }
+.uconnect-portrait .hero-time { top: 8%; left: 6%; gap: 7px; }
+.uconnect-portrait .hero-time strong { font-size: clamp(58px, 16vw, 82px); }
+.uconnect-portrait .hero-time span { font-size: 9px; }
+.uconnect-portrait .hero-weather { right: 4%; top: 11%; }
+.uconnect-portrait .hero-weather b { font-size: 26px; }
+.uconnect-portrait .hero-weather span { font-size: 8px; }
+.uconnect-portrait .expedition-copy { left: 7%; top: 35%; }
+.uconnect-portrait .expedition-copy h2 { font-size: clamp(36px, 10vw, 50px); }
+.uconnect-portrait .quick-orbit { right: 2%; top: 46%; transform: scale(.84); }
+.uconnect-portrait .context-ribbon { left: 4%; right: 4%; bottom: 35px; height: 102px; grid-template-columns: 1.12fr .88fr; border-radius: 48px 14px 14px 48px; }
+.uconnect-portrait .context-ribbon button { gap: 9px; padding: 10px 12px; }
+.uconnect-portrait .context-ribbon button > img { width: 66px; height: 66px; }
+.uconnect-portrait .context-ribbon button > svg { width: 24px; }
+.uconnect-portrait .context-ribbon small { font-size: 8px; }
+.uconnect-portrait .context-ribbon b { font-size: 14px; }
+.uconnect-portrait .context-ribbon em { font-size: 9px; }
+.uconnect-portrait .context-ribbon .vehicle-context { display: none; }
+.uconnect-portrait .connection-strip { height: 30px; font-size: 8px; }
+
+/* Navigation command centre */
+.uconnect-portrait .nav-command-center { inset: 72px 3% 8px; grid-template-columns: 1fr; grid-template-rows: 54px 25% 62px 1fr 64px; gap: 8px; }
+.uconnect-portrait .nav-command-center .nav-command { height: 52px; padding: 0 13px; }
+.uconnect-portrait .nav-command input { font-size: 14px; min-width: 0; }
+.uconnect-portrait .route-brief { grid-template-columns: 1fr 1fr; gap: 8px; }
+.uconnect-portrait .destination-card { padding: 11px 13px; }
+.uconnect-portrait .destination-card h2 { font-size: 28px; max-width: 92%; }
+.uconnect-portrait .route-metrics > div { padding: 7px 8px; }
+.uconnect-portrait .route-metrics b { font-size: 17px; }
+.uconnect-portrait .route-preferences { gap: 5px; padding: 5px 0; overflow-x: auto; }
+.uconnect-portrait .route-preferences > span { display: none; }
+.uconnect-portrait .route-preferences button { min-width: 92px; height: 36px; padding: 0 9px; font-size: 8px; }
+.uconnect-portrait .quick-destinations { grid-template-columns: repeat(4,1fr); gap: 5px; }
+.uconnect-portrait .quick-destinations button { gap: 3px; }
+.uconnect-portrait .quick-destinations svg { width: 20px; }
+.uconnect-portrait .recent-routes { display: none; }
+.uconnect-portrait .nav-launch-strip { grid-template-columns: 1fr minmax(150px,44%); padding: 6px 7px 6px 12px; }
+.uconnect-portrait .nav-launch-strip > div:nth-child(2) { display: none; }
+.uconnect-portrait .nav-launch-strip button { height: 48px; font-size: 11px; }
+
+/* Media: portrait editorial stack with a non-overlapping queue. */
+.uconnect-portrait .sonic-stage { inset: 70px 0 0; }
+.uconnect-portrait .wave-field { top: 43%; height: 150px; }
+.uconnect-portrait .record { left: 18%; top: 1%; width: 64%; max-width: 320px; padding: 8%; transform: none; }
+.uconnect-portrait .record.spinning { animation: none; }
+.uconnect-portrait .track-editorial { left: 5%; right: 5%; top: 37%; text-align: center; }
+.uconnect-portrait .track-editorial > span { font-size: 8px; }
+.uconnect-portrait .track-editorial h2 { margin: 6px 0 2px; font-size: clamp(30px, 9vw, 43px); line-height: .92; max-height: 1.86em; overflow-wrap: normal; }
+.uconnect-portrait .track-editorial p { margin: 5px 0; font-size: 18px; }
+.uconnect-portrait .up-next-curve { left: 4%; right: 4%; top: 56%; width: auto; padding: 22px 0 0; border-left: 0; display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 6px; }
+.uconnect-portrait .up-next-curve > span { left: 2px; top: 2px; font-size: 8px; }
+.uconnect-portrait .up-next-curve button { min-height: 58px; border-radius: 10px; padding: 5px; gap: 6px; }
+.uconnect-portrait .up-next-curve img, .uconnect-portrait .queue-placeholder { flex-basis: 39px; width: 39px; height: 39px; }
+.uconnect-portrait .up-next-curve button b { font-size: 9px; -webkit-line-clamp: 1; }
+.uconnect-portrait .up-next-curve button small { font-size: 7px; }
+.uconnect-portrait .up-next-curve button > svg { display: none; }
+.uconnect-portrait .progress-line { left: 8%; right: 8%; bottom: 20%; }
+.uconnect-portrait .transport-arc { left: 12%; bottom: 1%; width: 76%; height: 96px; gap: 10px; }
+.uconnect-portrait .transport-arc button { width: 48px; height: 48px; }
+.uconnect-portrait .transport-arc .transport-main { width: 64px; height: 64px; }
+.uconnect-portrait .audio-output { display: none; }
+
+/* Dynamics */
+.uconnect-portrait .dynamics-stage { inset: 70px 0 0; }
+.uconnect-portrait .rpm-readout { top: 0; left: 4%; }
+.uconnect-portrait .rpm-readout strong { font-size: 72px; }
+.uconnect-portrait .gear-readout { left: auto; right: 8%; top: 4px; }
+.uconnect-portrait .gear-readout b { font-size: 49px; }
+.uconnect-portrait .tach-arc { left: 4%; top: 72px; width: 92%; height: 120px; }
+.uconnect-portrait .xray-truck { left: 5%; top: 20%; width: 90%; height: 42%; }
+.uconnect-portrait .telemetry { min-width: 76px; padding: 5px 7px; }
+.uconnect-portrait .telemetry span { font-size: 8px; }
+.uconnect-portrait .telemetry strong { font-size: 22px; }
+.uconnect-portrait .telemetry.supercharger { left: 2%; top: 20%; }
+.uconnect-portrait .telemetry.throttle { right: 2%; top: 20%; }
+.uconnect-portrait .telemetry.coolant { left: 2%; top: 48%; }
+.uconnect-portrait .telemetry.oil { left: 16%; top: 58%; }
+.uconnect-portrait .telemetry.voltage { right: 1%; top: 47%; }
+.uconnect-portrait .telemetry.trans { right: 11%; top: 58%; }
+.uconnect-portrait .power-surface { left: 3%; bottom: 2%; width: 62%; height: 22%; }
+.uconnect-portrait .zero-sixty { right: 3%; bottom: 3%; width: 29%; height: 19%; padding: 11px; }
+.uconnect-portrait .zero-sixty strong { font-size: 46px; }
+
+/* Apps */
+.uconnect-portrait .app-search { z-index: 12; top: 72px; left: 5%; right: 6%; height: 48px; padding: 0 9px; background: rgba(6,7,6,.96); }
+.uconnect-portrait .app-search input { font-size: 13px; min-width: 0; }
+.uconnect-portrait .app-orbit { left: 12%; top: 25%; width: 76%; }
+.uconnect-portrait .orbit-emblem { font-size: 46px; }
+.uconnect-portrait .disc { width: calc(49px * var(--icon-scale)); height: calc(49px * var(--icon-scale)); }
+.uconnect-portrait .app-orbit b, .uconnect-portrait .app-flow b { font-size: 8px; max-width: 70px; overflow: hidden; text-overflow: ellipsis; }
+.uconnect-portrait .app-flow { left: 5%; right: 5%; bottom: 43px; height: 116px; gap: 16px; padding-top: 13px; }
+.uconnect-portrait .app-mode { bottom: 5px; }
+.uconnect-portrait .all-apps-grid { left: 4%; right: 5%; top: 132px; bottom: 44px; grid-template-columns: repeat(4,minmax(0,1fr)); grid-auto-rows: 88px; gap: 7px; padding: 6px 18px 20px 4px; }
+.uconnect-portrait .all-apps-grid .disc { width: 48px; height: 48px; }
+.uconnect-portrait .all-apps-grid b { font-size: 8px; }
+.uconnect-portrait .alphabet { right: .8%; top: 18%; bottom: 7%; }
+.uconnect-portrait .alphabet button { font-size: 7px; }
+
+/* Studio */
+.uconnect-portrait .studio-preview { left: 3%; top: 70px; width: 33%; height: 25%; }
+.uconnect-portrait .studio-preview strong { font-size: 34px; }
+.uconnect-portrait .theme-materials { left: 39%; right: 3%; top: 70px; height: 22%; overflow: hidden; }
+.uconnect-portrait .theme-materials > div { justify-content: flex-start; gap: 7px; overflow-x: auto; padding-bottom: 6px; }
+.uconnect-portrait .theme-materials button { flex: 0 0 58px; width: 58px; font-size: 7px; }
+.uconnect-portrait .theme-materials button i { width: 42px; height: 42px; }
+.uconnect-portrait .studio-controls { left: 39%; right: 3%; top: 27%; height: 16%; grid-template-columns: 1fr; gap: 5px; }
+.uconnect-portrait .studio-controls .range-control:nth-child(2) { display: none; }
+.uconnect-portrait .mode-control { grid-column: 1; gap: 4px; }
+.uconnect-portrait .mode-control > span { display: none; }
+.uconnect-portrait .mode-control button { height: 28px; padding: 0 7px; font-size: 7px; }
+.uconnect-portrait .studio-sections { left: 3%; right: 3%; top: 45%; height: 23%; grid-template-columns: 1fr 1fr; gap: 6px; }
+.uconnect-portrait .studio-sections button { padding: 8px; }
+.uconnect-portrait .studio-sections button span { font-size: 11px; }
+.uconnect-portrait .studio-sections button small { font-size: 7px; }
+.uconnect-portrait .setting-drawer { left: 3%; right: 3%; top: 70%; bottom: 2%; gap: 6px; }
+.uconnect-portrait .drawer-row { padding: 8px 10px; }
+.uconnect-portrait .drawer-row b { font-size: 9px; }
+.uconnect-portrait .drawer-row small { font-size: 7px; }
