@@ -8,6 +8,7 @@
     "@capacitor/android": "^8.5.2",
     "@capacitor/cli": "^8.5.2",
     "@capacitor/core": "^8.5.2",
+    "@capacitor/status-bar": "^8.0.0",
     "lucide-react": "latest",
     "react": "latest",
     "react-dom": "latest"
