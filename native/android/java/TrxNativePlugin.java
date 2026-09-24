@@ -243,8 +243,11 @@ public class TrxNativePlugin extends Plugin {
         ObdBridge.start(getContext());
         JSObject result = new JSObject();
         result.put("connected", ObdBridge.connected);
+        result.put("ecuConnected", ObdBridge.ecuConnected);
         result.put("status", ObdBridge.status);
         result.put("deviceName", ObdBridge.deviceName);
+        result.put("protocol", ObdBridge.protocol);
+        result.put("livePidCount", ObdBridge.livePidCount);
         putNumber(result, "rpm", ObdBridge.rpm);
         putNumber(result, "coolantF", ObdBridge.coolantF);
         putNumber(result, "intakeF", ObdBridge.intakeF);
@@ -253,6 +256,9 @@ public class TrxNativePlugin extends Plugin {
         putNumber(result, "speedMph", ObdBridge.obdSpeedMph);
         putNumber(result, "boostPsi", ObdBridge.boostPsi);
         putNumber(result, "transmissionF", ObdBridge.transmissionF);
+        putNumber(result, "throttle", ObdBridge.throttle);
+        putNumber(result, "fuelLevel", ObdBridge.fuelLevel);
+        putNumber(result, "mafGps", ObdBridge.mafGps);
         call.resolve(result);
     }
 

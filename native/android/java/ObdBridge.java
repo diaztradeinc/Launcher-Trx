@@ -29,8 +29,11 @@ public final class ObdBridge {
     private static volatile OutputStream output;
 
     public static volatile boolean connected;
+    public static volatile boolean ecuConnected;
     public static volatile String status="PAIR OBDLINK MX+";
     public static volatile String deviceName="OBDLink MX+";
+    public static volatile String protocol="--";
+    public static volatile int livePidCount;
     public static volatile long lastUpdate;
 
     public static volatile float rpm=Float.NaN;
@@ -41,6 +44,9 @@ public final class ObdBridge {
     public static volatile float obdSpeedMph=Float.NaN;
     public static volatile float boostPsi=Float.NaN;
     public static volatile float transmissionF=Float.NaN;
+    public static volatile float throttle=Float.NaN;
+    public static volatile float fuelLevel=Float.NaN;
+    public static volatile float mafGps=Float.NaN;
 
     private ObdBridge(){}
 
@@ -92,7 +98,7 @@ public final class ObdBridge {
 
                 initializeAdapter();
                 connected=true;
-                status="OBD LIVE • "+deviceName.toUpperCase(Locale.US);
+                status=ecuConnected ? "OBD LIVE • "+protocol : "ADAPTER LIVE • START ENGINE";
                 while(running&&next.isConnected()){
                     pollStandardPids();
                     lastUpdate=SystemClock.elapsedRealtime();
@@ -104,7 +110,8 @@ public final class ObdBridge {
                 status="OBD RECONNECTING…";
             }finally{
                 connected=false;
-                rpm=coolantF=intakeF=engineLoad=batteryV=obdSpeedMph=boostPsi=transmissionF=Float.NaN;
+                ecuConnected=false;livePidCount=0;protocol="--";
+                rpm=coolantF=intakeF=engineLoad=batteryV=obdSpeedMph=boostPsi=transmissionF=throttle=fuelLevel=mafGps=Float.NaN;
                 closeSocket();
             }
             if(running)sleep(3000);
@@ -135,31 +142,42 @@ public final class ObdBridge {
         command("ATL0",1000);
         command("ATS0",1000);
         command("ATH0",1000);
-        command("ATAT1",1000);
+        command("ATAT2",1000);
+        command("ATST64",1000);
+        command("ATCAF1",1000);
         command("ATSP0",2200);
-        command("0100",2200);
+        String supported=command("0100",3000);
+        if(!hasModeOneReply(supported)){
+            command("ATSP6",1800);command("ATSH7DF",1000);supported=command("0100",3000);
+        }
+        ecuConnected=hasModeOneReply(supported);protocol=cleanProtocol(command("ATDP",1200));
     }
 
     private static void pollStandardPids() throws Exception{
         float[] data;
+        livePidCount=0;
 
         data=pid("0C",2);
-        rpm=data==null?Float.NaN:(data[0]*256f+data[1])/4f;
+        rpm=data==null?Float.NaN:(data[0]*256f+data[1])/4f;if(data!=null)livePidCount++;
 
         data=pid("05",1);
-        coolantF=data==null?Float.NaN:toF(data[0]-40f);
+        coolantF=data==null?Float.NaN:toF(data[0]-40f);if(data!=null)livePidCount++;
 
         data=pid("04",1);
-        engineLoad=data==null?Float.NaN:data[0]*100f/255f;
+        engineLoad=data==null?Float.NaN:data[0]*100f/255f;if(data!=null)livePidCount++;
 
         data=pid("0F",1);
-        intakeF=data==null?Float.NaN:toF(data[0]-40f);
+        intakeF=data==null?Float.NaN:toF(data[0]-40f);if(data!=null)livePidCount++;
 
         data=pid("0D",1);
-        obdSpeedMph=data==null?Float.NaN:data[0]*0.621371f;
+        obdSpeedMph=data==null?Float.NaN:data[0]*0.621371f;if(data!=null)livePidCount++;
+
+        data=pid("11",1);throttle=data==null?Float.NaN:data[0]*100f/255f;if(data!=null)livePidCount++;
+        data=pid("2F",1);fuelLevel=data==null?Float.NaN:data[0]*100f/255f;if(data!=null)livePidCount++;
+        data=pid("10",2);mafGps=data==null?Float.NaN:(data[0]*256f+data[1])/100f;if(data!=null)livePidCount++;
 
         data=pid("42",2);
-        if(data!=null)batteryV=(data[0]*256f+data[1])/1000f;
+        if(data!=null){batteryV=(data[0]*256f+data[1])/1000f;livePidCount++;}
         else{
             batteryV=Float.NaN;
             String voltage=command("ATRV",1000).replaceAll("[^0-9.]","");
@@ -172,11 +190,17 @@ public final class ObdBridge {
         boostPsi=Float.NaN;
         if(!Float.isNaN(map)&&!Float.isNaN(baro)&&baro>0){
             boostPsi=Math.max(0,(map-baro)*0.1450377f);
+            livePidCount++;
         }
         // Transmission temperature is manufacturer-specific on this vehicle.
         // Leave it unsupported until a verified read-only RAM PID is available.
         transmissionF=Float.NaN;
+        ecuConnected=livePidCount>0;
+        status=ecuConnected ? "OBD LIVE • "+livePidCount+" PIDS • "+protocol : "ADAPTER LIVE • ECU NO DATA";
     }
+
+    private static boolean hasModeOneReply(String value){if(value==null)return false;return value.toUpperCase(Locale.US).replaceAll("[^0-9A-F]","").contains("4100");}
+    private static String cleanProtocol(String value){if(value==null)return "CAN";String clean=value.replace(">","").replace("ATDP","").replaceAll("[\\r\\n]+"," ").trim();return clean.isEmpty()?"CAN":clean.toUpperCase(Locale.US);}
 
     private static float[] pid(String code,int count) throws Exception{
         String response=command("01"+code,1500).toUpperCase(Locale.US);

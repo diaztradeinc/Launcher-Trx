@@ -241,8 +241,7 @@ function PageTag({ index, title, subtitle, right }) {
 }
 
 function HomePage({ onNavigate, now, live }) {
-  const [quickOpen, setQuickOpen] = useState(false);
-  const glyphs = ['🗺️', '●', '☎', '▶', 'MX'];
+  function reading(value, fallback, digits) { return value == null ? fallback : Number(value).toFixed(digits || 0); }
   return <section className="page home-page">
     <div className="home-hero">
       <img src="/trx-hero.webp" alt="Red RAM TRX in mountain terrain" />
@@ -250,17 +249,12 @@ function HomePage({ onNavigate, now, live }) {
       <div className="solar-arc"><Sun /><span>SUNRISE 6:12</span><i /><span>SUNSET 7:28</span></div>
       <div className="hero-time"><strong>{now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</strong><span>{now.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' }).toUpperCase()}</span></div>
       <div className="hero-weather"><CloudSun /><b>{live.weather?.temperature ?? 72}°F</b><span>LIVE LOCATION<br />{live.weather?.condition || 'WAITING FOR WEATHER'}</span></div>
-      <div className="expedition-copy"><span>EXPEDITION 01</span><h2>Adventure<br />awaits.</h2></div>
-      <div className="context-ribbon">
-        <button className="media-context" onClick={function () { onNavigate('media'); }}><img src={live.media?.artwork || '/trx-radio.webp'} alt="Album artwork" /><span><small>NOW PLAYING</small><b>{live.media?.title || 'No active media'}</b><em>{live.media?.artist || 'Open a media app'}</em></span>{live.media?.playing ? <Pause /> : <Play />}</button>
-        <button className="route-context" onClick={function () { onNavigate('navigation'); }}><Navigation /><span><small>NEXT MANEUVER</small><b>0.8 mi · Turn right</b><em>ETA 10:36 · 6.4 mi</em></span></button>
-        <button className="vehicle-context" onClick={function () { onNavigate('performance'); }}><Activity /><span><small>VEHICLE LINK</small><b>{live.obd?.deviceName || 'OBDLINK MX+'}</b><em className="live">● {live.obd?.connected ? 'LIVE' : 'STANDBY'}</em></span></button>
-      </div>
-      <div className={'quick-orbit' + (quickOpen ? ' open' : '')}>
-        <button className="quick-trigger" onClick={function () { setQuickOpen(!quickOpen); }}><Sparkles /></button>
-        {glyphs.map(function (glyph, i) {
-          return <button key={glyph + i} style={{ '--i': i }} onClick={function () { onNavigate(i === 4 ? 'performance' : i < 1 ? 'navigation' : i === 1 ? 'media' : 'apps'); }}>{glyph}</button>;
-        })}
+      <div className="expedition-copy"><span>EXPEDITION 01</span><h2>Adventure awaits.</h2></div>
+      <div className="home-command-deck">
+        <button className="drive-brief" onClick={function () { onNavigate('navigation'); }}><span className="deck-title">DRIVE BRIEF <ChevronRight /></span><div className="drive-content"><div><small>DESTINATION</small><b>HOME</b><strong>32 <em>min</em></strong><span>18.4 mi · <i>TRAFFIC NORMAL</i></span></div><div className="mini-route"><i /><i /><i /></div></div><div className="deck-action"><Navigation /> START</div></button>
+        <button className="home-now-playing" onClick={function () { onNavigate('media'); }}><span className="deck-title">NOW PLAYING <ChevronRight /></span><div><img src={live.media?.artwork || '/trx-radio.webp'} alt="Album artwork" /><span><b>{live.media?.title || 'No active media'}</b><small>{live.media?.artist || 'Open a media source'}</small></span>{live.media?.playing ? <Pause /> : <Play />}</div></button>
+        <button className="home-vehicle" onClick={function () { onNavigate('performance'); }}><span className="deck-title">VEHICLE <ChevronRight /></span><div className="vehicle-live"><Activity /><b>{live.obd?.deviceName || 'OBDLINK MX+'}</b><i /><em>{live.obd?.ecuConnected ? 'LIVE' : live.obd?.connected ? 'ADAPTER' : 'STANDBY'}</em></div><div className="vehicle-glance"><span><small>FUEL</small><b>{reading(live.obd?.fuelLevel, '--')}%</b></span><span><small>BATTERY</small><b>{reading(live.obd?.batteryV, '--', 1)} V</b></span><span><small>ENGINE</small><b>{live.obd?.ecuConnected ? 'LIVE' : '--'}</b></span></div></button>
+        <div className="home-quick"><span className="deck-title">QUICK ACTIONS</span><div><button onClick={function () { onNavigate('navigation'); }}><Home /><small>HOME</small></button><button onClick={function () { onNavigate('navigation'); }}><Activity /><small>WORK</small></button><button onClick={function () { onNavigate('navigation'); }}><MapPin /><small>FUEL</small></button><button onClick={function () { onNavigate('apps'); }}><Aperture /><small>CAMERA</small></button></div></div>
       </div>
       <div className="connection-strip"><i /> {live.location ? 'GPS LOCKED' : 'GPS WAITING'} <span /> OBDLINK MX+ <b>{live.obd?.connected ? 'LIVE' : 'CONNECTING'}</b> <span /> APEX NATIVE</div>
     </div>
@@ -406,7 +400,7 @@ function PerformancePage({ obd }) {
   const telemetry = [
     ['Boost', reading(obd?.boostPsi, '--', 1), 'PSI', 'supercharger'], ['Coolant', reading(obd?.coolantF, '--'), '°F', 'coolant'],
     ['Intake', reading(obd?.intakeF, '--'), '°F', 'oil'], ['Trans', reading(obd?.transmissionF, 'N/A'), '°F', 'trans'],
-    ['Voltage', reading(obd?.batteryV, '--', 1), 'V', 'voltage'], ['Load', reading(obd?.engineLoad, '--'), '%', 'throttle']
+    ['Voltage', reading(obd?.batteryV, '--', 1), 'V', 'voltage'], ['Throttle', reading(obd?.throttle ?? obd?.engineLoad, '--'), '%', 'throttle']
   ];
   return <section className="page performance-page">
     <PageTag index="05" title="Dynamics" subtitle="Live vehicle intelligence" right={<button className="mx-live" onClick={function () { native.reconnectObd(); }}><i /> {obd?.deviceName || 'OBDLINK MX+'} <b>{obd?.connected ? 'LIVE' : 'CONNECT'}</b></button>} />
@@ -418,7 +412,7 @@ function PerformancePage({ obd }) {
       <div className="telemetry-grid">{telemetry.map(function (item) { return <div className={'telemetry ' + item[3]} key={item[0]}><span>{item[0]}</span><strong>{item[1]}<small>{item[2]}</small></strong></div>; })}</div>
       <div className="power-surface"><span>LIVE POWER CURVE</span><svg viewBox="0 0 500 160" preserveAspectRatio="none"><path className="gridline" d="M0 130H500M0 90H500M0 50H500"/><path className="hp" d="M0 140 C100 135 125 95 205 88 S330 25 500 35"/><path className="torque" d="M0 145 C90 125 125 58 220 50 S365 62 500 77"/></svg><div><b>HP 702</b><b>TQ 650</b></div></div>
       <button className="zero-sixty"><span>0–60 MPH</span><strong>3.4<small>s</small></strong><em>DRAG TIMER</em></button>
-      <div className="rpm-control">{obd?.status || 'PAIR OBDLINK MX+'}</div>
+      <div className="rpm-control">{obd?.status || 'PAIR OBDLINK MX+'}<small>{obd?.protocol && obd.protocol !== '--' ? obd.protocol : ''}</small></div>
     </div>
   </section>;
 }
@@ -462,13 +456,13 @@ function AppsPage() {
   const flowApps = recentApps.length ? recentApps : source.slice(0, 10);
   const showAll = mode === 'all' || Boolean(query);
   return <section className="page apps-page">
-    <PageTag index="06" title="Orbit" subtitle={editing ? 'Tap apps below to add · tap orbit to remove' : 'Applications in motion'} right={<button className={'edit-apps' + (editing ? ' active' : '')} onClick={function () { setEditing(!editing); }}><SlidersHorizontal /> {editing ? 'DONE' : 'CUSTOMIZE'}</button>} />
+    <PageTag index="06" title="Orbit" subtitle={editing ? 'Tap apps below to add · tap orbit to remove' : 'Applications in motion'} right={<div className="apps-page-actions"><small>{installed.length || source.length} INSTALLED</small><button className={'edit-apps' + (editing ? ' active' : '')} onClick={function () { setEditing(!editing); }}><SlidersHorizontal /> {editing ? 'DONE' : 'EDIT FAVORITES'}</button></div>} />
     <div className="app-search"><Search /><input value={query} onChange={function (e) { setQuery(e.target.value); }} placeholder="Search apps, settings, vehicle…" /><Sparkles /></div>
     {!showAll && <div className={'app-orbit' + (editing ? ' editing' : '')}><div className="orbit-emblem">TRX<small>{editing ? (favorites.length + ' / 8 SELECTED') : 'FAVORITES'}</small></div>{(favorites.length ? favorites : source.slice(0, 8)).map(function (item, i) { return <AppButton key={item.packageName || item.name} app={item} style={{ '--i': i }} editing={editing} onPress={editing ? function () { toggleFavorite(item); } : null} onLaunch={launchApp} />; })}</div>}
     {!showAll && <div className={'app-flow' + (editing ? ' editing' : '')}>{flowApps.map(function (item) { return <AppButton key={item.packageName || item.name} app={item} editing={editing && favoritePackages.includes(item.packageName)} onPress={editing ? function () { toggleFavorite(item); } : null} onLaunch={launchApp} />; })}</div>}
     {showAll && <div className={'all-apps-grid' + (editing ? ' editing' : '')}>{filtered.map(function (item) { return <AppButton key={item.packageName || item.name} app={item} editing={editing && favoritePackages.includes(item.packageName)} onPress={editing ? function () { toggleFavorite(item); } : null} onLaunch={launchApp} />; })}</div>}
     {showAll && <div className="alphabet">{'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map(function (letter) { return <button key={letter} onClick={function () { const target = filtered.find(function (app) { return app.name.toUpperCase().startsWith(letter); }); if (target) document.getElementById('app-' + target.packageName)?.scrollIntoView({ block: 'center' }); }}>{letter}</button>; })}</div>}
-    <div className="app-mode"><button className={mode === 'recent' ? 'active' : ''} onClick={function () { setMode('recent'); setQuery(''); }}>RECENT</button><button className={mode === 'all' ? 'active' : ''} onClick={function () { setMode('all'); }}>ALL APPS</button></div>
+    <div className="app-mode"><button className={mode === 'recent' ? 'active' : ''} onClick={function () { setMode('recent'); setQuery(''); }}>FAVORITES</button><button className={mode === 'all' ? 'active' : ''} onClick={function () { setMode('all'); }}>ALL APPS</button></div>
   </section>;
 }
 

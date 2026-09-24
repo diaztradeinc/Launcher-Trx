@@ -70,6 +70,7 @@ public class NavigationActivity extends AppCompatActivity {
     private Marker trxMarker;
     private RoadSnappedLocationProvider roadSnappedLocationProvider;
     private boolean locationListenerRegistered;
+    private boolean guidanceActive;
     private final RoadSnappedLocationProvider.LocationListener roadLocationListener = new RoadSnappedLocationProvider.LocationListener() {
         @Override public void onLocationChanged(@NonNull Location location) { updateTrxMarker(location); }
     };
@@ -122,11 +123,11 @@ public class NavigationActivity extends AppCompatActivity {
         navigationRoot.addView(searchBar, searchLp);
 
         driveControls = new LinearLayout(this);
-        driveControls.setOrientation(LinearLayout.VERTICAL);
+        driveControls.setOrientation(LinearLayout.HORIZONTAL);
         driveControls.setGravity(Gravity.CENTER);
         driveControls.setPadding(dp(7),dp(9),dp(7),dp(9));
         GradientDrawable railBg = new GradientDrawable();
-        railBg.setColor(0xf20a0b0a); railBg.setCornerRadius(dp(48)); railBg.setStroke(dp(1),withAlpha(accentColor, 0x88));
+        railBg.setColor(0xf6070807); railBg.setCornerRadius(dp(34)); railBg.setStroke(dp(1),withAlpha(accentColor, 0x88));
         driveControls.setBackground(railBg);
         Button recenter = railButton("◎\nRECENTER");
         recenter.setOnClickListener(v -> navigationView.getMapAsync(map -> map.followMyLocation(CameraPerspective.TILTED)));
@@ -148,12 +149,12 @@ public class NavigationActivity extends AppCompatActivity {
         Button exit = railButton("×\nEXIT"); exit.setOnClickListener(v -> finish());
         driveControls.addView(recenter); driveControls.addView(satellite); driveControls.addView(overview); driveControls.addView(audio); driveControls.addView(exit);
         driveControls.setVisibility(View.GONE);
-        FrameLayout.LayoutParams railLp = new FrameLayout.LayoutParams(dp(70), -2, Gravity.RIGHT | Gravity.CENTER_VERTICAL);
-        railLp.rightMargin=dp(10);navigationRoot.addView(driveControls,railLp);
+        FrameLayout.LayoutParams railLp = new FrameLayout.LayoutParams(-2, dp(64), Gravity.RIGHT | Gravity.CENTER_VERTICAL);
+        railLp.rightMargin=dp(78);navigationRoot.addView(driveControls,railLp);
 
         railToggle = new Button(this);
-        railToggle.setText("›"); railToggle.setTextColor(accentColor); railToggle.setTextSize(22); railToggle.setPadding(0,0,0,0);
-        GradientDrawable toggleBg = new GradientDrawable(); toggleBg.setColor(0xf3070807); toggleBg.setCornerRadius(dp(18)); toggleBg.setStroke(dp(1),withAlpha(accentColor,0xcc));
+        railToggle.setText("✦"); railToggle.setTextColor(accentColor); railToggle.setTextSize(24); railToggle.setPadding(0,0,0,0);
+        GradientDrawable toggleBg = new GradientDrawable(); toggleBg.setColor(0xff050605); toggleBg.setShape(GradientDrawable.OVAL); toggleBg.setStroke(dp(1),withAlpha(accentColor,0xdd));
         railToggle.setBackground(toggleBg); railToggle.setOnClickListener(v -> toggleDriveControls()); railToggle.setVisibility(View.GONE);
         positionRailToggle(false);
 
@@ -265,7 +266,7 @@ public class NavigationActivity extends AppCompatActivity {
                 if(routeStatus==Navigator.RouteStatus.OK){
                     AudioGuidanceSettings audio=AudioGuidanceSettings.builder().setGuidanceMode(audioEnabled ? AudioGuidanceSettings.GuidanceMode.VOICE_ALERTS_AND_GUIDANCE : AudioGuidanceSettings.GuidanceMode.SILENT).build();
                     navigator.setAudioGuidanceSettings(audio);navigator.startGuidance();status.setVisibility(android.view.View.GONE);destination.clearFocus();
-                    searchBar.setVisibility(View.GONE);driveControls.setVisibility(View.VISIBLE);railToggle.setVisibility(View.VISIBLE);positionRailToggle(false);
+                    guidanceActive=true;searchBar.setVisibility(View.GONE);driveControls.setVisibility(View.GONE);railToggle.setVisibility(View.VISIBLE);positionRailToggle(true);
                     InputMethodManager keyboard=(InputMethodManager)getSystemService(Context.INPUT_METHOD_SERVICE);
                     if(keyboard!=null)keyboard.hideSoftInputFromWindow(destination.getWindowToken(),0);
                 }else status.setText("ROUTE UNAVAILABLE · "+routeStatus);
@@ -281,20 +282,20 @@ public class NavigationActivity extends AppCompatActivity {
     private Button railButton(String label) {
         Button button=new Button(this);button.setText(label);button.setTextColor(accentColor);button.setTextSize(7.5f);button.setGravity(Gravity.CENTER);button.setAllCaps(false);
         button.setPadding(0,0,0,0);GradientDrawable bg=new GradientDrawable();bg.setShape(GradientDrawable.OVAL);bg.setColor(0xff0b0c0b);bg.setStroke(dp(1),withAlpha(accentColor,0x99));button.setBackground(bg);
-        LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(dp(52),dp(52));lp.topMargin=dp(4);lp.bottomMargin=dp(4);button.setLayoutParams(lp);return button;
+        LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(dp(50),dp(50));lp.leftMargin=dp(4);lp.rightMargin=dp(4);button.setLayoutParams(lp);return button;
     }
 
     private void toggleDriveControls() {
         boolean collapse = driveControls.getVisibility() == View.VISIBLE;
         driveControls.setVisibility(collapse ? View.GONE : View.VISIBLE);
-        railToggle.setText(collapse ? "‹" : "›");
+        railToggle.setText(collapse ? "✦" : "×");
         positionRailToggle(collapse);
     }
 
     private void positionRailToggle(boolean collapsed) {
         if (railToggle == null || navigationRoot == null) return;
-        FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(dp(34), dp(64), Gravity.RIGHT | Gravity.CENTER_VERTICAL);
-        lp.rightMargin = dp(collapsed ? 5 : 82);
+        FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(dp(58), dp(58), Gravity.RIGHT | Gravity.CENTER_VERTICAL);
+        lp.rightMargin = dp(12);
         if (railToggle.getParent() == null) navigationRoot.addView(railToggle, lp); else railToggle.setLayoutParams(lp);
     }
 
@@ -340,7 +341,8 @@ public class NavigationActivity extends AppCompatActivity {
     }
 
     private void updateTrxMarker(Location location) {
-        if (googleMap == null || location == null) return;
+        if (googleMap == null || location == null || !guidanceActive) return;
+        if (location.hasAccuracy() && location.getAccuracy() > 30f) {if (trxMarker != null) trxMarker.setVisible(false);return;}
         LatLng position = new LatLng(location.getLatitude(), location.getLongitude());
         if (trxMarker == null) {
             trxMarker = googleMap.addMarker(new MarkerOptions()
@@ -351,6 +353,7 @@ public class NavigationActivity extends AppCompatActivity {
                     .zIndex(1000f));
         }
         if (trxMarker != null) {
+            trxMarker.setVisible(true);
             trxMarker.setPosition(position);
             if (location.hasBearing()) trxMarker.setRotation(location.getBearing());
         }
@@ -359,7 +362,7 @@ public class NavigationActivity extends AppCompatActivity {
     private Bitmap createTrxMarkerBitmap() {
         Bitmap source = BitmapFactory.decodeResource(getResources(), R.drawable.apex_trx_marker);
         if (source == null) return Bitmap.createBitmap(dp(2), dp(2), Bitmap.Config.ARGB_8888);
-        return Bitmap.createScaledBitmap(source, dp(58), dp(84), true);
+        return Bitmap.createScaledBitmap(source, dp(34), dp(49), true);
     }
 
     private int parseAccent(String value) {
