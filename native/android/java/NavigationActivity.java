@@ -123,20 +123,20 @@ public class NavigationActivity extends AppCompatActivity {
         navigationRoot.addView(searchBar, searchLp);
 
         driveControls = new LinearLayout(this);
-        driveControls.setOrientation(LinearLayout.HORIZONTAL);
+        driveControls.setOrientation(LinearLayout.VERTICAL);
         driveControls.setGravity(Gravity.CENTER);
-        driveControls.setPadding(dp(7),dp(9),dp(7),dp(9));
+        driveControls.setPadding(dp(7),dp(8),dp(7),dp(8));
         GradientDrawable railBg = new GradientDrawable();
-        railBg.setColor(0xf6070807); railBg.setCornerRadius(dp(34)); railBg.setStroke(dp(1),withAlpha(accentColor, 0x88));
+        railBg.setColor(0xf2070807); railBg.setCornerRadius(dp(32)); railBg.setStroke(dp(1),withAlpha(accentColor, 0x9a));
         driveControls.setBackground(railBg);
         Button recenter = railButton("◎\nRECENTER");
         recenter.setOnClickListener(v -> navigationView.getMapAsync(map -> map.followMyLocation(CameraPerspective.TILTED)));
-        Button satellite = railButton("◇\nSATELLITE");
+        Button satellite = railButton("◇\nLAYERS");
         satellite.setOnClickListener(v -> navigationView.getMapAsync(map -> {
             satelliteMode = !satelliteMode;
             map.setMapType(satelliteMode ? GoogleMap.MAP_TYPE_HYBRID : GoogleMap.MAP_TYPE_NORMAL);
             if (!satelliteMode) applyApexMapStyle(map);
-            satellite.setText(satelliteMode ? "◇\nSTANDARD" : "◇\nSATELLITE");
+            satellite.setText(satelliteMode ? "◇\nSTANDARD" : "◇\nLAYERS");
         }));
         Button overview = railButton("▱\nOVERVIEW"); overview.setOnClickListener(v -> navigationView.showRouteOverview());
         Button audio = railButton("◖))\nAUDIO");
@@ -149,11 +149,11 @@ public class NavigationActivity extends AppCompatActivity {
         Button exit = railButton("×\nEXIT"); exit.setOnClickListener(v -> finish());
         driveControls.addView(recenter); driveControls.addView(satellite); driveControls.addView(overview); driveControls.addView(audio); driveControls.addView(exit);
         driveControls.setVisibility(View.GONE);
-        FrameLayout.LayoutParams railLp = new FrameLayout.LayoutParams(-2, dp(64), Gravity.RIGHT | Gravity.CENTER_VERTICAL);
-        railLp.rightMargin=dp(78);navigationRoot.addView(driveControls,railLp);
+        FrameLayout.LayoutParams railLp = new FrameLayout.LayoutParams(dp(66), -2, Gravity.RIGHT | Gravity.CENTER_VERTICAL);
+        railLp.rightMargin=dp(10);navigationRoot.addView(driveControls,railLp);
 
         railToggle = new Button(this);
-        railToggle.setText("✦"); railToggle.setTextColor(accentColor); railToggle.setTextSize(24); railToggle.setPadding(0,0,0,0);
+        railToggle.setText("▲"); railToggle.setTextColor(accentColor); railToggle.setTextSize(21); railToggle.setPadding(0,0,0,0);
         GradientDrawable toggleBg = new GradientDrawable(); toggleBg.setColor(0xff050605); toggleBg.setShape(GradientDrawable.OVAL); toggleBg.setStroke(dp(1),withAlpha(accentColor,0xdd));
         railToggle.setBackground(toggleBg); railToggle.setOnClickListener(v -> toggleDriveControls()); railToggle.setVisibility(View.GONE);
         positionRailToggle(false);
@@ -281,21 +281,22 @@ public class NavigationActivity extends AppCompatActivity {
 
     private Button railButton(String label) {
         Button button=new Button(this);button.setText(label);button.setTextColor(accentColor);button.setTextSize(7.5f);button.setGravity(Gravity.CENTER);button.setAllCaps(false);
-        button.setPadding(0,0,0,0);GradientDrawable bg=new GradientDrawable();bg.setShape(GradientDrawable.OVAL);bg.setColor(0xff0b0c0b);bg.setStroke(dp(1),withAlpha(accentColor,0x99));button.setBackground(bg);
-        LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(dp(50),dp(50));lp.leftMargin=dp(4);lp.rightMargin=dp(4);button.setLayoutParams(lp);return button;
+        button.setPadding(0,0,0,0);GradientDrawable bg=new GradientDrawable();bg.setShape(GradientDrawable.OVAL);bg.setColor(0xff090a09);bg.setStroke(dp(1),withAlpha(accentColor,0xa8));button.setBackground(bg);
+        LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(dp(50),dp(50));lp.topMargin=dp(4);lp.bottomMargin=dp(4);button.setLayoutParams(lp);return button;
     }
 
     private void toggleDriveControls() {
         boolean collapse = driveControls.getVisibility() == View.VISIBLE;
         driveControls.setVisibility(collapse ? View.GONE : View.VISIBLE);
-        railToggle.setText(collapse ? "✦" : "×");
+        railToggle.setText(collapse ? "▲" : "‹");
+        if (googleMap != null) googleMap.setPadding(0, 0, collapse ? 0 : dp(76), 0);
         positionRailToggle(collapse);
     }
 
     private void positionRailToggle(boolean collapsed) {
         if (railToggle == null || navigationRoot == null) return;
-        FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(dp(58), dp(58), Gravity.RIGHT | Gravity.CENTER_VERTICAL);
-        lp.rightMargin = dp(12);
+        FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(dp(54), dp(54), Gravity.RIGHT | Gravity.CENTER_VERTICAL);
+        lp.rightMargin = collapsed ? dp(12) : dp(80);
         if (railToggle.getParent() == null) navigationRoot.addView(railToggle, lp); else railToggle.setLayoutParams(lp);
     }
 
@@ -305,9 +306,9 @@ public class NavigationActivity extends AppCompatActivity {
                 Math.round(Color.green(accentColor) * 0.34f),
                 Math.round(Color.blue(accentColor) * 0.34f));
         return new StylingOptions()
-                .primaryDayModeThemeColor(0xff080908)
+                .primaryDayModeThemeColor(0xff070807)
                 .secondaryDayModeThemeColor(darkAccent)
-                .primaryNightModeThemeColor(0xff050605)
+                .primaryNightModeThemeColor(0xff040504)
                 .secondaryNightModeThemeColor(darkAccent)
                 .headerLargeManeuverIconColor(accentColor)
                 .headerSmallManeuverIconColor(accentColor)
