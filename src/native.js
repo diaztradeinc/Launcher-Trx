@@ -10,6 +10,7 @@ async function safe(method, args, fallback) {
 }
 
 export const native = {
+  displayInfo: () => safe('getDisplayInfo', {}, null),
   requestPermissionGroup: (group) => safe('requestPermissionGroup', { group }, { granted: false }),
   apps: () => safe('getInstalledApps', {}, { apps: [] }),
   launchApp: (packageName) => safe('launchApp', { packageName }, null),

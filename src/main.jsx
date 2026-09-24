@@ -74,7 +74,11 @@ function App() {
   const [displayMode, setDisplayMode] = useState('auto');
   const [displayProfile, setDisplayProfile] = useState(localStorage.getItem('trx-apex-display-profile') || 'auto');
   const [visualCalibration, setVisualCalibration] = useState(function () {
-    return readStoredJson('trx-apex-visual-calibration', { blackLevel: 96, contrast: 118, saturation: 114, artwork: 104 });
+    const saved = readStoredJson('trx-apex-visual-calibration', null);
+    if (!saved || (saved.blackLevel === 96 && saved.contrast === 118 && saved.saturation === 114 && saved.artwork === 104)) {
+      return { blackLevel: 100, contrast: 104, saturation: 104, artwork: 100 };
+    }
+    return saved;
   });
   const [calibration, setCalibration] = useState(function () {
     const saved = readStoredJson('trx-apex-screen-calibration', { scale: 100, x: 0, y: 0, inset: 0 });
@@ -93,8 +97,13 @@ function App() {
       dpr: Number(window.devicePixelRatio || 1).toFixed(2)
     };
   });
+  const [deviceDisplay, setDeviceDisplay] = useState(null);
   const [now, setNow] = useState(new Date());
   const live = useVehicleData();
+
+  useEffect(function () {
+    native.displayInfo().then(setDeviceDisplay);
+  }, []);
 
   useEffect(function () {
     NativeStatusBar.setOverlaysWebView({ overlay: false }).catch(function () {});
@@ -140,7 +149,11 @@ function App() {
     localStorage.setItem('trx-apex-screen-calibration', JSON.stringify(calibration));
   }, [calibration]);
 
-  const resolvedProfile = displayProfile === 'auto' ? (viewport.width < 720 ? 'uconnect' : 'phone') : displayProfile;
+  const isVehicle = /ottocast|p3\s*pro|picasso/i.test((deviceDisplay?.manufacturer || '') + ' ' + (deviceDisplay?.model || ''));
+  // A 600 dpi override can make a portrait vehicle viewport shorter than 680 CSS px.
+  // Its aspect ratio and measured width still identify the vehicle composition.
+  const portraitVehicle = viewport.height > viewport.width * 1.12 && (isVehicle || viewport.width < 720);
+  const resolvedProfile = displayProfile === 'auto' ? (portraitVehicle ? 'uconnect' : 'phone') : displayProfile;
   const blackFloor = Math.max(0, Math.round((100 - visualCalibration.blackLevel) * .2));
   const style = {
     '--accent': THEMES[theme].accent,
@@ -153,7 +166,7 @@ function App() {
     '--display-contrast': visualCalibration.contrast / 100,
     '--display-saturation': visualCalibration.saturation / 100,
     '--display-black': 'rgb(' + blackFloor + ' ' + blackFloor + ' ' + blackFloor + ')',
-    '--uconnect-art-filter': 'contrast(' + visualCalibration.contrast / 100 + ') saturate(' + visualCalibration.saturation / 100 + ') brightness(' + visualCalibration.artwork / 125 + ')'
+    '--uconnect-art-filter': 'contrast(' + visualCalibration.contrast / 100 + ') saturate(' + visualCalibration.saturation / 100 + ') brightness(' + visualCalibration.artwork / 100 + ')'
   };
 
   function finishCommissioning() {
@@ -163,7 +176,7 @@ function App() {
 
   if (!commissioned) return <Commissioning onComplete={finishCommissioning} />;
 
-  return <div className={'apex-shell theme-' + theme + ' mode-' + displayMode + ' profile-' + resolvedProfile + (reducedMotion ? ' reduce-motion' : '') + (viewport.width < 720 ? ' uconnect-portrait' : '')} style={style}>
+  return <div className={'apex-shell theme-' + theme + ' mode-' + displayMode + ' profile-' + resolvedProfile + (reducedMotion ? ' reduce-motion' : '') + (portraitVehicle ? ' uconnect-portrait' : '')} style={style}>
     <div className="calibrated-stage">
       <StatusBar now={now} live={live} />
       <CommandRail active={active} onNavigate={setActive} />
@@ -173,7 +186,7 @@ function App() {
         {active === 'media' && <MediaPage media={live.media} />}
         {active === 'performance' && <PerformancePage obd={live.obd} />}
         {active === 'apps' && <AppsPage onOpenSettings={function () { setActive('settings'); }} />}
-        {active === 'settings' && <SettingsPage theme={theme} setTheme={setTheme} accent={accent} setAccent={setAccent} iconScale={iconScale} setIconScale={setIconScale} reducedMotion={reducedMotion} setReducedMotion={setReducedMotion} displayMode={displayMode} setDisplayMode={setDisplayMode} displayProfile={displayProfile} setDisplayProfile={setDisplayProfile} visualCalibration={visualCalibration} setVisualCalibration={setVisualCalibration} calibration={calibration} setCalibration={setCalibration} viewport={viewport} obd={live.obd} />}
+        {active === 'settings' && <SettingsPage theme={theme} setTheme={setTheme} accent={accent} setAccent={setAccent} iconScale={iconScale} setIconScale={setIconScale} reducedMotion={reducedMotion} setReducedMotion={setReducedMotion} displayMode={displayMode} setDisplayMode={setDisplayMode} displayProfile={displayProfile} setDisplayProfile={setDisplayProfile} visualCalibration={visualCalibration} setVisualCalibration={setVisualCalibration} calibration={calibration} setCalibration={setCalibration} viewport={viewport} deviceDisplay={deviceDisplay} obd={live.obd} />}
       </main>
     </div>
   </div>;
@@ -493,7 +506,8 @@ function AppDisc({ app }) {
 }
 
 function SettingsPage(props) {
-  const { theme, setTheme, accent, setAccent, iconScale, setIconScale, reducedMotion, setReducedMotion, displayMode, setDisplayMode, displayProfile, setDisplayProfile, visualCalibration, setVisualCalibration, calibration, setCalibration, viewport, obd } = props;
+  const { theme, setTheme, accent, setAccent, iconScale, setIconScale, reducedMotion, setReducedMotion, displayMode, setDisplayMode, displayProfile, setDisplayProfile, visualCalibration, setVisualCalibration, calibration, setCalibration, viewport, deviceDisplay, obd } = props;
+  const suggestedDpi = Math.round((viewport.width * Number(viewport.dpr) * 160 / 480) / 10) * 10;
   const [section, setSection] = useState('appearance');
   const [calibrationOpen, setCalibrationOpen] = useState(false);
   const [visualOpen, setVisualOpen] = useState(false);
@@ -524,9 +538,8 @@ function SettingsPage(props) {
     {calibrationOpen && <div className="calibration-scrim">
       <div className="calibration-panel">
         <div className="calibration-head"><span><small>DISPLAY GEOMETRY</small><b>SCREEN CALIBRATION</b><em>Adjust until all four corner targets sit fully inside the visible panel.</em></span><button onClick={function () { setCalibrationOpen(false); }}>×</button></div>
-        <div className="calibration-target"><i className="tl" /><i className="tr" /><i className="bl" /><i className="br" /><div><b>1080 × 1440</b><span>LIVE UI BOUNDS</span></div></div>
+        <div className="calibration-target"><i className="tl" /><i className="tr" /><i className="bl" /><i className="br" /><div><b>{viewport.width} × {viewport.height}</b><span>APP VIEWPORT · CSS PX · DPR {viewport.dpr}</span><span>{deviceDisplay ? deviceDisplay.widthPixels + ' × ' + deviceDisplay.heightPixels + ' ANDROID WINDOW · ' + deviceDisplay.densityDpi + ' DPI' : 'DEVICE METRICS UNAVAILABLE'}</span><span>{deviceDisplay ? deviceDisplay.fullWidthPixels + ' × ' + deviceDisplay.fullHeightPixels + ' ANDROID FULL DISPLAY' : ''}</span><span>{deviceDisplay ? deviceDisplay.manufacturer + ' ' + deviceDisplay.model : 'BROWSER PREVIEW'}</span>{deviceDisplay?.densityDpi >= 400 && viewport.width < 480 && <span>600 DPI MAY COMPRESS THIS VIEW · TRY ABOUT {suggestedDpi} DPI FOR 480 CSS PX</span>}</div></div>
         <div className="calibration-controls">
-          <RangeControl label="UI DENSITY" value={calibration.scale} onChange={function (value) { setCalibration({ ...calibration, scale: value }); }} min={90} max={100} suffix="%" />
           <RangeControl label="HORIZONTAL OFFSET" value={calibration.x} onChange={function (value) { setCalibration({ ...calibration, x: value }); }} min={-60} max={60} suffix=" px" />
           <RangeControl label="VERTICAL OFFSET" value={calibration.y} onChange={function (value) { setCalibration({ ...calibration, y: value }); }} min={-80} max={80} suffix=" px" />
           <RangeControl label="SAFE EDGE" value={calibration.inset} onChange={function (value) { setCalibration({ ...calibration, inset: value }); }} min={0} max={36} suffix=" px" />
@@ -544,7 +557,7 @@ function SettingsPage(props) {
           <RangeControl label="COLOR SATURATION" value={visualCalibration.saturation} onChange={function (value) { setVisualCalibration({ ...visualCalibration, saturation: value }); setDisplayProfile('custom'); }} min={85} max={135} suffix="%" />
           <RangeControl label="ARTWORK BRIGHTNESS" value={visualCalibration.artwork} onChange={function (value) { setVisualCalibration({ ...visualCalibration, artwork: value }); setDisplayProfile('custom'); }} min={80} max={125} suffix="%" />
         </div>
-        <div className="calibration-actions"><button onClick={function () { setVisualCalibration({ blackLevel: 96, contrast: 118, saturation: 114, artwork: 104 }); setDisplayProfile('uconnect'); }}>RESET UCONNECT</button><button className="primary" onClick={function () { setVisualOpen(false); }}><Check /> SAVE PROFILE</button></div>
+        <div className="calibration-actions"><button onClick={function () { setVisualCalibration({ blackLevel: 100, contrast: 104, saturation: 104, artwork: 100 }); setDisplayProfile('uconnect'); }}>RESET UCONNECT</button><button className="primary" onClick={function () { setVisualOpen(false); }}><Check /> SAVE PROFILE</button></div>
       </div>
     </div>}
   </section>;

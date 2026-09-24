@@ -20,6 +20,7 @@ import android.net.Uri;
 import android.os.Build;
 import android.provider.Settings;
 import android.util.Base64;
+import android.util.DisplayMetrics;
 
 import com.getcapacitor.JSArray;
 import com.getcapacitor.JSObject;
@@ -51,6 +52,23 @@ import java.util.Locale;
 )
 public class TrxNativePlugin extends Plugin {
     private PlacesClient placesClient;
+    @PluginMethod public void getDisplayInfo(PluginCall call) {
+        DisplayMetrics metrics = getContext().getResources().getDisplayMetrics();
+        android.content.res.Configuration configuration = getContext().getResources().getConfiguration();
+        JSObject result = new JSObject();
+        result.put("manufacturer", Build.MANUFACTURER);
+        result.put("model", Build.MODEL);
+        result.put("widthPixels", metrics.widthPixels);
+        result.put("heightPixels", metrics.heightPixels);
+        result.put("densityDpi", metrics.densityDpi);
+        result.put("widthDp", configuration.screenWidthDp);
+        result.put("heightDp", configuration.screenHeightDp);
+        DisplayMetrics fullDisplay = new DisplayMetrics();
+        getActivity().getWindowManager().getDefaultDisplay().getRealMetrics(fullDisplay);
+        result.put("fullWidthPixels", fullDisplay.widthPixels);
+        result.put("fullHeightPixels", fullDisplay.heightPixels);
+        call.resolve(result);
+    }
     @Override public void load() {
         super.load();
         ObdBridge.start(getContext());
