@@ -244,7 +244,7 @@ function HomePage({ onNavigate, now, live }) {
   function reading(value, fallback, digits) { return value == null ? fallback : Number(value).toFixed(digits || 0); }
   return <section className="page home-page">
     <div className="home-hero">
-      <img src="/trx-hero.webp" alt="Red RAM TRX in mountain terrain" />
+      <img src="/apex-home-v2.webp" alt="Red RAM TRX in mountain terrain" />
       <div className="terrain-lines" />
       <div className="solar-arc"><Sun /><span>SUNRISE 6:12</span><i /><span>SUNSET 7:28</span></div>
       <div className="hero-time"><strong>{now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</strong><span>{now.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' }).toUpperCase()}</span></div>
