@@ -52,6 +52,33 @@ import java.util.Locale;
 )
 public class TrxNativePlugin extends Plugin {
     private PlacesClient placesClient;
+    private PreviewMapController previewMap;
+    private LocationManager locationManager;
+    private boolean locationUpdates;
+    private final android.location.LocationListener locationListener=new android.location.LocationListener(){
+        @Override public void onLocationChanged(Location location){}
+        @Override public void onProviderEnabled(String provider){}
+        @Override public void onProviderDisabled(String provider){}
+        @Override public void onStatusChanged(String provider,int status,android.os.Bundle extras){}
+    };
+    private void ensureLocationUpdates(){
+        if(locationUpdates)return;
+        try {
+            locationManager=(LocationManager)getContext().getSystemService(Context.LOCATION_SERVICE);
+            for(String provider:locationManager.getProviders(true))if(!LocationManager.PASSIVE_PROVIDER.equals(provider)){
+                locationManager.requestLocationUpdates(provider,5000L,2f,locationListener,android.os.Looper.getMainLooper());
+                locationUpdates=true;
+            }
+        }catch(SecurityException ignored){}catch(RuntimeException ignored){}
+    }
+    @PluginMethod public void mapPreview(PluginCall call){
+        if(previewMap==null)previewMap=new PreviewMapController(getActivity(),getBridge().getWebView());
+        previewMap.update(call);
+    }
+    @Override protected void handleOnResume(){super.handleOnResume();if(previewMap!=null)previewMap.resume();}
+    @Override protected void handleOnPause(){if(previewMap!=null)previewMap.pause();super.handleOnPause();}
+    @Override protected void handleOnDestroy(){if(previewMap!=null)previewMap.destroy();if(locationManager!=null)locationManager.removeUpdates(locationListener);super.handleOnDestroy();}
+
     @PluginMethod public void getDisplayInfo(PluginCall call) {
         DisplayMetrics metrics = getContext().getResources().getDisplayMetrics();
         android.content.res.Configuration configuration = getContext().getResources().getConfiguration();
@@ -179,6 +206,17 @@ public class TrxNativePlugin extends Plugin {
         MediaBridge.refresh(getContext());
         JSObject result = new JSObject();
         result.put("hasAccess", MediaBridge.hasAccess(getContext()));
+        result.put("hasSession", MediaBridge.hasSession());
+        result.put("canFavorite", MediaBridge.canFavorite());
+        result.put("canPrevious", MediaBridge.supports(android.media.session.PlaybackState.ACTION_SKIP_TO_PREVIOUS));
+        result.put("canNext", MediaBridge.supports(android.media.session.PlaybackState.ACTION_SKIP_TO_NEXT));
+        result.put("canSeek", MediaBridge.supports(android.media.session.PlaybackState.ACTION_SEEK_TO));
+        result.put("canQueue", MediaBridge.supports(android.media.session.PlaybackState.ACTION_SKIP_TO_QUEUE_ITEM));
+        try { result.put("sourceName",getContext().getPackageManager().getApplicationLabel(getContext().getPackageManager().getApplicationInfo(MediaBridge.source,0)).toString()); }
+        catch(Exception e){result.put("sourceName",MediaBridge.source);}
+        AudioManager audio=(AudioManager)getContext().getSystemService(Context.AUDIO_SERVICE);
+        result.put("volumeAvailable",audio!=null&&!audio.isVolumeFixed());
+        if(audio!=null)result.put("volumePercent",Math.round(100f*audio.getStreamVolume(AudioManager.STREAM_MUSIC)/Math.max(1,audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC))));
         result.put("title", MediaBridge.title);
         result.put("artist", MediaBridge.artist);
         result.put("source", MediaBridge.source);
@@ -188,11 +226,13 @@ public class TrxNativePlugin extends Plugin {
         result.put("durationMs", MediaBridge.durationMs);
         result.put("artwork", bitmapDataUrl(MediaBridge.artwork));
         JSArray queue = new JSArray();
-        for (int i = 0; i < MediaBridge.queueTitles.length; i++) {
+        MediaBridge.QueueSnapshot snapshot=MediaBridge.queueSnapshot();
+        for (int i = 0; i < snapshot.titles.length; i++) {
             JSObject item = new JSObject();
-            item.put("title", MediaBridge.queueTitles[i]);
-            item.put("artist", i < MediaBridge.queueArtists.length ? MediaBridge.queueArtists[i] : "");
-            item.put("artwork", i < MediaBridge.queueArtwork.length ? bitmapDataUrl(MediaBridge.queueArtwork[i]) : "");
+            item.put("id", i < snapshot.ids.length ? Long.toString(snapshot.ids[i]) : "");
+            item.put("title", snapshot.titles[i]);
+            item.put("artist", i < snapshot.artists.length ? snapshot.artists[i] : "");
+            item.put("artwork", i < snapshot.artwork.length ? bitmapDataUrl(snapshot.artwork[i]) : "");
             queue.put(item);
         }
         result.put("queue", queue);
@@ -209,20 +249,32 @@ public class TrxNativePlugin extends Plugin {
     }
 
     @PluginMethod public void mediaCommand(PluginCall call) {
-        String command = call.getString("command", "toggle");
-        if ("previous".equals(command)) MediaBridge.previous(getContext());
-        else if ("next".equals(command)) MediaBridge.next(getContext());
-        else if ("seek".equals(command)) MediaBridge.seekTo(getContext(), call.getLong("positionMs", 0L));
-        else if ("volume".equals(command)) {
-            AudioManager audio=(AudioManager)getContext().getSystemService(Context.AUDIO_SERVICE);
-            if(audio!=null){int max=audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC);int percent=Math.max(0,Math.min(100,call.getInt("positionMs",50)));audio.setStreamVolume(AudioManager.STREAM_MUSIC,Math.round(max*percent/100f),0);}
-        }
-        else if ("queue".equals(command)) MediaBridge.playQueueItem(getContext(), call.getInt("index", 0));
-        else if ("favorite".equals(command)) {
-            boolean success=MediaBridge.toggleFavorite(getContext());
-            JSObject result=new JSObject();result.put("success",success);result.put("liked",MediaBridge.liked);call.resolve(result);return;
-        } else MediaBridge.toggle(getContext());
-        JSObject result=new JSObject();result.put("success",true);call.resolve(result);
+        getActivity().runOnUiThread(() -> {
+            String command=call.getString("command", "toggle");
+            boolean success=false;
+            try {
+                MediaBridge.refresh(getContext());
+                if("favorite".equals(command))success=MediaBridge.toggleFavorite(getContext());
+                else if("queue".equals(command))success=MediaBridge.playQueueItem(getContext(),call.getString("queueId"));
+                else if("volume".equals(command)){
+                    AudioManager audio=(AudioManager)getContext().getSystemService(Context.AUDIO_SERVICE);
+                    if(audio!=null&&!audio.isVolumeFixed()){
+                        int max=audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
+                        int value=Math.max(0,Math.min(100,call.getInt("positionMs",50)));
+                        audio.setStreamVolume(AudioManager.STREAM_MUSIC,Math.round(max*value/100f),0);success=true;
+                    }
+                } else if("previous".equals(command)&&MediaBridge.supports(android.media.session.PlaybackState.ACTION_SKIP_TO_PREVIOUS)){MediaBridge.previous(getContext());success=true;}
+                else if("next".equals(command)&&MediaBridge.supports(android.media.session.PlaybackState.ACTION_SKIP_TO_NEXT)){MediaBridge.next(getContext());success=true;}
+                else if("seek".equals(command)&&MediaBridge.supports(android.media.session.PlaybackState.ACTION_SEEK_TO)){MediaBridge.seekTo(getContext(),call.getLong("positionMs",0L));success=true;}
+                else if("toggle".equals(command)){
+                    long action=MediaBridge.playing?android.media.session.PlaybackState.ACTION_PAUSE:android.media.session.PlaybackState.ACTION_PLAY;
+                    if(MediaBridge.supports(action)||MediaBridge.supports(android.media.session.PlaybackState.ACTION_PLAY_PAUSE)){MediaBridge.toggle(getContext());success=true;}
+                }
+                JSObject result=new JSObject();result.put("success",success);result.put("liked",MediaBridge.liked);
+                if(!success)result.put("message","This player does not expose this action. Open the player to use it.");
+                call.resolve(result);
+            } catch(Exception e){call.reject("Media action unavailable",e);}
+        });
     }
 
     @PluginMethod public void searchDestinations(PluginCall call) {
@@ -271,6 +323,8 @@ public class TrxNativePlugin extends Plugin {
         result.put("deviceName", ObdBridge.deviceName);
         result.put("protocol", ObdBridge.protocol);
         result.put("livePidCount", ObdBridge.livePidCount);
+        result.put("ageMs",ObdBridge.lastUpdate==0?null:android.os.SystemClock.elapsedRealtime()-ObdBridge.lastUpdate);
+        result.put("diagnostics",ObdBridge.diagnostics());
         putNumber(result, "rpm", ObdBridge.rpm);
         putNumber(result, "coolantF", ObdBridge.coolantF);
         putNumber(result, "intakeF", ObdBridge.intakeF);
@@ -300,13 +354,14 @@ public class TrxNativePlugin extends Plugin {
             call.reject("Location permission required"); return;
         }
         try {
+            ensureLocationUpdates();
             LocationManager manager = (LocationManager)getContext().getSystemService(Context.LOCATION_SERVICE);
             Location best = null;
             for (String provider : manager.getProviders(true)) {
                 Location item = manager.getLastKnownLocation(provider);
                 if (item != null && (best == null || item.getTime() > best.getTime())) best = item;
             }
-            if (best == null) { call.reject("Waiting for GPS fix"); return; }
+            if (best == null || android.os.SystemClock.elapsedRealtimeNanos()-best.getElapsedRealtimeNanos()>120000000000L) { call.reject("Waiting for GPS fix"); return; }
             JSObject result = new JSObject();
             result.put("latitude", best.getLatitude());
             result.put("longitude", best.getLongitude());
@@ -327,6 +382,7 @@ public class TrxNativePlugin extends Plugin {
         intent.putExtra("routingStrategy", call.getString("routingStrategy", "fastest"));
         intent.putExtra("avoidTolls", Boolean.TRUE.equals(call.getBoolean("avoidTolls", false)));
         intent.putExtra("mapMode", call.getString("mapMode", "standard"));
+        intent.putExtra("dayMode",Boolean.TRUE.equals(call.getBoolean("dayMode",false)));
         intent.putExtra("audioEnabled", !Boolean.FALSE.equals(call.getBoolean("audioEnabled", true)));
         Double latitude = call.getDouble("latitude");
         Double longitude = call.getDouble("longitude");

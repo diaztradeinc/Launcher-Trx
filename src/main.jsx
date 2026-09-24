@@ -1,577 +1,198 @@
-import { StrictMode, useEffect, useMemo, useState } from 'react';
+import { StrictMode, useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { StatusBar as NativeStatusBar, Style } from '@capacitor/status-bar';
-import {
-  Activity, Aperture, Bluetooth, Check, ChevronRight, CloudSun, Gauge, Grid2X2,
-  Heart, Home, Layers3, LocateFixed, Map, MapPin, Mic, Moon, Music2, Navigation,
-  Pause, Play, Radio, Search, Settings, ShieldCheck, Signal, SkipBack, SkipForward,
-  SlidersHorizontal, Sparkles, Sun, Volume2, Wifi
-} from 'lucide-react';
+import { Activity, Bluetooth, Check, ChevronRight, Gauge, Grid2X2, Heart, Home, Layers3, MapPin, Music2, Navigation, Pause, Play, Radio, Search, Settings, ShieldCheck, SkipBack, SkipForward, SlidersHorizontal, Volume2, X, RotateCcw, Briefcase, CloudSun } from 'lucide-react';
 import { currentWeather, native } from './native';
 import './styles.css';
-import './oem-v517.css';
 
-const NAV = [
-  ['home', 'Home', Home], ['navigation', 'Navigate', Navigation],
-  ['media', 'Media', Music2], ['performance', 'Dynamics', Gauge],
-  ['apps', 'Apps', Grid2X2], ['settings', 'Studio', Settings]
-];
-
+const HERO = '/art/trx-alpine.webp';
+const ALBUM = '/art/crimson-moon.webp';
 const THEMES = {
-  titanium: { name: 'Titanium Ember', accent: '#f28a32', signal: '#82e6e1' },
-  hellfire: { name: 'Hellfire Red', accent: '#f12d31', signal: '#ffab9b' },
-  baja: { name: 'Baja Sand', accent: '#d5aa63', signal: '#8be1cb' },
-  arctic: { name: 'Arctic Signal', accent: '#49bdf2', signal: '#b7efff' },
-  night: { name: 'Night Ops', accent: '#b9c1c5', signal: '#79efb1' }
+  hellfire: { name: 'Hellfire Red', accent: '#ed3344', tone: '#791724' },
+  titanium: { name: 'Titanium', accent: '#c4cbd3', tone: '#434b57' },
+  baja: { name: 'Baja Sand', accent: '#d9b078', tone: '#695031' },
+  arctic: { name: 'Arctic Ice', accent: '#8fceee', tone: '#294f6a' },
+  night: { name: 'Night Ops', accent: '#a9b5b7', tone: '#263438' }
 };
-
-const APP_LIST = [
-  ['Maps', '🗺️'], ['Spotify', '●'], ['Phone', '☎'], ['Waze', '◉'],
-  ['YouTube', '▶'], ['OBDLink', 'MX'], ['Chrome', '◎'], ['VLC', '▲'],
-  ['Settings', '⚙'], ['Camera', '◍'], ['Messages', '•••'], ['Files', '▰'],
-  ['Weather', '☀'], ['Play Store', '▷'], ['Netflix', 'N']
-];
-
-function readStoredJson(key, fallback) {
-  try { const value = JSON.parse(localStorage.getItem(key)); return value ?? fallback; }
-  catch (_) { return fallback; }
+const NAV = [['home','Home',Home],['navigation','Navigation',Navigation],['media','Sonic',Music2],['performance','Dynamics',Gauge],['apps','Orbit',Grid2X2],['settings','Studio',Settings]];
+const DEFAULT_NAV = {routingStrategy:'fastest',avoidTolls:false,mapMode:'standard',audioEnabled:true};
+function read(key, fallback) { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } }
+function useStored(key, fallback) {
+  const [value,setValue] = useState(() => read(key,fallback));
+  useEffect(() => { localStorage.setItem(key,JSON.stringify(value)); },[key,value]);
+  return [value,setValue];
 }
-
-function useVehicleData() {
-  const [media, setMedia] = useState(null);
-  const [obd, setObd] = useState(null);
-  const [location, setLocation] = useState(null);
-  const [weather, setWeather] = useState(null);
-  useEffect(function () {
-    let alive = true;
-    async function refresh() {
-      const values = await Promise.all([native.media(), native.obd(), native.location()]);
-      if (!alive) return;
-      if (values[0]) setMedia(values[0]);
-      if (values[1]) setObd(values[1]);
-      if (values[2]) {
-        setLocation(values[2]);
-        const nextWeather = await currentWeather(values[2]);
-        if (alive && nextWeather) setWeather(nextWeather);
+function legacyString(key, fallback) { const v=localStorage.getItem(key); try { return JSON.parse(v) || fallback; } catch { return v || fallback; } }
+function reading(value, digits=0) { return Number.isFinite(value) ? value.toFixed(digits) : '—'; }
+function formatTime(ms) { const s=Math.floor((ms || 0)/1000);return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); }
+function useLive() {
+  const [live,setLive]=useState({media:null,obd:null,location:null,weather:null});
+  const weatherAt=useRef(0);
+  useEffect(()=>{
+    let alive=true,timer;
+    async function refresh(){
+      const [media,obd,location]=await Promise.all([native.media(),native.obd(),native.location()]);
+      if(!alive)return;
+      setLive(v=>({...v,media,obd,location}));
+      if(location && Date.now()-weatherAt.current>600000){
+        weatherAt.current=Date.now();const weather=await currentWeather(location);
+        if(alive && weather)setLive(v=>({...v,weather}));
       }
+      if(alive)timer=setTimeout(refresh,1500);
     }
-    refresh();
-    const timer = setInterval(refresh, 1800);
-    return function () { alive = false; clearInterval(timer); };
-  }, []);
-  return { media, obd, location, weather };
+    refresh();return()=>{alive=false;clearTimeout(timer);};
+  },[]);
+  async function refreshWeather(){weatherAt.current=0;const w=await currentWeather(live.location);if(w)setLive(v=>({...v,weather:w}));return Boolean(w);}
+  return {...live,refreshWeather};
 }
-
-function App() {
-  const [active, setActive] = useState('home');
-  const [commissioned, setCommissioned] = useState(function () {
-    return localStorage.getItem('trx-apex-commissioned') === 'true';
-  });
-  const [theme, setTheme] = useState(localStorage.getItem('trx-apex-theme') || 'titanium');
-  const [accent, setAccent] = useState(Number(localStorage.getItem('trx-apex-accent') || 82));
-  const [iconScale, setIconScale] = useState(Number(localStorage.getItem('trx-apex-icons') || 100));
-  const [reducedMotion, setReducedMotion] = useState(localStorage.getItem('trx-apex-motion') === 'true');
-  const [displayMode, setDisplayMode] = useState('auto');
-  const [displayProfile, setDisplayProfile] = useState(localStorage.getItem('trx-apex-display-profile') || 'auto');
-  const [visualCalibration, setVisualCalibration] = useState(function () {
-    const saved = readStoredJson('trx-apex-visual-calibration', null);
-    if (!saved || (saved.blackLevel === 96 && saved.contrast === 118 && saved.saturation === 114 && saved.artwork === 104)) {
-      return { blackLevel: 100, contrast: 104, saturation: 104, artwork: 100 };
-    }
-    return saved;
-  });
-  const [calibration, setCalibration] = useState(function () {
-    const saved = readStoredJson('trx-apex-screen-calibration', { scale: 100, x: 0, y: 0, inset: 0 });
-    // v5.11 used compositor scaling, which softened text on automotive WebViews.
-    // Preserve safe-edge adjustments but migrate the old magnification to 100%.
-    if (localStorage.getItem('trx-apex-v512-density-migrated') !== 'true') {
-      localStorage.setItem('trx-apex-v512-density-migrated', 'true');
-      return { ...saved, scale: 100 };
-    }
-    return saved;
-  });
-  const [viewport, setViewport] = useState(function () {
-    return {
-      width: Math.round(window.visualViewport?.width || window.innerWidth),
-      height: Math.round(window.visualViewport?.height || window.innerHeight),
-      dpr: Number(window.devicePixelRatio || 1).toFixed(2)
-    };
-  });
-  const [deviceDisplay, setDeviceDisplay] = useState(null);
-  const [now, setNow] = useState(new Date());
-  const live = useVehicleData();
-
-  useEffect(function () {
-    native.displayInfo().then(setDeviceDisplay);
-  }, []);
-
-  useEffect(function () {
-    NativeStatusBar.setOverlaysWebView({ overlay: false }).catch(function () {});
-    NativeStatusBar.setStyle({ style: Style.Dark }).catch(function () {});
-    NativeStatusBar.hide().catch(function () {});
-  }, []);
-
-  useEffect(function () {
-    function measure() {
-      setViewport({
-        width: Math.round(window.visualViewport?.width || window.innerWidth),
-        height: Math.round(window.visualViewport?.height || window.innerHeight),
-        dpr: Number(window.devicePixelRatio || 1).toFixed(2)
-      });
-    }
-    measure();
-    window.addEventListener('resize', measure);
-    window.visualViewport?.addEventListener('resize', measure);
-    return function () {
-      window.removeEventListener('resize', measure);
-      window.visualViewport?.removeEventListener('resize', measure);
-    };
-  }, []);
-
-  useEffect(function () {
-    const timer = setInterval(function () { setNow(new Date()); }, 30000);
-    return function () { clearInterval(timer); };
-  }, []);
-
-  useEffect(function () {
-    localStorage.setItem('trx-apex-theme', theme);
-    localStorage.setItem('trx-apex-accent', String(accent));
-    localStorage.setItem('trx-apex-icons', String(iconScale));
-    localStorage.setItem('trx-apex-motion', String(reducedMotion));
-    localStorage.setItem('trx-apex-display-profile', displayProfile);
-  }, [theme, accent, iconScale, reducedMotion, displayProfile]);
-
-  useEffect(function () {
-    localStorage.setItem('trx-apex-visual-calibration', JSON.stringify(visualCalibration));
-  }, [visualCalibration]);
-
-  useEffect(function () {
-    localStorage.setItem('trx-apex-screen-calibration', JSON.stringify(calibration));
-  }, [calibration]);
-
-  const isVehicle = /ottocast|p3\s*pro|picasso/i.test((deviceDisplay?.manufacturer || '') + ' ' + (deviceDisplay?.model || ''));
-  // A 600 dpi override can make a portrait vehicle viewport shorter than 680 CSS px.
-  // Its aspect ratio and measured width still identify the vehicle composition.
-  const portraitVehicle = viewport.height > viewport.width * 1.12 && (isVehicle || viewport.width < 720);
-  const resolvedProfile = displayProfile === 'auto' ? (portraitVehicle ? 'uconnect' : 'phone') : displayProfile;
-  const blackFloor = Math.max(0, Math.round((100 - visualCalibration.blackLevel) * .2));
-  const style = {
-    '--accent': THEMES[theme].accent,
-    '--signal': THEMES[theme].signal,
-    '--accent-strength': accent / 100,
-    '--icon-scale': iconScale / 100,
-    '--screen-x': calibration.x + 'px',
-    '--screen-y': calibration.y + 'px',
-    '--screen-inset': calibration.inset + 'px',
-    '--display-contrast': visualCalibration.contrast / 100,
-    '--display-saturation': visualCalibration.saturation / 100,
-    '--display-black': 'rgb(' + blackFloor + ' ' + blackFloor + ' ' + blackFloor + ')',
-    '--uconnect-art-filter': 'contrast(' + visualCalibration.contrast / 100 + ') saturate(' + visualCalibration.saturation / 100 + ') brightness(' + visualCalibration.artwork / 100 + ')'
-  };
-
-  function finishCommissioning() {
-    localStorage.setItem('trx-apex-commissioned', 'true');
-    setCommissioned(true);
-  }
-
-  if (!commissioned) return <Commissioning onComplete={finishCommissioning} />;
-
-  return <div className={'apex-shell theme-' + theme + ' mode-' + displayMode + ' profile-' + resolvedProfile + (reducedMotion ? ' reduce-motion' : '') + (portraitVehicle ? ' uconnect-portrait' : '')} style={style}>
-    <div className="calibrated-stage">
-      <StatusBar now={now} live={live} />
-      <CommandRail active={active} onNavigate={setActive} />
-      <main className="apex-canvas" key={active}>
-        {active === 'home' && <HomePage onNavigate={setActive} now={now} live={live} />}
-        {active === 'navigation' && <NavigationPage live={live} theme={theme} accent={accent} />}
-        {active === 'media' && <MediaPage media={live.media} />}
-        {active === 'performance' && <PerformancePage obd={live.obd} />}
-        {active === 'apps' && <AppsPage onOpenSettings={function () { setActive('settings'); }} />}
-        {active === 'settings' && <SettingsPage theme={theme} setTheme={setTheme} accent={accent} setAccent={setAccent} iconScale={iconScale} setIconScale={setIconScale} reducedMotion={reducedMotion} setReducedMotion={setReducedMotion} displayMode={displayMode} setDisplayMode={setDisplayMode} displayProfile={displayProfile} setDisplayProfile={setDisplayProfile} visualCalibration={visualCalibration} setVisualCalibration={setVisualCalibration} calibration={calibration} setCalibration={setCalibration} viewport={viewport} deviceDisplay={deviceDisplay} obd={live.obd} />}
+function App(){
+  const [active,setActive]=useState('home');
+  const [commissioned,setCommissioned]=useState(localStorage.getItem('trx-apex-commissioned')==='true');
+  const [theme,setTheme]=useState(()=>{const t=legacyString('trx-apex-theme','hellfire');return THEMES[t]?t:'hellfire';});
+  const [accent,setAccent]=useState(Number(localStorage.getItem('trx-apex-accent')) || 82);
+  const [iconScale,setIconScale]=useState(Number(localStorage.getItem('trx-apex-icons')) || 100);
+  const [reducedMotion,setReducedMotion]=useState(localStorage.getItem('trx-apex-motion')==='true');
+  const [displayMode,setDisplayMode]=useState(()=>legacyString('trx-apex-mode','auto'));
+  const [displayProfile,setDisplayProfile]=useState(()=>legacyString('trx-apex-display-profile','auto'));
+  const [calibration,setCalibration]=useStored('trx-apex-screen-calibration',{x:0,y:0,inset:0});
+  const [visual,setVisual]=useStored('trx-apex-visual-calibration',{blackLevel:100,contrast:104,saturation:104,artwork:100});
+  const [preferences,setPreferences]=useStored('trx-apex-nav-preferences',DEFAULT_NAV);
+  const [device,setDevice]=useState(null);
+  const [now,setNow]=useState(new Date());
+  const [notice,setNotice]=useState('');
+  const [quick,setQuick]=useState(null);
+  const [viewport,setViewport]=useState({width:innerWidth,height:innerHeight,dpr:devicePixelRatio});
+  const live=useLive();
+  const noticeTimer=useRef();
+  function notify(message){setNotice(message);clearTimeout(noticeTimer.current);noticeTimer.current=setTimeout(()=>setNotice(''),5500);}
+  async function act(promise,message){const r=await promise;if(r?.error || r?.success===false)notify(r?.error || r?.message || 'This action is not available.');else if(message)notify(message);return r;}
+  useEffect(()=>{native.displayInfo().then(setDevice);NativeStatusBar.setOverlaysWebView({overlay:false}).catch(()=>{});NativeStatusBar.setStyle({style:Style.Dark}).catch(()=>{});NativeStatusBar.hide().catch(()=>{});},[]);
+  useEffect(()=>{const id=setInterval(()=>setNow(new Date()),30000);const resize=()=>setViewport({width:innerWidth,height:innerHeight,dpr:devicePixelRatio});addEventListener('resize',resize);return()=>{clearInterval(id);removeEventListener('resize',resize);clearTimeout(noticeTimer.current);};},[]);
+  useEffect(()=>{for(const [key,val] of Object.entries({'theme':theme,'accent':accent,'icons':iconScale,'motion':reducedMotion,'display-profile':displayProfile,'mode':displayMode}))localStorage.setItem('trx-apex-'+key,String(val));},[theme,accent,iconScale,reducedMotion,displayProfile,displayMode]);
+  const day=displayMode==='day'||(displayMode==='auto'&&now.getHours()>=7&&now.getHours()<19);
+  const tone=THEMES[theme];
+  const style={'--accent':tone.accent,'--tone':tone.tone,'--accent-alpha':Math.max(.3,Math.min(1,accent/100)),'--icon-scale':Math.max(.8,Math.min(1.25,iconScale/100)), '--safe':Math.max(0,calibration.inset || 0)+'px','--offset-x':(calibration.x||0)+'px','--offset-y':(calibration.y||0)+'px', '--art-filter':`contrast(${visual.contrast/100}) saturate(${visual.saturation/100}) brightness(${visual.artwork/100})`,'--black':`rgb(${Math.max(0,100-visual.blackLevel)*.3} ${Math.max(0,100-visual.blackLevel)*.3} ${Math.max(0,100-visual.blackLevel)*.3})`};
+  function go(page,shortcut=null){setQuick(shortcut);setActive(page);}
+  function route(item){if(!item?.label){notify('Choose a destination first.');return;}act(native.navigate(item.label,item.latitude,item.longitude,item.placeId,theme,tone.accent,accent,{...preferences,dayMode:day}));}
+  function finish(){localStorage.setItem('trx-apex-commissioned','true');setCommissioned(true);}
+  const shared={live,go,notify,act,route};
+  return <div className={`apex-shell theme-${theme} ${day?'day':'night'} profile-${displayProfile} ${reducedMotion?'reduce-motion':''}`} style={style}>
+    {!commissioned?<Commissioning finish={finish} act={act}/>:<div className="calibrated-stage">
+      <header className="status-bar"><div className="wordmark"><b>TRX</b><em>APEX</em></div><div className="status-right"><Bluetooth className={live.obd?.connected?'connected':''}/><span>{now.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</span><button aria-label="Refresh weather" onClick={async()=>notify(await live.refreshWeather()?'Weather updated':'Weather requires a current GPS fix and internet.')}><CloudSun/>{live.weather?live.weather.temperature+'°':'—°'}</button></div></header>
+      <nav className="command-rail" aria-label="Main navigation">{NAV.map(([id,label,Icon])=><button key={id} aria-label={label} aria-current={active===id?'page':undefined} className={active===id?'active':''} onClick={()=>go(id)}><Icon/><span>{label}</span></button>)}</nav>
+      <main className="apex-canvas">
+        {active==='home'&&<HomePage {...shared}/>}
+        {active==='navigation'&&<NavigationPage {...shared} quick={quick} theme={theme} preferences={preferences} setPreferences={setPreferences} day={day}/>}
+        {active==='media'&&<MediaPage media={live.media} act={act} notify={notify}/>}
+        {active==='performance'&&<PerformancePage obd={live.obd} act={act}/>}
+        {active==='apps'&&<AppsPage act={act} notify={notify}/>}
+        {active==='settings'&&<SettingsPage {...{theme,setTheme,accent,setAccent,iconScale,setIconScale,reducedMotion,setReducedMotion,displayMode,setDisplayMode,displayProfile,setDisplayProfile,calibration,setCalibration,visual,setVisual,preferences,setPreferences,device,viewport,act,notify}} obd={live.obd}/>}
       </main>
-    </div>
+    </div>}
+    {notice&&<div role="status" className="notice">{notice}<button aria-label="Dismiss notice" onClick={()=>setNotice('')}><X/></button></div>}
   </div>;
 }
-
-function Commissioning({ onComplete }) {
-  const [step, setStep] = useState(0);
-  const nodes = [['Position', MapPin], ['Vehicle link', Bluetooth], ['Media', Music2], ['Launcher', Home]];
-
-  async function request() {
-    const current = nodes[step][0];
-    try {
-      const groups = { Position: 'location', 'Vehicle link': 'bluetooth', Media: 'media', Launcher: 'launcher' };
-      await native.requestPermissionGroup(groups[current]);
-    } catch {
-      // Native Android permission state remains authoritative.
-    }
-    if (step < nodes.length - 1) setStep(step + 1);
-    else onComplete();
-  }
-
-  return <div className="commissioning">
-    <div className="commission-grid" />
-    <div className="wire-truck"><img src="/trx-hero.webp" alt="Red RAM TRX" /><div className="scanline" /></div>
-    <div className="commission-copy"><span>TRX COMMAND SYSTEM</span><h1>APEX</h1><p>VEHICLE INTERFACE · SYSTEM COMMISSIONING</p></div>
-    <div className="orbit-system">
-      <div className="orbit-core"><strong>{step + 1}</strong><span>OF 4</span></div>
-      {nodes.map(function (item, index) {
-        const label = item[0], Icon = item[1];
-        return <button key={label} className={'orbit-node n' + index + (index < step ? ' done' : '') + (index === step ? ' current' : '')} onClick={function () { if (index === step) request(); }}>
-          {index < step ? <Check /> : <Icon />}<span>{label}</span>
-        </button>;
-      })}
-    </div>
-    <button className="initialize" onClick={request}>{step === nodes.length - 1 ? 'INITIALIZE APEX' : 'AUTHORIZE ' + nodes[step][0].toUpperCase()}<ChevronRight /></button>
-    <button className="setup-skip" onClick={onComplete}>Finish later</button>
-  </div>;
+function Commissioning({finish,act}){
+  const [step,setStep]=useState(0);const groups=[['location','Location'],['bluetooth','Bluetooth'],['media','Media controls'],['launcher','Default launcher']];
+  return <section className="commissioning"><img src={HERO} alt="Red RAM TRX"/><h1>TRX <em>APEX</em></h1><p>Connect your cockpit</p><p>{step+1} of 4 · {groups[step][1]}</p><button className="primary" onClick={async()=>{await act(native.requestPermissionGroup(groups[step][0]));if(step<3)setStep(step+1);else finish();}}>Set up {groups[step][1]}<ChevronRight/></button><button onClick={finish}>Finish later</button></section>;
 }
-
-function StatusBar({ now, live }) {
-  const time = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  const latitude = live.location?.latitude?.toFixed(4) || '40.3573';
-  const longitude = live.location?.longitude?.toFixed(4) || '74.6702';
-  return <header className="status-bar">
-    <div className="coordinates">{latitude}° N <span>{longitude}° W</span></div>
-    <div className="apex-wordmark"><b>TRX</b><span>APEX</span></div>
-    <div className="system-status"><Bluetooth /><Wifi /><Signal /><span>{time}</span><b>{live.weather?.temperature ?? 72}°</b></div>
-  </header>;
+function VehicleStatus({obd,action}){return <button className={'vehicle-status '+(obd?.ecuConnected?'live':'waiting')} onClick={action}><Activity/><span><b>{obd?.ecuConnected?'Vehicle data live':obd?.connected?'Adapter connected':'Vehicle link'}</b><small>{obd?.status || 'Pair OBDLink MX+ to connect'}</small></span><ChevronRight/></button>;}
+function HomePage({live,go,act,route}){
+  const home=read('trx-apex-nav-favorites',{}).home;
+  return <section className="page home-page" aria-label="Home page"><div className="hero-panel"><img className="hero-art" src={HERO} alt="Red RAM TRX in the mountains"/></div><div className="home-deck">
+    <button className="drive-card" onClick={()=>home?route(home):go('navigation','home')}><div><Navigation/><span><b>Drive Home</b><small>{home?.label || 'Choose your home address'}</small></span><ChevronRight/></div><img src={HERO} alt=""/></button>
+    <div className="home-media panel"><button className="track-link" onClick={()=>go('media')}><img src={live.media?.artwork || ALBUM} alt=""/><span><small>Now playing</small><b>{live.media?.source?live.media.title:'No active media'}</b><small>{live.media?.source?live.media.artist:'Choose a source'}</small></span></button><div className="mini-transport"><button aria-label="Previous track" disabled={!live.media?.canPrevious} onClick={()=>act(native.mediaCommand('previous'))}><SkipBack/></button><button className="primary round" aria-label={live.media?.playing?'Pause':'Play'} onClick={()=>live.media?.hasSession?act(native.mediaCommand('toggle')):go('media')}>{live.media?.playing?<Pause/>:<Play/>}</button><button aria-label="Next track" disabled={!live.media?.canNext} onClick={()=>act(native.mediaCommand('next'))}><SkipForward/></button></div></div>
+  </div><div className="quick-row">{[['home','Home',Home],['work','Work',Briefcase],['apps','Apps',Grid2X2]].map(([id,label,Icon])=><button key={id} onClick={()=>go(id==='apps'?'apps':'navigation',id==='apps'?null:id)}><Icon/>{label}</button>)}</div><VehicleStatus obd={live.obd} action={()=>go('performance')}/></section>;
 }
-
-function CommandRail({ active, onNavigate }) {
-  return <nav className={'command-rail ' + active + '-active'} aria-label="Main navigation">
-    <div className="ram-mark">RAM</div><div className="rail-line" />
-    {NAV.map(function (item) {
-      const id = item[0], label = item[1], Icon = item[2];
-      return <button key={id} className={active === id ? 'active' : ''} onClick={function () { onNavigate(id); }} aria-label={label}>
-        <Icon /><span>{label}</span>
-      </button>;
-    })}
-    <div className="rail-pulse" />
-  </nav>;
+function MapPreview({location,theme,mapMode,day,hidden}){
+  const ref=useRef();const [error,setError]=useState('Loading live map…');
+  useEffect(()=>{
+    let alive=true;
+    function sync(){if(!ref.current)return;const b=ref.current.getBoundingClientRect();native.mapPreview({visible:!hidden,x:b.x,y:b.y,width:b.width,height:b.height,viewportWidth:innerWidth,latitude:location?.latitude,longitude:location?.longitude,theme,accentColor:THEMES[theme].accent,mapMode,dayMode:day}).then(r=>{if(alive)setError(r?.error || '');});}
+    sync();const obs=new ResizeObserver(sync);obs.observe(ref.current);addEventListener('resize',sync);
+    return()=>{alive=false;obs.disconnect();removeEventListener('resize',sync);native.mapPreview({visible:false});};
+  },[Boolean(location),theme,mapMode,day,hidden]);
+  return <div ref={ref} className="map-preview" aria-label="Live map preview"><MapPin/><span>{error || 'Live Google map'}</span>{!location&&<small>Waiting for location</small>}</div>;
 }
-
-function PageTag({ index, title, subtitle, right }) {
-  return <div className="page-tag"><div><span>{index}</span><h1>{title}</h1><small>{subtitle}</small></div>{right}</div>;
-}
-
-function HomePage({ onNavigate, now, live }) {
-  function reading(value, fallback, digits) { return value == null ? fallback : Number(value).toFixed(digits || 0); }
-  return <section className="page home-page">
-    <div className="home-hero">
-      <img src="/apex-home-oem.webp" alt="Red RAM TRX in mountain terrain" />
-      <div className="terrain-lines" />
-      <div className="solar-arc"><Sun /><span>SUNRISE 6:12</span><i /><span>SUNSET 7:28</span></div>
-      <div className="hero-time"><strong>{now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</strong><span>{now.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' }).toUpperCase()}</span></div>
-      <div className="hero-weather"><CloudSun /><b>{live.weather?.temperature ?? 72}°F</b><span>LIVE LOCATION<br />{live.weather?.condition || 'WAITING FOR WEATHER'}</span></div>
-      <div className="expedition-copy"><span>EXPEDITION 01</span><h2>Adventure awaits.</h2></div>
-      <div className="home-command-deck">
-        <button className="drive-brief" onClick={function () { onNavigate('navigation'); }}><span className="deck-title">DRIVE BRIEF <ChevronRight /></span><div className="drive-content"><div><small>DESTINATION</small><b>HOME</b><strong>32 <em>min</em></strong><span>18.4 mi · <i>TRAFFIC NORMAL</i></span></div><div className="mini-route"><i /><i /><i /></div></div><div className="deck-action"><Navigation /> START</div></button>
-        <button className="home-now-playing" onClick={function () { onNavigate('media'); }}><span className="deck-title">NOW PLAYING <ChevronRight /></span><div><img src={live.media?.artwork || '/trx-radio.webp'} alt="Album artwork" /><span><b>{live.media?.title || 'No active media'}</b><small>{live.media?.artist || 'Open a media source'}</small></span>{live.media?.playing ? <Pause /> : <Play />}</div></button>
-        <button className="home-vehicle" onClick={function () { onNavigate('performance'); }}><span className="deck-title">VEHICLE <ChevronRight /></span><div className="vehicle-live"><Activity /><b>{live.obd?.deviceName || 'OBDLINK MX+'}</b><i /><em>{live.obd?.ecuConnected ? 'LIVE' : live.obd?.connected ? 'ADAPTER' : 'STANDBY'}</em></div><div className="vehicle-glance"><span><small>FUEL</small><b>{reading(live.obd?.fuelLevel, '--')}%</b></span><span><small>BATTERY</small><b>{reading(live.obd?.batteryV, '--', 1)} V</b></span><span><small>ENGINE</small><b>{live.obd?.ecuConnected ? 'LIVE' : '--'}</b></span></div></button>
-        <div className="home-quick"><span className="deck-title">QUICK ACTIONS</span><div><button onClick={function () { onNavigate('navigation'); }}><Home /><small>HOME</small></button><button onClick={function () { onNavigate('navigation'); }}><Activity /><small>WORK</small></button><button onClick={function () { onNavigate('navigation'); }}><MapPin /><small>FUEL</small></button><button onClick={function () { onNavigate('apps'); }}><Aperture /><small>CAMERA</small></button></div></div>
-      </div>
-      <div className="connection-strip"><i /> {live.location ? 'GPS LOCKED' : 'GPS WAITING'} <span /> OBDLINK MX+ <b>{live.obd?.ecuConnected ? 'LIVE' : live.obd?.connected ? 'ADAPTER' : 'CONNECTING'}</b> <span /> APEX NATIVE</div>
-    </div>
+function NavigationPage({live,quick,theme,preferences,setPreferences,route,act,notify,day}){
+  const [destination,setDestination]=useState('');const [selected,setSelected]=useState(null);const [suggestions,setSuggestions]=useState([]);const [error,setError]=useState('');
+  const [favorites,setFavorites]=useStored('trx-apex-nav-favorites',{});const [recents,setRecents]=useStored('trx-apex-nav-recents',[]);const [sheet,setSheet]=useState(null);const [saveAs,setSaveAs]=useState(null);const [focused,setFocused]=useState(false);
+  const input=useRef();
+  function select(item){setDestination(item.label);setSelected(item);setSuggestions([]);setError('');setFocused(false);input.current?.blur();if(saveAs){setFavorites(v=>({...v,[saveAs]:item}));setSaveAs(null);notify('Destination saved.');}}
+  function shortcut(key){if(key==='gas'){setDestination('Gas stations');setSelected(null);setFocused(true);input.current?.focus();return;}if(key==='favorites'){setSheet('favorites');return;}if(favorites[key])select(favorites[key]);else {setSaveAs(key);setDestination('');setSelected(null);setFocused(true);input.current?.focus();}}
+  useEffect(()=>{if(quick)shortcut(quick);},[]);
+  useEffect(()=>{if(destination.trim().length<3 || selected?.label===destination){setSuggestions([]);return;}let alive=true;const id=setTimeout(async()=>{const r=await native.searchDestinations(destination);if(alive){setSuggestions(r?.suggestions || []);setError(r?.error || '');}},300);return()=>{alive=false;clearTimeout(id);};},[destination,selected]);
+  function start(){const item=selected || {label:destination.trim(),primary:destination.trim()};if(!item.label)return;setRecents([item,...recents.filter(r=>r.label!==item.label)].slice(0,8));route(item);}
+  const pref=(key,val)=>setPreferences(v=>({...v,[key]:val}));
+  return <section className="page navigation-page" aria-label="Navigation page"><div className="search-box"><Search/><input ref={input} aria-label="Destination" value={destination} onFocus={()=>setFocused(true)} onChange={e=>{setDestination(e.target.value);setSelected(null);setError('');}} onKeyDown={e=>{if(e.key==='Enter')start();}} placeholder={saveAs?'Search '+saveAs+' address':'Search destination'}/>{destination&&<button aria-label="Clear destination" onClick={()=>{setDestination('');setSelected(null);setSuggestions([]);}}><X/></button>}<button aria-label="Route preferences" onClick={()=>setSheet('preferences')}><SlidersHorizontal/></button></div>
+    <div className="map-stage"><MapPreview location={live.location} {...{theme,day}} mapMode={preferences.mapMode} hidden={Boolean(sheet)||focused}/>{focused&&<div className="suggestions"><div className="suggestions-head"><span>{saveAs?'Save '+saveAs+' destination':'Search results'}</span><button aria-label="Close search" onClick={()=>{setFocused(false);input.current?.blur();}}><X/></button></div>{error&&<p role="alert">{error}</p>}{suggestions.map((item,i)=><button key={item.placeId || i} onClick={()=>select(item)}><MapPin/><span><b>{item.primary || item.label}</b><small>{item.secondary}</small></span><ChevronRight/></button>)}{!suggestions.length&&!error&&<p>{destination.length<3?'Enter at least three letters.':'Searching places…'}</p>}<small className="attribution">Google Places</small></div>}</div>
+    <div className="quick-row">{[['home','Home',Home],['work','Work',Briefcase],['favorites','Favorites',Heart]].map(([id,label,Icon])=><button key={id} onClick={()=>shortcut(id)}><Icon/>{label}</button>)}</div>
+    <div className="selected-destination panel"><MapPin/><span><b>{selected?.primary || destination || 'Choose destination'}</b><small>{selected?.secondary || 'Route and arrival time calculated by Google'}</small></span>{destination&&<button aria-label="Save destination" onClick={()=>setSheet('save')}><Heart/></button>}</div>
+    <button className="primary route-start" disabled={!destination.trim()} onClick={start}><Navigation/>Start route</button>
+    {sheet&&<Modal title={sheet==='preferences'?'Route preferences':sheet==='save'?'Save destination':'Saved destinations'} close={()=>setSheet(null)}>
+      {sheet==='preferences'&&<><Toggle label="Avoid tolls" value={preferences.avoidTolls} setValue={v=>pref('avoidTolls',v)}/><Toggle label="Voice guidance" value={preferences.audioEnabled} setValue={v=>pref('audioEnabled',v)}/><Toggle label="Satellite map" value={preferences.mapMode==='satellite'} setValue={v=>pref('mapMode',v?'satellite':'standard')}/><Toggle label="Prefer shorter routes" value={preferences.routingStrategy==='shortest'} setValue={v=>pref('routingStrategy',v?'shortest':'fastest')}/><Action label="Gas nearby" onClick={()=>{setSheet(null);shortcut('gas');}}/></>}
+      {sheet==='save'&&['home','work'].map(key=><Action key={key} label={'Save as '+key} onClick={()=>{setFavorites(v=>({...v,[key]:selected || {label:destination,primary:destination}}));setSheet(null);notify('Saved as '+key);}}/>)}
+      {sheet==='favorites'&&<>{['home','work'].map(key=><div className="saved-row" key={key}><Action label={key} detail={favorites[key]?.label || 'Not set'} onClick={()=>{setSheet(null);shortcut(key);}}/><button aria-label={'Change '+key} onClick={()=>{setSheet(null);setSaveAs(key);setDestination('');setSelected(null);setFocused(true);input.current?.focus();}}><SlidersHorizontal/></button></div>)}<h3>Recent</h3>{recents.length?recents.map((item,i)=><Action key={i} label={item.primary || item.label} detail={item.secondary} onClick={()=>{select(item);setSheet(null);}}/>):<p>No recent destinations.</p>}</>}
+    </Modal>}
   </section>;
 }
-
-function NavigationPage({ live, theme, accent }) {
-  const [destination, setDestination] = useState('');
-  const [suggestions, setSuggestions] = useState([]);
-  const [searchError, setSearchError] = useState('');
-  const [selected, setSelected] = useState(null);
-  const [preferences, setPreferences] = useState(function () {
-    return readStoredJson('trx-apex-nav-preferences', { routingStrategy: 'fastest', avoidTolls: false, mapMode: 'standard', audioEnabled: true });
-  });
-  const [recents, setRecents] = useState(function () { return readStoredJson('trx-apex-nav-recents', []); });
-  const [favorites, setFavorites] = useState(function () { return readStoredJson('trx-apex-nav-favorites', {}); });
-  useEffect(function () {
-    const query = destination.trim();
-    if (selected?.label === destination || query.length < 3) { setSuggestions([]); setSearchError(''); return; }
-    let current = true;
-    const timer = setTimeout(function () {
-      native.searchDestinations(query).then(function (result) { if (current) { setSuggestions(result?.suggestions || []); setSearchError(result?.error || ''); } });
-    }, 280);
-    return function () { current = false; clearTimeout(timer); };
-  }, [destination, selected]);
-  useEffect(function () { localStorage.setItem('trx-apex-nav-preferences', JSON.stringify(preferences)); }, [preferences]);
-  function updatePreference(key, value) { setPreferences(function (current) { return { ...current, [key]: value }; }); }
-  function startRoute() {
-    if (!destination.trim()) { setSearchError('SELECT A DESTINATION TO START GUIDANCE'); return; }
-    const match = selected?.label === destination ? selected : null;
-    setSuggestions([]); setSearchError('');
-    const item = match || { label: destination, primary: destination, secondary: 'Manual destination' };
-    const next = [item, ...recents.filter(function (recent) { return recent.label !== item.label; })].slice(0, 4);
-    setRecents(next); localStorage.setItem('trx-apex-nav-recents', JSON.stringify(next));
-    native.navigate(destination, match?.latitude, match?.longitude, match?.placeId, theme, THEMES[theme].accent, accent, preferences);
-  }
-  function selectSuggestion(item) { setDestination(item.label); setSelected(item); setSuggestions([]); setSearchError(''); }
-  function useQuickDestination(key) {
-    if (key === 'gas') { setDestination('Gas stations near me'); setSelected(null); return; }
-    if (key === 'favorites') {
-      const first = favorites.home || favorites.work || recents[0];
-      if (first) selectSuggestion(first); else setSearchError('SAVE HOME OR WORK TO CREATE A FAVORITE');
-      return;
-    }
-    const saved = favorites[key];
-    if (saved) { selectSuggestion(saved); return; }
-    const label = window.prompt('Set ' + key.toUpperCase() + ' address');
-    if (!label?.trim()) return;
-    const item = { label: label.trim(), primary: key.toUpperCase(), secondary: label.trim() };
-    const next = { ...favorites, [key]: item }; setFavorites(next); localStorage.setItem('trx-apex-nav-favorites', JSON.stringify(next)); selectSuggestion(item);
-  }
-  const gpsReady = Boolean(live.location);
-  const vehicleReady = Boolean(live.obd?.connected);
-  return <section className="page navigation-page">
-    <PageTag index="03" title="Navigation" subtitle="Route intelligence" right={<div className="nav-readiness"><i className={gpsReady ? 'ready' : ''} /> GPS {gpsReady ? 'READY' : 'WAITING'} <span /><i className={vehicleReady ? 'ready' : ''} /> VEHICLE {vehicleReady ? 'LINKED' : 'STANDBY'}</div>} />
-    <div className="nav-command-center">
-      <div className="nav-command"><Search /><input value={destination} onChange={function (e) { setDestination(e.target.value); setSelected(null); }} onKeyDown={function (e) { if (e.key === 'Enter') startRoute(); }} placeholder="Search destination or command" /><button onClick={startRoute} aria-label="Start navigation"><Navigation /></button><Mic />
-        {(suggestions.length > 0 || searchError) && <div className="nav-suggestions">{searchError && <div className="places-error">{searchError}</div>}{suggestions.map(function (item, index) { return <button key={(item.placeId || item.label) + index} onClick={function () { selectSuggestion(item); }}><MapPin /><span><b>{item.primary || item.label}</b><small>{item.secondary}</small></span><ChevronRight /></button>; })}<div className="places-credit"><span>Google</span> Places</div></div>}
-      </div>
-      <div className="route-brief">
-        <div className="destination-card"><span>SELECTED DESTINATION</span><h2>{selected?.primary || destination || 'WHERE TO?'}</h2><p>{selected?.secondary || (destination ? 'Ready for Google route calculation' : 'Search above or choose a quick destination')}</p><div className="route-estimate"><b>18.4<small>mi</small></b><b>32<small>min</small></b><b>TRAFFIC<small>NORMAL</small></b></div></div>
-        <div className="route-metrics"><div><span>ENGINE</span><b>GOOGLE</b><small>NAVIGATION SDK</small></div><div><span>TRAFFIC</span><b>LIVE</b><small>WHEN GUIDANCE STARTS</small></div><div><span>WEATHER</span><b>{live.weather?.temperature ?? '--'}°</b><small>{live.weather?.condition || 'ACQUIRING'}</small></div><div><span>TOLLS</span><b>{preferences.avoidTolls ? 'AVOID' : 'ALLOW'}</b><small>ROUTE PREFERENCE</small></div></div>
-      </div>
-      <div className="route-preferences">
-        <span>ROUTE PROFILE</span>
-        <button className="active" onClick={function () { updatePreference('routingStrategy', preferences.routingStrategy === 'fastest' ? 'shortest' : 'fastest'); }}><Navigation />{preferences.routingStrategy === 'fastest' ? 'FASTEST' : 'SHORTEST'}</button>
-        <button className={preferences.avoidTolls ? 'active' : ''} onClick={function () { updatePreference('avoidTolls', !preferences.avoidTolls); }}><ShieldCheck />NO TOLLS</button>
-        <button className={preferences.mapMode === 'satellite' ? 'active' : ''} onClick={function () { updatePreference('mapMode', preferences.mapMode === 'standard' ? 'satellite' : 'standard'); }}><Layers3 />{preferences.mapMode}</button>
-        <button className={preferences.audioEnabled ? 'active' : ''} onClick={function () { updatePreference('audioEnabled', !preferences.audioEnabled); }}><Volume2 />{preferences.audioEnabled ? 'AUDIO' : 'MUTED'}</button>
-      </div>
-      <div className="quick-destinations"><span>QUICK DESTINATIONS</span>{[['home','HOME',Home],['work','WORK',Activity],['gas','GAS',MapPin],['favorites','FAVORITES',Heart]].map(function (item) { const Icon = item[2]; return <button key={item[0]} onClick={function () { useQuickDestination(item[0]); }}><Icon /><b>{item[1]}</b><small>{favorites[item[0]]?.secondary || (item[0] === 'gas' ? 'NEARBY' : item[0] === 'favorites' ? recents.length + ' RECENT' : 'TAP TO SET')}</small></button>; })}</div>
-      <div className="recent-routes"><span>RECENT DESTINATIONS</span><div>{recents.length ? recents.map(function (item, index) { return <button key={item.label + index} onClick={function () { selectSuggestion(item); }}><MapPin /><span><b>{item.primary || item.label}</b><small>{item.secondary || item.label}</small></span><ChevronRight /></button>; }) : <div className="empty-routes">YOUR COMPLETED SEARCHES WILL APPEAR HERE</div>}</div></div>
-      <div className="nav-launch-strip"><div><i className={vehicleReady ? 'ready' : ''} /><span><b>OBDLINK MX+</b><small>{vehicleReady ? 'CONNECTED' : 'OPTIONAL · STANDBY'}</small></span></div><div><i className={gpsReady ? 'ready' : ''} /><span><b>POSITION</b><small>{gpsReady ? 'GPS READY' : 'REQUESTING FIX'}</small></span></div><button disabled={!destination.trim()} onClick={startRoute}>START GUIDANCE <ChevronRight /></button></div>
-    </div>
+function MediaPage({media,act,notify}){
+  const [sourceOpen,setSourceOpen]=useState(false);const [apps,setApps]=useState([]);const [loading,setLoading]=useState(false);const [selectedSource,setSelectedSource]=useStored('trx-apex-media-source',null);const [pending,setPending]=useState(false);
+  useEffect(()=>{if(!sourceOpen)return;let alive=true;setLoading(true);native.apps().then(r=>{if(alive){setApps((r?.apps||[]).filter(a=>/music|spotify|youtube|vlc|tidal|audible|radio|podcast|plex|pandora|soundcloud/i.test(a.name+' '+a.packageName)));setLoading(false);}});return()=>{alive=false;};},[sourceOpen]);
+  async function play(){if(media?.hasAccess===false){await act(native.requestPermissionGroup('media'));return;}if(media?.hasSession){act(native.mediaCommand('toggle'));return;}if(selectedSource?.packageName)act(native.launchApp(selectedSource.packageName));else setSourceOpen(true);}
+  async function favorite(){if(pending)return;setPending(true);const r=await act(native.mediaCommand('favorite'));if(r?.success)notify('Like request sent to your player.');setPending(false);}
+  const source=media?.sourceName || selectedSource?.name || 'Choose source';const duration=media?.durationMs || 0;
+  return <section className="page media-page" aria-label="Sonic page"><div className="media-top"><div className={'record '+(media?.playing?'playing':'')}><img src={media?.artwork || ALBUM} alt="Album artwork"/></div><button className="source-pill" onClick={()=>setSourceOpen(true)}><Radio/>{source}<ChevronRight/></button></div>
+    <div className="track-editorial"><h1>{media?.hasSession?media.title:'Ready when you are'}</h1><p>{media?.hasSession?media.artist:'Open a media source to start listening'}</p></div>
+    <div className="progress-row"><span>{formatTime(media?.positionMs)}</span><input aria-label="Track position" type="range" min="0" max={Math.max(1,duration)} value={Math.min(media?.positionMs||0,duration)} disabled={!media?.canSeek} onChange={e=>act(native.mediaCommand('seek',Number(e.target.value)))}/><span>{formatTime(duration)}</span></div>
+    <div className="transport"><button aria-label="Previous track" disabled={!media?.canPrevious} onClick={()=>act(native.mediaCommand('previous'))}><SkipBack/></button><button className="primary round" aria-label={media?.playing?'Pause':'Play'} onClick={play}>{media?.playing?<Pause/>:<Play/>}</button><button aria-label="Next track" disabled={!media?.canNext} onClick={()=>act(native.mediaCommand('next'))}><SkipForward/></button><button aria-label={media?.liked?'Unlike track':'Like track'} aria-pressed={Boolean(media?.liked)} className={media?.liked?'liked':''} disabled={!media?.canFavorite||pending} title={media?.canFavorite?'Like in current player':'Player does not expose a like action'} onClick={favorite}><Heart fill={media?.liked?'currentColor':'none'}/></button></div>
+    <label className="volume-row"><Volume2/><span>Media volume</span><input aria-label="Media volume" type="range" value={media?.volumePercent ?? 0} disabled={!media?.volumeAvailable} onChange={e=>act(native.mediaCommand('volume',Number(e.target.value)))}/><b>{media?.volumePercent ?? '—'}%</b></label>
+    <div className="queue-panel panel"><div className="queue-heading"><b>Up next</b>{!media?.canFavorite&&<small>Like available in player</small>}</div><div className="queue-list">{media?.queue?.length?media.queue.map((item,i)=><button key={item.id ?? i} disabled={!media.canQueue} onClick={()=>act(native.mediaCommand('queue',0,i,item.id))}><img src={item.artwork || ALBUM} alt=""/><span><b>{item.title}</b><small>{item.artist}</small></span><ChevronRight/></button>):<div className="empty-state"><Music2/><span>{media?.hasSession?'This player has not shared its queue.':'Your player’s queue will appear here.'}</span><button onClick={()=>media?.source?act(native.launchApp(media.source)):setSourceOpen(true)}>Open player</button></div>}</div></div>
+    {sourceOpen&&<Modal title="Media sources" close={()=>setSourceOpen(false)}>{loading?<p>Loading installed players…</p>:apps.length?apps.map(app=><button className="source-app" key={app.packageName} onClick={()=>{setSelectedSource({name:app.name,packageName:app.packageName});act(native.launchApp(app.packageName));setSourceOpen(false);}}>{app.icon?<img src={app.icon} alt=""/>:<Radio/>}<b>{app.name}</b><ChevronRight/></button>):<p>No media players found. Open Orbit to choose another app.</p>}<Action label="Media control access" detail={media?.hasAccess?'Enabled':'Enable track information and controls'} onClick={()=>act(native.requestPermissionGroup('media'))}/></Modal>}
   </section>;
 }
-
-function MediaPage({ media }) {
-  const playing = media?.playing ?? false;
-  const [liked, setLiked] = useState(media?.liked ?? false);
-  const [sourceOpen, setSourceOpen] = useState(false);
-  const [mediaApps, setMediaApps] = useState([]);
-  const [selectedSource, setSelectedSource] = useState(function () { return readStoredJson('trx-apex-media-source', null); });
-  const duration = Math.max(1, media?.durationMs || 1);
-  const progress = Math.min(100, Math.round((media?.positionMs || 0) * 100 / duration));
-  const queue = media?.queue?.length ? media.queue : [{ title: 'Queue unavailable' }];
-  const source = selectedSource?.name || (media?.source ? media.source.split('.').pop().toUpperCase() : 'MEDIA');
-  useEffect(function () {
-    if (!sourceOpen || mediaApps.length) return;
-    native.apps().then(function (result) {
-      const apps = result?.apps || [];
-      const likely = apps.filter(function (app) {
-        return /(spotify|music|youtube|vlc|pandora|tidal|amazon|iheartradio|sirius|soundcloud|poweramp|audible|podcast|plex|radio)/i.test(app.name + ' ' + app.packageName);
-      });
-      setMediaApps(likely.length ? likely : apps);
-    });
-  }, [sourceOpen, mediaApps.length]);
-  useEffect(function () { if (typeof media?.liked === 'boolean') setLiked(media.liked); }, [media?.liked, media?.title]);
-  async function toggleLike() {
-    const result = await native.mediaCommand('favorite');
-    if (result?.success) setLiked(result.liked);
-  }
-  function chooseSource(app) {
-    const saved = { packageName: app.packageName, name: app.name };
-    setSelectedSource(saved);
-    localStorage.setItem('trx-apex-media-source', JSON.stringify(saved));
-    native.launchApp(app.packageName);
-    setSourceOpen(false);
-  }
-  function handlePlay() {
-    if (media?.hasAccess === false) { native.requestPermissionGroup('media'); return; }
-    if (!playing && selectedSource?.packageName) { native.launchApp(selectedSource.packageName); return; }
-    native.mediaCommand('toggle');
-  }
-  function formatMs(value) { const seconds = Math.floor((value || 0) / 1000); return Math.floor(seconds / 60) + ':' + String(seconds % 60).padStart(2, '0'); }
-  return <section className="page media-page">
-    <PageTag index="04" title="Sonic" subtitle="Spatial media environment" right={<button className="source-pill" onClick={function () { setSourceOpen(true); }}><Radio /> {source} <ChevronRight /></button>} />
-    {sourceOpen && <div className="source-scrim" onClick={function () { setSourceOpen(false); }}>
-      <div className="source-drawer" onClick={function (event) { event.stopPropagation(); }}>
-        <div className="source-drawer-head"><span><small>AUDIO ROUTING</small><b>CHOOSE SOURCE</b></span><button onClick={function () { setSourceOpen(false); }}>×</button></div>
-        <div className="source-apps">{mediaApps.length ? mediaApps.map(function (app) { return <button key={app.packageName} onClick={function () { chooseSource(app); }}>{app.icon ? <img src={app.icon} alt="" /> : <Radio />}<span><b>{app.name}</b><small>OPEN PLAYER</small></span><ChevronRight /></button>; }) : <div className="source-loading">SCANNING INSTALLED MEDIA APPS…</div>}</div>
-        <button className="source-access" onClick={function () { native.requestPermissionGroup('media'); }}><ShieldCheck /><span><b>MEDIA CONTROL ACCESS</b><small>{media?.hasAccess ? 'ENABLED · LIVE SESSION CONTROL' : 'ENABLE TRACK INFO AND CONTROLS'}</small></span><ChevronRight /></button>
-      </div>
-    </div>}
-    <div className="sonic-stage sonic-command-deck">
-      <div className="wave-field">{Array.from({ length: 64 }, function (_, i) { return <i key={i} style={{ '--h': (18 + Math.abs(Math.sin(i * .61)) * 70) + '%', '--d': (i * -36) + 'ms' }} />; })}</div>
-      <div className={'record' + (playing ? ' spinning' : '')}><img src={media?.artwork || '/trx-radio.webp'} alt="Current album artwork" /><div className="record-hole" /></div>
-      <div className="track-editorial"><span>{media?.hasAccess === false ? 'MEDIA ACCESS REQUIRED' : 'NOW PLAYING · LIVE SESSION'}</span><h2>{media?.title || 'NO ACTIVE MEDIA'}</h2><p>{media?.artist || 'Start music to begin'}</p></div>
-      <div className="transport-arc">
-        <button onClick={function () { native.mediaCommand('previous'); }}><SkipBack /></button><button className="transport-main" onClick={handlePlay}>{playing ? <Pause /> : <Play />}</button><button onClick={function () { native.mediaCommand('next'); }}><SkipForward /></button>
-        <button className={liked ? 'liked' : ''} onClick={toggleLike} aria-label={liked ? 'Remove from favorites' : 'Add to favorites'}><Heart fill={liked ? 'currentColor' : 'none'} /></button>
-      </div>
-      <div className="progress-line"><span>{formatMs(media?.positionMs)}</span><input type="range" value={progress} onChange={function (e) { native.mediaCommand('seek', Math.round(Number(e.target.value) * duration / 100)); }} /><span>{formatMs(media?.durationMs)}</span></div>
-      <div className="up-next-curve"><span>UP NEXT</span>{queue.slice(0,3).map(function (item, i) { const art = item.artwork || (media?.artwork && (!item.artist || item.artist.toLowerCase() === (media?.artist || '').toLowerCase()) ? media.artwork : ''); return <button key={(item.title || '') + i} onClick={function () { if (media?.queue?.length) native.mediaCommand('queue', 0, i); }}>{art ? <img src={art} alt="" /> : <i className="queue-placeholder"><Music2 /></i>}<span><b>{item.title}</b><small>{item.artist || 'UPCOMING TRACK'}</small></span><ChevronRight /></button>; })}</div>
-      <div className="audio-output"><Volume2 /><span>UCONNECT 12</span><b>18</b></div>
-      <div className="media-source-status"><Radio /><span><small>SOURCE READY</small><b>{source}</b></span><i /> <small>{media?.hasAccess ? 'CONNECTED' : 'ACCESS NEEDED'}</small></div>
-      <div className="media-volume"><Volume2 /><span><small>VOLUME</small><b>UCONNECT 12</b></span><input aria-label="Volume" type="range" defaultValue="44" onChange={function (e) { native.mediaCommand('volume', Number(e.target.value)); }} /></div>
-    </div>
+function PerformancePage({obd,act}){
+  const [details,setDetails]=useState(false);
+  const metrics=[['Boost',obd?.boostPsi,'PSI',1],['Coolant',obd?.coolantF,'°F',0],['Battery',obd?.batteryV,'V',1],['Intake',obd?.intakeF,'°F',0]];
+  return <section className="page performance-page" aria-label="Dynamics page"><div className="gauge-row"><div><span>RPM</span><strong>{reading(obd?.rpm)}</strong><small>{obd?.ecuConnected?'Engine data':'Awaiting ECU'}</small></div><div><span>Speed</span><strong>{reading(obd?.speedMph)}</strong><small>MPH · OBD</small></div></div><div className="performance-hero"><img className="hero-art" src={HERO} alt="Red RAM TRX"/></div><div className="telemetry-grid">{metrics.map(([label,value,unit,digits])=><div className="panel" key={label}><span>{label}</span><strong>{reading(value,digits)}</strong><small>{unit}</small></div>)}</div><VehicleStatus obd={obd} action={()=>setDetails(true)}/>{details&&<Modal title="OBDLink MX+ diagnostics" close={()=>setDetails(false)}><p>{obd?.status || 'Not connected'}</p><dl className="diagnostics"><dt>Adapter</dt><dd>{obd?.deviceName || 'OBDLink MX+'}</dd><dt>Protocol</dt><dd>{obd?.protocol || '—'}</dd><dt>Live PIDs</dt><dd>{obd?.livePidCount || 0}</dd><dt>Last response</dt><dd>{obd?.ageMs==null?'None':Math.round(obd.ageMs/1000)+'s ago'}</dd><dt>Engine load</dt><dd>{reading(obd?.engineLoad)}%</dd><dt>Throttle</dt><dd>{reading(obd?.throttle)}%</dd><dt>Fuel</dt><dd>{reading(obd?.fuelLevel)}%</dd></dl><p>Gear and transmission temperature require verified RAM-specific data and are not displayed as live readings.</p><Action label="Bluetooth permission" onClick={()=>act(native.requestPermissionGroup('bluetooth'))}/><Action label="Pair adapter" onClick={()=>act(native.settings('bluetooth'))}/><Action label="Reconnect" onClick={()=>act(native.reconnectObd())}/><p>Keep other OBD apps disconnected while APEX uses the adapter.</p><details><summary>Recent adapter responses</summary><pre>{obd?.diagnostics || 'No responses recorded yet.'}</pre></details></Modal>}</section>;
+}
+function AppsPage({act,notify}){
+  const [apps,setApps]=useState([]);const [loaded,setLoaded]=useState(false);const [query,setQuery]=useState('');const [editing,setEditing]=useState(false);const [all,setAll]=useState(false);const [context,setContext]=useState(null);
+  const [favorites,setFavorites]=useStored('trx-apex-orbit-favorites',[]);
+  useEffect(()=>{let alive=true;native.apps().then(r=>{if(!alive)return;const unique=[...new Map((r?.apps||[]).map(a=>[a.packageName,a])).values()];setApps(unique);setLoaded(true);if(localStorage.getItem('trx-apex-favorites-initialized')!=='true'){if(!favorites.length)setFavorites(unique.filter(a=>/maps|music|phone/i.test(a.name)).slice(0,3).map(a=>a.packageName));localStorage.setItem('trx-apex-favorites-initialized','true');}});return()=>{alive=false;};},[]);
+  const selected=favorites.map(id=>apps.find(a=>a.packageName===id)).filter(Boolean).slice(0,6);
+  const filtered=useMemo(()=>apps.filter(a=>a.name.toLowerCase().includes(query.toLowerCase())).sort((a,b)=>a.name.localeCompare(b.name)),[apps,query]);
+  function toggle(app){if(favorites.includes(app.packageName))setFavorites(favorites.filter(id=>id!==app.packageName));else if(favorites.length<6)setFavorites([...favorites,app.packageName]);else notify('Choose up to six favorites. Remove one first.');}
+  const expanded=all||Boolean(query)||editing;
+  return <section className={'page apps-page '+(expanded?'expanded':'')} aria-label="Orbit page"><div className="search-box"><Search/><input aria-label="Search apps" placeholder="Search apps" value={query} onChange={e=>setQuery(e.target.value)}/>{query&&<button aria-label="Clear app search" onClick={()=>setQuery('')}><X/></button>}<button aria-label={editing?'Finish editing favorites':'Edit favorites'} className={editing?'active':''} onClick={()=>setEditing(!editing)}>{editing?<Check/>:<SlidersHorizontal/>}</button></div>
+    {!expanded&&<div className="app-orbit"><div className="orbit-emblem">TRX<small>Favorites</small></div>{selected.map((app,i)=>{const angle=(i/Math.max(3,selected.length))*2*Math.PI+Math.PI;return <AppButton key={app.packageName} app={app} style={{left:(selected.length===1?50:50+Math.cos(angle)*35)+'%',top:(selected.length===1?72:50+Math.sin(angle)*29)+'%'}} press={()=>act(native.launchApp(app.packageName))} hold={()=>setContext(app)}/>;})}{!selected.length&&<button className="empty-favorites" onClick={()=>setEditing(true)}>Add favorites</button>}</div>}
+    <div className="apps-library panel"><div className="library-heading"><b>{editing?'Tap apps to select favorites':'Installed apps'}</b><button onClick={()=>{setAll(!all);setQuery('');}}>{all?'Show favorites':'All apps'}</button></div><div className="apps-grid">{filtered.map(app=><AppButton key={app.packageName} app={app} selected={editing&&favorites.includes(app.packageName)} press={()=>editing?toggle(app):act(native.launchApp(app.packageName))} hold={()=>setContext(app)}/>)}{!filtered.length&&<p>{loaded?'No matching apps.':'Loading installed apps…'}</p>}</div></div>
+    {context&&<Modal title={context.name} close={()=>setContext(null)}><Action label={favorites.includes(context.packageName)?'Remove favorite':'Add favorite'} onClick={()=>{toggle(context);setContext(null);}}/><Action label="App information" onClick={()=>{act(native.appAction(context.packageName,'info'));setContext(null);}}/><Action label="Uninstall app" detail="Android will ask you to confirm" onClick={()=>{act(native.appAction(context.packageName,'uninstall'));setContext(null);}}/></Modal>}
   </section>;
 }
-
-function PerformancePage({ obd }) {
-  const rpm = Number.isFinite(obd?.rpm) ? Math.round(obd.rpm) : null;
-  const [dragStarted, setDragStarted] = useState(0);
-  const [dragElapsed, setDragElapsed] = useState(3.4);
-  useEffect(function () {
-    if (!dragStarted) return;
-    const timer = setInterval(function () { setDragElapsed((Date.now() - dragStarted) / 1000); }, 50);
-    return function () { clearInterval(timer); };
-  }, [dragStarted]);
-  function reading(value, fallback, digits) { return value == null ? fallback : Number(value).toFixed(digits || 0); }
-  const telemetry = [
-    ['Boost', reading(obd?.boostPsi, '--', 1), 'PSI', 'supercharger'], ['Coolant', reading(obd?.coolantF, '--'), '°F', 'coolant'],
-    ['Intake', reading(obd?.intakeF, '--'), '°F', 'oil'], ['Trans', reading(obd?.transmissionF, 'N/A'), '°F', 'trans'],
-    ['Voltage', reading(obd?.batteryV, '--', 1), 'V', 'voltage'], ['Engine load', reading(obd?.engineLoad ?? obd?.throttle, '--'), '%', 'throttle']
-  ];
-  return <section className="page performance-page">
-    <PageTag index="05" title="Dynamics" subtitle="Live vehicle intelligence" right={<button className="mx-live" onClick={function () { native.reconnectObd(); }}><i /> {obd?.deviceName || 'OBDLINK MX+'} <b>{obd?.ecuConnected ? 'LIVE' : obd?.connected ? 'ADAPTER' : 'CONNECT'}</b></button>} />
-    <div className="dynamics-stage">
-      <div className="rpm-readout"><strong>{rpm == null ? '--' : rpm.toLocaleString()}</strong><span>RPM</span></div>
-      <div className="gear-readout"><b>--</b><small>GEAR UNAVAILABLE</small></div>
-      <div className="tach-arc"><div className="tach-fill" style={{ '--rpm': ((rpm ?? 0) / 70) + '%' }} />{[1,2,3,4,5,6,7].map(function (n) { return <i key={n} style={{ '--i': n }}>{n}</i>; })}</div>
-      <div className="performance-hero" role="img" aria-label="RAM TRX vehicle telemetry model" />
-      <div className="telemetry-grid">{telemetry.map(function (item) { return <div className={'telemetry ' + item[3]} key={item[0]}><span>{item[0]}</span><strong>{item[1]}<small>{item[2]}</small></strong></div>; })}</div>
-      <div className="power-surface"><span>LIVE POWER CURVE</span><svg viewBox="0 0 500 160" preserveAspectRatio="none"><path className="gridline" d="M0 130H500M0 90H500M0 50H500"/><path className="hp" d="M0 140 C100 135 125 95 205 88 S330 25 500 35"/><path className="torque" d="M0 145 C90 125 125 58 220 50 S365 62 500 77"/></svg><div><b>HP 702</b><b>TQ 650</b></div></div>
-      <button className={'zero-sixty' + (dragStarted ? ' running' : '')} onClick={function () { if (dragStarted) { setDragStarted(0); } else { setDragElapsed(0); setDragStarted(Date.now()); } }}><span>0–60 MPH</span><strong>{dragElapsed.toFixed(1)}<small>s</small></strong><em>{dragStarted ? 'STOP TIMER' : 'START · DRAG TIMER'}</em></button>
-      <div className="rpm-control">{obd?.status || 'PAIR OBDLINK MX+'}<small>{obd?.protocol && obd.protocol !== '--' ? obd.protocol : ''}</small></div>
-    </div>
+function AppButton({app,style,press,hold,selected}){
+  const timer=useRef();const start=useRef();const cancelled=useRef(false);const held=useRef(false);
+  useEffect(()=>()=>clearTimeout(timer.current),[]);
+  function down(e){held.current=false;cancelled.current=false;start.current={x:e.clientX,y:e.clientY};timer.current=setTimeout(()=>{held.current=true;hold?.();},650);}
+  function move(e){if(start.current&&Math.hypot(e.clientX-start.current.x,e.clientY-start.current.y)>10){cancelled.current=true;clearTimeout(timer.current);}}
+  return <button className={'app-tile '+(selected?'selected':'')} style={style} onPointerDown={down} onPointerMove={move} onPointerUp={()=>clearTimeout(timer.current)} onPointerCancel={()=>{cancelled.current=true;clearTimeout(timer.current);}} onClick={()=>{if(!held.current&&!cancelled.current)press();}} onContextMenu={e=>e.preventDefault()}><span className="app-icon">{app.icon?<img src={app.icon} alt=""/>:<Grid2X2/>}</span><b>{app.name}</b>{selected&&<Check className="favorite-check"/>}</button>;
+}
+function SettingsPage(p){
+  const {theme,setTheme,accent,setAccent,iconScale,setIconScale,reducedMotion,setReducedMotion,displayMode,setDisplayMode,displayProfile,setDisplayProfile,calibration,setCalibration,visual,setVisual,preferences,setPreferences,device,viewport,act,obd}=p;
+  const [sheet,setSheet]=useState(null);
+  return <section className="page settings-page" aria-label="Studio page"><div className="studio-hero"><img className="hero-art" src={HERO} alt="Theme preview, red RAM TRX"/></div><div className="theme-panel panel"><span>Theme color</span><div className="theme-swatches">{Object.entries(THEMES).map(([id,t])=><button key={id} aria-label={t.name+' theme'} aria-pressed={theme===id} className={theme===id?'selected':''} onClick={()=>setTheme(id)}><i style={{background:`linear-gradient(135deg,${t.accent},${t.tone})`}}/><b>{t.name}</b></button>)}</div></div><div className="studio-rows panel"><Action label="Display profile" detail={displayProfile} onClick={()=>setSheet('display')}/><Range label="Accent brightness" value={accent} set={setAccent} min={30} max={100} suffix="%"/><Range label="Icon size" value={iconScale} set={setIconScale} min={80} max={125} suffix="%"/><Action label="Vehicle link" detail={obd?.ecuConnected?'Live':obd?.connected?'Adapter connected':'Not connected'} onClick={()=>setSheet('vehicle')}/></div><div className="settings-actions"><button onClick={()=>setSheet('calibration')}><SlidersHorizontal/>Screen calibration</button><button onClick={()=>setSheet('system')}><Settings/>System</button></div>
+    {sheet&&<Modal title={{display:'Display preferences',vehicle:'Vehicle connection',calibration:'Screen calibration',visual:'Artwork calibration',system:'System',navigation:'Navigation'}[sheet]} close={()=>setSheet(null)}>
+      {sheet==='display'&&<><p>Layout always fits the measured app window. Profiles control calibration behavior.</p><div className="choice-row">{['auto','phone','uconnect','custom'].map(v=><button key={v} className={v===displayProfile?'active':''} onClick={()=>{setDisplayProfile(v);if(v==='phone')setVisual({blackLevel:100,contrast:100,saturation:100,artwork:100});if(v==='uconnect')setVisual({blackLevel:100,contrast:104,saturation:104,artwork:100});}}>{v}</button>)}</div><h3>Lighting</h3><div className="choice-row">{['day','night','auto'].map(v=><button key={v} className={displayMode===v?'active':''} onClick={()=>setDisplayMode(v)}>{v}</button>)}</div><Toggle label="Reduce animation" value={reducedMotion} setValue={setReducedMotion}/><Action label="Artwork calibration" onClick={()=>setSheet('visual')}/></>}
+      {sheet==='vehicle'&&<><p>{obd?.status||'Pair your OBDLink MX+ in Android Bluetooth.'}</p><Action label="Bluetooth permission" onClick={()=>act(native.requestPermissionGroup('bluetooth'))}/><Action label="Pair OBDLink MX+" onClick={()=>act(native.settings('bluetooth'))}/><Action label="Reconnect adapter" onClick={()=>act(native.reconnectObd())}/><p>Detailed live PIDs and adapter responses are available on Dynamics.</p></>}
+      {sheet==='system'&&<><Action label="Default launcher" onClick={()=>act(native.requestPermissionGroup('launcher'))}/><Action label="Media control access" onClick={()=>act(native.requestPermissionGroup('media'))}/><Action label="App permissions" onClick={()=>act(native.settings('app'))}/><Action label="Navigation defaults" onClick={()=>setSheet('navigation')}/><p>TRX APEX · {__APP_VERSION__}</p></>}
+      {sheet==='navigation'&&<><Toggle label="Voice guidance" value={preferences.audioEnabled} setValue={v=>setPreferences({...preferences,audioEnabled:v})}/><Toggle label="Avoid tolls" value={preferences.avoidTolls} setValue={v=>setPreferences({...preferences,avoidTolls:v})}/><Toggle label="Satellite map" value={preferences.mapMode==='satellite'} setValue={v=>setPreferences({...preferences,mapMode:v?'satellite':'standard'})}/></>}
+      {sheet==='calibration'&&<><div className="calibration-target"><b>{viewport.width} × {viewport.height}</b><span>CSS pixels · DPR {viewport.dpr.toFixed(2)}</span><small>{device?`${device.widthPixels} × ${device.heightPixels} Android window · ${device.densityDpi} DPI`:'Device metrics unavailable in browser'}</small></div><Range label="Horizontal offset" value={calibration.x||0} set={v=>setCalibration({...calibration,x:v})} min={-40} max={40} suffix=" px"/><Range label="Vertical offset" value={calibration.y||0} set={v=>setCalibration({...calibration,y:v})} min={-40} max={40} suffix=" px"/><Range label="Safe edge" value={calibration.inset||0} set={v=>setCalibration({...calibration,inset:v})} min={0} max={30} suffix=" px"/><button className="primary" onClick={()=>setCalibration({x:0,y:0,inset:0})}><RotateCcw/>Reset geometry</button></>}
+      {sheet==='visual'&&<><img className="visual-preview hero-art" src={HERO} alt="Artwork calibration preview"/>{[['Black level','blackLevel',70,100],['Contrast','contrast',90,130],['Color','saturation',80,130],['Artwork brightness','artwork',80,125]].map(([label,key,min,max])=><Range key={key} label={label} value={visual[key]} set={v=>{setVisual({...visual,[key]:v});setDisplayProfile('custom');}} min={min} max={max} suffix="%"/>)}<button onClick={()=>setVisual({blackLevel:100,contrast:104,saturation:104,artwork:100})}>Reset artwork calibration</button></>}
+    </Modal>}
   </section>;
 }
-
-function AppsPage() {
-  const [query, setQuery] = useState('');
-  const [installed, setInstalled] = useState([]);
-  const [editing, setEditing] = useState(false);
-  const [mode, setMode] = useState('favorites');
-  const [favoritePackages, setFavoritePackages] = useState(function () { return readStoredJson('trx-apex-orbit-favorites', []); });
-  const [recentPackages, setRecentPackages] = useState(function () { return readStoredJson('trx-apex-recent-apps', []); });
-  useEffect(function () {
-    native.apps().then(function (result) { if (result?.apps?.length) setInstalled(result.apps); });
-  }, []);
-  const source = installed.length ? installed : APP_LIST.map(function (item) { return { name: item[0], glyph: item[1], packageName: '' }; });
-  useEffect(function () {
-    if (!installed.length || favoritePackages.length) return;
-    const defaults = installed.slice(0, 6).map(function (app) { return app.packageName; });
-    setFavoritePackages(defaults);
-    localStorage.setItem('trx-apex-orbit-favorites', JSON.stringify(defaults));
-  }, [installed, favoritePackages.length]);
-  const favorites = favoritePackages.map(function (packageName) { return source.find(function (app) { return app.packageName === packageName; }); }).filter(Boolean).slice(0, 6);
-  const recentApps = recentPackages.map(function (packageName) { return source.find(function (app) { return app.packageName === packageName; }); }).filter(Boolean);
-  function toggleFavorite(app) {
-    if (!app.packageName) return;
-    setFavoritePackages(function (current) {
-      const exists = current.includes(app.packageName);
-      const next = exists ? current.filter(function (item) { return item !== app.packageName; }) : current.length < 6 ? [...current, app.packageName] : [...current.slice(1), app.packageName];
-      localStorage.setItem('trx-apex-orbit-favorites', JSON.stringify(next));
-      return next;
-    });
-  }
-  const filtered = useMemo(function () {
-    return source.filter(function (item) { return item.name.toLowerCase().includes(query.toLowerCase()); }).sort(function (a, b) { return a.name.localeCompare(b.name); });
-  }, [query, installed]);
-  function launchApp(app) {
-    if (!app.packageName) return;
-    const next = [app.packageName, ...recentPackages.filter(function (item) { return item !== app.packageName; })].slice(0, 10);
-    setRecentPackages(next); localStorage.setItem('trx-apex-recent-apps', JSON.stringify(next)); native.launchApp(app.packageName);
-  }
-  const showAll = mode === 'all' || Boolean(query);
-  return <section className="page apps-page">
-    <PageTag index="06" title="Orbit" subtitle={editing ? 'Tap apps below to add · tap orbit to remove' : 'Applications in motion'} right={<div className="apps-page-actions"><small>{installed.length || source.length} INSTALLED</small><button className={'edit-apps' + (editing ? ' active' : '')} onClick={function () { setEditing(!editing); }}><SlidersHorizontal /> {editing ? 'DONE' : 'EDIT FAVORITES'}</button></div>} />
-    <div className="app-search"><Search /><input value={query} onChange={function (e) { setQuery(e.target.value); }} placeholder="Search apps, settings, vehicle…" /><Sparkles /></div>
-    <div className={'app-orbit' + (editing ? ' editing' : '') + (favorites.length === 1 ? ' single-favorite' : '')}><div className="orbit-emblem">TRX<small>{editing ? (favorites.length + ' / 6 SELECTED') : 'FAVORITES'}</small></div>{(favorites.length ? favorites : source.slice(0, 6)).map(function (item, i) { return <AppButton key={item.packageName || item.name} app={item} style={{ '--i': i, left: (favorites.length === 1 ? 50 : 50 + Math.cos(i * Math.PI / 3) * 40) + '%', top: (favorites.length === 1 ? 79 : 50 + Math.sin(i * Math.PI / 3) * 39) + '%' }} editing={editing} onPress={editing ? function () { toggleFavorite(item); } : null} onLaunch={launchApp} />; })}</div>
-    <div className={'installed-apps-panel' + (showAll ? ' expanded' : '')}><span className="installed-title">INSTALLED APPS <small>{showAll ? 'A–Z' : 'RECENT + FAVORITES'}</small></span><div className={'all-apps-grid' + (editing ? ' editing' : '')}>{filtered.map(function (item) { return <AppButton key={item.packageName || item.name} app={item} editing={editing && favoritePackages.includes(item.packageName)} onPress={editing ? function () { toggleFavorite(item); } : null} onLaunch={launchApp} />; })}</div><div className="alphabet">{'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map(function (letter) { return <button key={letter} onClick={function () { const target = filtered.find(function (app) { return app.name.toUpperCase().startsWith(letter); }); if (target) document.getElementById('app-' + target.packageName)?.scrollIntoView({ block: 'center' }); }}>{letter}</button>; })}</div></div>
-    <div className="app-mode"><button className={mode === 'favorites' ? 'active' : ''} onClick={function () { setMode('favorites'); setQuery(''); }}>FAVORITES</button><button className={mode === 'all' ? 'active' : ''} onClick={function () { setMode('all'); }}>ALL APPS</button></div>
-  </section>;
-}
-
-function AppButton({ app, style, onPress, onLaunch, editing }) {
-  let held = false;
-  let timer;
-  function down() {
-    held = false;
-    timer = setTimeout(function () { held = true; if (!onPress && app.packageName) native.appAction(app.packageName, 'info'); }, 650);
-  }
-  function up() {
-    clearTimeout(timer);
-    if (!held && onPress) onPress();
-    else if (!held && app.packageName) (onLaunch ? onLaunch(app) : native.launchApp(app.packageName));
-  }
-  return <button id={app.packageName ? 'app-' + app.packageName : undefined} className={editing ? 'favorite-selected' : ''} style={style} onPointerDown={down} onPointerUp={up} onPointerCancel={function () { clearTimeout(timer); }}><AppDisc app={app} />{editing && <i className="favorite-mark">✓</i>}</button>;
-}
-
-function AppDisc({ app }) {
-  const className = 'disc disc-' + app.name.toLowerCase().replaceAll(' ', '-');
-  return <>{app.icon ? <span className={className}><img src={app.icon} alt="" /></span> : <span className={className}>{app.glyph || '◈'}</span>}<b>{app.name}</b></>;
-}
-
-function SettingsPage(props) {
-  const { theme, setTheme, accent, setAccent, iconScale, setIconScale, reducedMotion, setReducedMotion, displayMode, setDisplayMode, displayProfile, setDisplayProfile, visualCalibration, setVisualCalibration, calibration, setCalibration, viewport, deviceDisplay, obd } = props;
-  const suggestedDpi = Math.round((viewport.width * Number(viewport.dpr) * 160 / 480) / 10) * 10;
-  const [section, setSection] = useState('appearance');
-  const [calibrationOpen, setCalibrationOpen] = useState(false);
-  const [visualOpen, setVisualOpen] = useState(false);
-  const sections = [['appearance', 'Drive & Display', Aperture], ['navigation', 'Navigation', Navigation], ['vehicle', 'Vehicle Link', Bluetooth], ['system', 'System', Settings]];
-  return <section className="page settings-page">
-    <PageTag index="07" title="Studio" subtitle="TRX APEX customization" right={<div className="studio-status"><ShieldCheck /> SETTINGS SAVED</div>} />
-    <div className="studio-preview"><div className="preview-rail" /><img src="/trx-hero.webp" alt="Live launcher preview" /><strong>10:24</strong><span>{THEMES[theme].name.toUpperCase()}</span><div className="preview-stack"><i /><i /><i /></div></div>
-    <div className="theme-materials"><span>THEME MATERIAL</span><div>{Object.entries(THEMES).map(function (entry) {
-      const id = entry[0], item = entry[1];
-      return <button key={id} className={theme === id ? 'selected' : ''} onClick={function () { setTheme(id); }}><i style={{ '--swatch': item.accent }} /><b>{item.name}</b></button>;
-    })}</div></div>
-    <div className="studio-controls">
-      <RangeControl label="ACCENT INTENSITY" value={accent} onChange={setAccent} min={30} max={100} suffix="%" />
-      <RangeControl label="ICON SCALE" value={iconScale} onChange={setIconScale} min={80} max={125} suffix="%" />
-      <div className="mode-control"><span>DISPLAY MODE</span>{['day', 'night', 'auto'].map(function (mode) { return <button key={mode} className={displayMode === mode ? 'active' : ''} onClick={function () { setDisplayMode(mode); }}>{mode === 'day' ? <Sun /> : mode === 'night' ? <Moon /> : <Sparkles />}{mode}</button>; })}</div>
-    </div>
-    <div className="studio-sections">{sections.map(function (item) {
-      const id = item[0], label = item[1], Icon = item[2];
-      const detail = id === 'appearance' ? 'Theme · Motion · Calibration' : id === 'navigation' ? 'Google · Guidance · Offline' : id === 'vehicle' ? 'OBDLink MX+ · Diagnostics' : 'Startup · Backup · About';
-      return <button key={id} onClick={function () { setSection(id); }} className={section === id ? 'active' : ''}><Icon /><span>{label}</span><small>{detail}</small><ChevronRight /></button>;
-    })}</div>
-    <div className="setting-drawer">
-      {section === 'appearance' && <><div className="display-profile"><span><b>DISPLAY PROFILE</b><small>Independent phone and vehicle rendering</small></span><div>{['auto', 'phone', 'uconnect', 'custom'].map(function (profile) { return <button key={profile} className={displayProfile === profile ? 'active' : ''} onClick={function () { setDisplayProfile(profile); }}>{profile}</button>; })}</div></div><Action label="VISUAL CALIBRATION" detail={'BLACK ' + visualCalibration.blackLevel + ' · CONTRAST ' + visualCalibration.contrast + ' · COLOR ' + visualCalibration.saturation} onClick={function () { setVisualOpen(true); }} /><Action label="SCREEN CALIBRATION" detail={viewport.width + '×' + viewport.height + ' · DPR ' + viewport.dpr + ' · SAFE ' + calibration.inset} onClick={function () { setCalibrationOpen(true); }} /></>}
-      {section === 'navigation' && <><Action label="GOOGLE NAVIGATION SDK" detail="Open native turn-by-turn navigation" onClick={function () { native.navigate(''); }} /><Toggle label="3D TERRAIN" detail="Elevation-aware route rendering" value={true} setValue={function () {}} /></>}
-      {section === 'vehicle' && <><Action label="OBDLINK MX+" detail={obd?.status || 'Pair adapter in Android Bluetooth'} onClick={function () { native.settings('bluetooth'); }} /><Action label="RECONNECT VEHICLE LINK" detail="Restart read-only OBD telemetry" onClick={function () { native.reconnectObd(); }} /></>}
-      {section === 'system' && <><Action label="DEFAULT LAUNCHER" detail="Choose TRX APEX as Android Home" onClick={function () { native.requestPermissionGroup('launcher'); }} /><Action label="APP PERMISSIONS" detail="Location · Bluetooth · Media" onClick={function () { native.settings('app'); }} /></>}
-    </div>
-    {calibrationOpen && <div className="calibration-scrim">
-      <div className="calibration-panel">
-        <div className="calibration-head"><span><small>DISPLAY GEOMETRY</small><b>SCREEN CALIBRATION</b><em>Adjust until all four corner targets sit fully inside the visible panel.</em></span><button onClick={function () { setCalibrationOpen(false); }}>×</button></div>
-        <div className="calibration-target"><i className="tl" /><i className="tr" /><i className="bl" /><i className="br" /><div><b>{viewport.width} × {viewport.height}</b><span>APP VIEWPORT · CSS PX · DPR {viewport.dpr}</span><span>{deviceDisplay ? deviceDisplay.widthPixels + ' × ' + deviceDisplay.heightPixels + ' ANDROID WINDOW · ' + deviceDisplay.densityDpi + ' DPI' : 'DEVICE METRICS UNAVAILABLE'}</span><span>{deviceDisplay ? deviceDisplay.fullWidthPixels + ' × ' + deviceDisplay.fullHeightPixels + ' ANDROID FULL DISPLAY' : ''}</span><span>{deviceDisplay ? deviceDisplay.manufacturer + ' ' + deviceDisplay.model : 'BROWSER PREVIEW'}</span>{deviceDisplay?.densityDpi >= 400 && viewport.width < 480 && <span>600 DPI MAY COMPRESS THIS VIEW · TRY ABOUT {suggestedDpi} DPI FOR 480 CSS PX</span>}</div></div>
-        <div className="calibration-controls">
-          <RangeControl label="HORIZONTAL OFFSET" value={calibration.x} onChange={function (value) { setCalibration({ ...calibration, x: value }); }} min={-60} max={60} suffix=" px" />
-          <RangeControl label="VERTICAL OFFSET" value={calibration.y} onChange={function (value) { setCalibration({ ...calibration, y: value }); }} min={-80} max={80} suffix=" px" />
-          <RangeControl label="SAFE EDGE" value={calibration.inset} onChange={function (value) { setCalibration({ ...calibration, inset: value }); }} min={0} max={36} suffix=" px" />
-        </div>
-        <div className="calibration-actions"><button onClick={function () { setCalibration({ scale: 100, x: 0, y: 0, inset: 0 }); }}>RESET UCONNECT</button><button className="primary" onClick={function () { setCalibrationOpen(false); }}><Check /> SAVE CALIBRATION</button></div>
-      </div>
-    </div>}
-    {visualOpen && <div className="calibration-scrim">
-      <div className="calibration-panel visual-panel">
-        <div className="calibration-head"><span><small>UCONNECT LCD PROFILE</small><b>VISUAL CALIBRATION</b><em>Tune the physical vehicle display without changing layout geometry.</em></span><button onClick={function () { setVisualOpen(false); }}>×</button></div>
-        <div className="visual-preview"><img src="/trx-hero.webp" alt="Visual calibration preview" /><span><b>TRUE BLACK</b><strong>TRX APEX</strong><small>High-contrast vehicle display preview</small></span></div>
-        <div className="calibration-controls">
-          <RangeControl label="BLACK LEVEL" value={visualCalibration.blackLevel} onChange={function (value) { setVisualCalibration({ ...visualCalibration, blackLevel: value }); setDisplayProfile('custom'); }} min={70} max={100} suffix="%" />
-          <RangeControl label="CONTRAST" value={visualCalibration.contrast} onChange={function (value) { setVisualCalibration({ ...visualCalibration, contrast: value }); setDisplayProfile('custom'); }} min={90} max={135} suffix="%" />
-          <RangeControl label="COLOR SATURATION" value={visualCalibration.saturation} onChange={function (value) { setVisualCalibration({ ...visualCalibration, saturation: value }); setDisplayProfile('custom'); }} min={85} max={135} suffix="%" />
-          <RangeControl label="ARTWORK BRIGHTNESS" value={visualCalibration.artwork} onChange={function (value) { setVisualCalibration({ ...visualCalibration, artwork: value }); setDisplayProfile('custom'); }} min={80} max={125} suffix="%" />
-        </div>
-        <div className="calibration-actions"><button onClick={function () { setVisualCalibration({ blackLevel: 100, contrast: 104, saturation: 104, artwork: 100 }); setDisplayProfile('uconnect'); }}>RESET UCONNECT</button><button className="primary" onClick={function () { setVisualOpen(false); }}><Check /> SAVE PROFILE</button></div>
-      </div>
-    </div>}
-  </section>;
-}
-
-function RangeControl({ label, value, onChange, min, max, suffix }) {
-  return <label className="range-control"><span>{label}</span><input type="range" min={min} max={max} value={value} onChange={function (e) { onChange(Number(e.target.value)); }} /><b>{value}{suffix}</b></label>;
-}
-function Toggle({ label, detail, value, setValue }) {
-  return <button className="drawer-row" onClick={function () { setValue(!value); }}><span><b>{label}</b><small>{detail}</small></span><i className={'switch' + (value ? ' on' : '')}><em /></i></button>;
-}
-function Action({ label, detail, onClick }) {
-  return <button className="drawer-row" onClick={onClick}><span><b>{label}</b><small>{detail}</small></span><ChevronRight /></button>;
-}
-
-createRoot(document.getElementById('root')).render(<StrictMode><App /></StrictMode>);
+function Modal({title,close,children}){useEffect(()=>{const key=e=>{if(e.key==='Escape')close();};addEventListener('keydown',key);return()=>removeEventListener('keydown',key);},[close]);return <div className="modal-scrim" onClick={close}><section className="modal" role="dialog" aria-modal="true" aria-label={title} onClick={e=>e.stopPropagation()}><header><h2>{title}</h2><button aria-label="Close dialog" onClick={close}><X/></button></header><div className="modal-body">{children}</div></section></div>;}
+function Action({label,detail,onClick}){return <button className="action-row" onClick={onClick}><span><b>{label}</b>{detail&&<small>{detail}</small>}</span><ChevronRight/></button>;}
+function Range({label,value,set,min,max,suffix}){return <label className="range-row"><span>{label}</span><input aria-label={label} type="range" min={min} max={max} value={value} onChange={e=>set(Number(e.target.value))}/><b>{value}{suffix}</b></label>;}
+function Toggle({label,value,setValue}){return <button className="action-row" role="switch" aria-checked={Boolean(value)} onClick={()=>setValue(!value)}><b>{label}</b><span className={'switch '+(value?'on':'')}/></button>;}
+createRoot(document.getElementById('root')).render(<StrictMode><App/></StrictMode>);

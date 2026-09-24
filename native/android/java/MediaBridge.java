@@ -30,6 +30,8 @@ public class MediaBridge extends NotificationListenerService {
     public static volatile Bitmap[] queueArtwork=new Bitmap[0];
     private static volatile long positionMs;
     private static volatile long positionCapturedAt;
+    private static volatile String ratingTrack="";
+    private static volatile float playbackSpeed=1f;
     private static final java.util.Map<String,Bitmap> artworkCache=java.util.Collections.synchronizedMap(
         new java.util.LinkedHashMap<String,Bitmap>(64,.75f,true){
             @Override protected boolean removeEldestEntry(java.util.Map.Entry<String,Bitmap> eldest){return size()>64;}
@@ -45,7 +47,7 @@ public class MediaBridge extends NotificationListenerService {
 
     @Override public void onListenerDisconnected() {
         instance = null;
-        detachController();
+        detachController(); updateMetadata(null);
         super.onListenerDisconnected();
     }
 
@@ -84,8 +86,9 @@ public class MediaBridge extends NotificationListenerService {
         }
     }
 
-    public static void refresh(Context context) {
+    public static synchronized void refresh(Context context) {
         if (!hasAccess(context)) {
+            detachController(); updateMetadata(null);
             title = "MEDIA ACCESS REQUIRED";
             artist = "Tap play and enable TRX Media Controls";
             artwork = null;
@@ -117,8 +120,8 @@ public class MediaBridge extends NotificationListenerService {
         } catch (Throwable ignored) { }
     }
 
-    private static void attachController(MediaController next) {
-        if (controller == next) return;
+    private static synchronized void attachController(MediaController next) {
+        if (controller == next || (controller != null && next != null && controller.getSessionToken().equals(next.getSessionToken()))) return;
         detachController();
         controller = next;
         if (next == null) return;
@@ -133,28 +136,30 @@ public class MediaBridge extends NotificationListenerService {
                 updateQueue(controller);
             }
             @Override public void onSessionDestroyed() {
-                controller = null;
+                if(controller!=next)return;
+                detachController();updateMetadata(null);
                 title = "NO TRACK SELECTED";
                 artist = "Choose a media app";
                 artwork = null;
                 playing = false;
             }
         };
-        try { next.registerCallback(callback); } catch (Throwable ignored) { }
+        try { next.registerCallback(callback,new android.os.Handler(android.os.Looper.getMainLooper())); } catch (Throwable ignored) { }
     }
 
-    private static void detachController() {
+    private static synchronized void detachController() {
         try { if (controller != null && callback != null) controller.unregisterCallback(callback); }
         catch (Throwable ignored) { }
         controller = null;
         callback = null;
     }
 
-    private static void updateMetadata(MediaController active) {
+    private static synchronized void updateMetadata(MediaController active) {
         if (active == null) {
             title = "NO ACTIVE MEDIA SESSION";
             artist = "Start music, then return here";
             source = "";
+            liked=false;ratingTrack="";durationMs=0;positionMs=0;queueIds=new long[0];
             artwork = null;
             playing = false;
             queueTitles=new String[0];queueArtists=new String[0];queueArtwork=new Bitmap[0];
@@ -165,22 +170,17 @@ public class MediaBridge extends NotificationListenerService {
             PlaybackState state = active.getPlaybackState();
             playing = state != null && state.getState() == PlaybackState.STATE_PLAYING;
             positionMs = state == null ? 0 : Math.max(0,state.getPosition());
-            positionCapturedAt = android.os.SystemClock.elapsedRealtime();
+            positionCapturedAt = state != null && state.getLastPositionUpdateTime()>0 ? state.getLastPositionUpdateTime() : android.os.SystemClock.elapsedRealtime();
+            playbackSpeed=state==null?1f:state.getPlaybackSpeed();
             MediaMetadata metadata = active.getMetadata();
             if (metadata == null) {
+                liked=false;durationMs=0;updateQueue(null);
                 title = "WAITING FOR TRACK INFO";
                 artist = source;
                 artwork = null;
                 return;
             }
             durationMs = Math.max(0,metadata.getLong(MediaMetadata.METADATA_KEY_DURATION));
-            try {
-                Rating rating=metadata.getRating(MediaMetadata.METADATA_KEY_USER_RATING);
-                if(rating!=null&&rating.isRated()){
-                    if(rating.getRatingStyle()==Rating.RATING_HEART)liked=rating.hasHeart();
-                    else if(rating.getRatingStyle()==Rating.RATING_THUMB_UP_DOWN)liked=rating.isThumbUp();
-                }
-            } catch(Throwable ignored) { }
             String nextTitle = metadata.getString(MediaMetadata.METADATA_KEY_TITLE);
             if (nextTitle == null || nextTitle.trim().isEmpty())
                 nextTitle = metadata.getString(MediaMetadata.METADATA_KEY_DISPLAY_TITLE);
@@ -191,6 +191,23 @@ public class MediaBridge extends NotificationListenerService {
                 nextArtist = metadata.getString(MediaMetadata.METADATA_KEY_DISPLAY_SUBTITLE);
             title = nextTitle == null || nextTitle.trim().isEmpty() ? "UNKNOWN TRACK" : nextTitle;
             artist = nextArtist == null || nextArtist.trim().isEmpty() ? source : nextArtist;
+            String identity=source+"|"+metadata.getString(MediaMetadata.METADATA_KEY_MEDIA_ID)+"|"+title+"|"+artist;
+            if(!identity.equals(ratingTrack)){liked=false;ratingTrack=identity;}
+            try {
+                Rating rating=metadata.getRating(MediaMetadata.METADATA_KEY_USER_RATING);
+                if(rating!=null&&rating.isRated()) {
+                    if(rating.getRatingStyle()==Rating.RATING_HEART)liked=rating.hasHeart();
+                    else if(rating.getRatingStyle()==Rating.RATING_THUMB_UP_DOWN)liked=rating.isThumbUp();
+                } else if(state!=null) {
+                    // A remove-like action is authoritative evidence of the current state.
+                    boolean add=false,remove=false;
+                    for(PlaybackState.CustomAction a:state.getCustomActions()) {
+                        String key=favoriteKey(a);if(!isFavoriteAction(key))continue;
+                        if(isRemoveFavorite(key))remove=true;else add=true;
+                    }
+                    if(remove&&!add)liked=true;else if(add&&!remove)liked=false;
+                }
+            } catch(RuntimeException ignored) {}
             Bitmap art = metadata.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART);
             if (art == null) art = metadata.getBitmap(MediaMetadata.METADATA_KEY_ART);
             if (art == null) art = metadata.getBitmap(MediaMetadata.METADATA_KEY_DISPLAY_ICON);
@@ -200,38 +217,64 @@ public class MediaBridge extends NotificationListenerService {
         } catch (Throwable ignored) { }
     }
     private static volatile long[] queueIds=new long[0];
-    public static boolean toggleFavorite(Context context){
-        MediaController active=controller;
-        if(active==null){android.widget.Toast.makeText(context,"No active media session",android.widget.Toast.LENGTH_SHORT).show();return false;}
-        try{
-            PlaybackState state=active.getPlaybackState();
-            if(state!=null){
-                PlaybackState.CustomAction best=null;int bestScore=-1;
-                for(PlaybackState.CustomAction action:state.getCustomActions()){
-                    String key=(action.getAction()+" "+action.getName()).toLowerCase(java.util.Locale.US);
-                    if(key.contains("dislike")||key.contains("thumb_down"))continue;
-                    boolean add=key.contains("like")||key.contains("favorite")||key.contains("favourite")||key.contains("heart")||key.contains("save")||key.contains("thumb_up")||key.contains("library");
-                    if(!add)continue;
-                    boolean remove=key.contains("unlike")||key.contains("remove")||key.contains("unsave");
-                    int score=(liked==remove?4:1)+(key.contains("heart")||key.contains("favorite")?2:0);
-                    if(score>bestScore){best=action;bestScore=score;}
-                }
-                if(best!=null){active.getTransportControls().sendCustomAction(best,best.getExtras());liked=!liked;return true;}
-                if((state.getActions()&PlaybackState.ACTION_SET_RATING)!=0){
-                    active.getTransportControls().setRating(Rating.newHeartRating(!liked));liked=!liked;return true;
-                }
-            }
-        }catch(Throwable ignored){ }
-        android.widget.Toast.makeText(context,"This player does not expose a favorite action",android.widget.Toast.LENGTH_SHORT).show();
-        return false;
+    public static boolean hasSession(){return controller!=null;}
+    public static boolean supports(long action){
+        MediaController c=controller;PlaybackState state=c==null?null:c.getPlaybackState();
+        return state!=null && (state.getActions()&action)!=0;
     }
-    public static void playQueueItem(Context context,int index){
-        long[] ids=queueIds;
-        if(controller!=null&&index>=0&&index<ids.length){
-            try{controller.getTransportControls().skipToQueueItem(ids[index]);}catch(RuntimeException e){android.widget.Toast.makeText(context,"Player does not support queue selection",android.widget.Toast.LENGTH_SHORT).show();}
+    private static String favoriteKey(PlaybackState.CustomAction action){
+        return (action.getAction()+" "+action.getName()).toLowerCase(java.util.Locale.US);
+    }
+    private static boolean isRemoveFavorite(String key){return key.contains("unlike")||key.contains("unfavorite")||key.contains("unfavourite")||key.contains("remove");}
+    private static boolean isFavoriteAction(String key){
+        if(key.contains("dislike")||key.contains("thumb_down")||key.contains("thumbs_down"))return false;
+        return key.contains("like")||key.contains("favorite")||key.contains("favourite")||key.contains("heart")||key.contains("thumb_up")||key.contains("thumbs_up");
+    }
+    private static PlaybackState.CustomAction favoriteAction(MediaController active){
+        PlaybackState state=active.getPlaybackState();if(state==null)return null;
+        PlaybackState.CustomAction best=null;int score=-1;
+        for(PlaybackState.CustomAction action:state.getCustomActions()){
+            String key=favoriteKey(action);if(!isFavoriteAction(key))continue;
+            int next=(liked==isRemoveFavorite(key)?4:1);
+            if(next>score){best=action;score=next;}
         }
+        return best;
     }
-    private static void updateQueue(MediaController active){
+    public static boolean canFavorite(){
+        MediaController c=controller;if(c==null)return false;
+        int type=c.getRatingType();
+        return favoriteAction(c)!=null || (supports(PlaybackState.ACTION_SET_RATING) && (type==Rating.RATING_HEART||type==Rating.RATING_THUMB_UP_DOWN));
+    }
+    public static boolean toggleFavorite(Context context){
+        refresh(context);MediaController active=controller;if(active==null)return false;
+        try {
+            PlaybackState.CustomAction action=favoriteAction(active);
+            if(action!=null){active.getTransportControls().sendCustomAction(action,action.getExtras());return true;}
+            if(!supports(PlaybackState.ACTION_SET_RATING))return false;
+            int type=active.getRatingType();
+            Rating rating=type==Rating.RATING_HEART?Rating.newHeartRating(!liked):type==Rating.RATING_THUMB_UP_DOWN?(liked?Rating.newUnratedRating(Rating.RATING_THUMB_UP_DOWN):Rating.newThumbRating(true)):null;
+            if(rating==null)return false;
+            active.getTransportControls().setRating(rating);
+            // Do not fake an acknowledgement: metadata/custom actions update the heart.
+            return true;
+        }catch(RuntimeException ignored){return false;}
+    }
+    public static final class QueueSnapshot {
+        public final String[] titles,artists; public final Bitmap[] artwork; public final long[] ids;
+        QueueSnapshot(){titles=queueTitles.clone();artists=queueArtists.clone();artwork=queueArtwork.clone();ids=queueIds.clone();}
+    }
+    public static synchronized QueueSnapshot queueSnapshot(){return new QueueSnapshot();}
+    public static String queueIdAt(int index){long[] ids=queueIds;return index>=0&&index<ids.length?Long.toString(ids[index]):"";}
+    public static boolean playQueueItem(Context context,String requestedId){
+        refresh(context);if(!supports(PlaybackState.ACTION_SKIP_TO_QUEUE_ITEM)||requestedId==null)return false;
+        try{
+            long id=Long.parseLong(requestedId);boolean found=false;
+            for(long candidate:queueIds)if(candidate==id)found=true;
+            if(!found)return false;
+            controller.getTransportControls().skipToQueueItem(id);return true;
+        }catch(RuntimeException e){return false;}
+    }
+    private static synchronized void updateQueue(MediaController active){
         queueIds=new long[0];
         if(active==null){queueTitles=new String[0];queueArtists=new String[0];queueArtwork=new Bitmap[0];return;}
         try{
@@ -331,11 +374,11 @@ public class MediaBridge extends NotificationListenerService {
         return ((track==null?"":track)+"|"+(performer==null?"":performer)).trim().toLowerCase(java.util.Locale.US);
     }
 
-    public static void clearArtworkCache(){artworkCache.clear();queueArtwork=new Bitmap[queueTitles.length];}
+    public static synchronized void clearArtworkCache(){artworkCache.clear();queueArtwork=new Bitmap[queueTitles.length];}
 
     public static long currentPositionMs(){
         long result=positionMs;
-        if(playing)result+=Math.max(0,android.os.SystemClock.elapsedRealtime()-positionCapturedAt);
+        if(playing)result+=(long)(Math.max(0,android.os.SystemClock.elapsedRealtime()-positionCapturedAt)*playbackSpeed);
         if(durationMs>0)result=Math.min(result,durationMs);
         return Math.max(0,result);
     }

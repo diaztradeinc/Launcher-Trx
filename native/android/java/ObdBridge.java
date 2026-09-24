@@ -35,6 +35,15 @@ public final class ObdBridge {
     public static volatile String protocol="--";
     public static volatile int livePidCount;
     public static volatile long lastUpdate;
+    private static long lastProbe;
+    private static long[] supportedMasks={-1,-1,-1};
+    private static final java.util.ArrayDeque<String> trace=new java.util.ArrayDeque<>();
+    public static synchronized String diagnostics(){return String.join("\n",trace);}
+    private static synchronized void record(String command,String response){
+        String clean=response.replaceAll("[\r\n]+"," | ").replaceAll("[^A-Za-z0-9 .|>:?_-]","");
+        trace.addLast(command+" → "+clean.substring(0,Math.min(180,clean.length())));
+        while(trace.size()>24)trace.removeFirst();
+    }
 
     public static volatile float rpm=Float.NaN;
     public static volatile float coolantF=Float.NaN;
@@ -50,7 +59,7 @@ public final class ObdBridge {
 
     private ObdBridge(){}
 
-    public static void reconnect(Context context){closeSocket();start(context);}
+    public static void reconnect(Context context){connected=false;ecuConnected=false;status="RECONNECTING ADAPTER";closeSocket();start(context);}
 
     public static synchronized void start(Context context){
         if(running)return;
@@ -110,7 +119,7 @@ public final class ObdBridge {
                 status="OBD RECONNECTING…";
             }finally{
                 connected=false;
-                ecuConnected=false;livePidCount=0;protocol="--";
+                ecuConnected=false;livePidCount=0;protocol="--";lastUpdate=0;
                 rpm=coolantF=intakeF=engineLoad=batteryV=obdSpeedMph=boostPsi=transmissionF=throttle=fuelLevel=mafGps=Float.NaN;
                 closeSocket();
             }
@@ -146,16 +155,27 @@ public final class ObdBridge {
         command("ATST64",1000);
         command("ATCAF1",1000);
         command("ATSP0",2200);
-        String supported=command("0100",3000);
+        String supported=command("0100",20000);
         if(!hasModeOneReply(supported)){
-            command("ATSP6",1800);command("ATSH7DF",1000);supported=command("0100",3000);
+            command("ATSP6",1800);command("ATSH7DF",1000);supported=command("0100",5000);
         }
-        ecuConnected=hasModeOneReply(supported);protocol=cleanProtocol(command("ATDP",1200));
+        ecuConnected=hasModeOneReply(supported);protocol=cleanProtocol(command("ATDP",1500));
+        supportedMasks=new long[]{ObdProtocol.mask(supported,"00"),-1,-1};
+        if(ecuConnected){
+            if(ObdProtocol.supported(supportedMasks[0],32))supportedMasks[1]=ObdProtocol.mask(command("0120",2000),"20");
+            else supportedMasks[1]=0;
+            if(ObdProtocol.supported(supportedMasks[1],32))supportedMasks[2]=ObdProtocol.mask(command("0140",2000),"40");
+            else supportedMasks[2]=0;
+        }
+        lastProbe=SystemClock.elapsedRealtime();
     }
 
     private static void pollStandardPids() throws Exception{
         float[] data;
         livePidCount=0;
+        if(!ecuConnected && SystemClock.elapsedRealtime()-lastProbe>15000){
+            status="SEARCHING FOR ENGINE ECU";initializeAdapter();
+        }
 
         data=pid("0C",2);
         rpm=data==null?Float.NaN:(data[0]*256f+data[1])/4f;if(data!=null)livePidCount++;
@@ -199,22 +219,15 @@ public final class ObdBridge {
         status=ecuConnected ? "OBD LIVE • "+livePidCount+" PIDS • "+protocol : "ADAPTER LIVE • ECU NO DATA";
     }
 
-    private static boolean hasModeOneReply(String value){if(value==null)return false;return value.toUpperCase(Locale.US).replaceAll("[^0-9A-F]","").contains("4100");}
+    private static boolean hasModeOneReply(String value){return ObdProtocol.bytes(value,"00",4)!=null;}
     private static String cleanProtocol(String value){if(value==null)return "CAN";String clean=value.replace(">","").replace("ATDP","").replaceAll("[\\r\\n]+"," ").trim();return clean.isEmpty()?"CAN":clean.toUpperCase(Locale.US);}
 
     private static float[] pid(String code,int count) throws Exception{
-        String response=command("01"+code,1500).toUpperCase(Locale.US);
-        if(response.contains("NO DATA")||response.contains("UNABLE TO CONNECT"))return null;
-        String compact=response.replaceAll("[^0-9A-F]","");
-        String marker="41"+code;
-        int at=compact.indexOf(marker);
-        if(at<0||compact.length()<at+marker.length()+count*2)return null;
-        float[] values=new float[count];
-        int start=at+marker.length();
-        try{
-            for(int i=0;i<count;i++)values[i]=Integer.parseInt(compact.substring(start+i*2,start+i*2+2),16);
-            return values;
-        }catch(Throwable invalid){return null;}
+        int id=Integer.parseInt(code,16);int group=(id-1)/32;
+        if(group<supportedMasks.length&&!ObdProtocol.supported(supportedMasks[group],id-group*32))return null;
+        String response=command("01"+code,2500);
+        int[] bytes=ObdProtocol.bytes(response,code,count);if(bytes==null)return null;
+        float[] values=new float[count];for(int i=0;i<count;i++)values[i]=bytes[i];return values;
     }
 
     private static String command(String value,long timeout) throws Exception{
@@ -236,8 +249,11 @@ public final class ObdBridge {
                 }
             }else sleep(12);
         }
-        if(result.length()==0)throw new java.io.IOException("OBD timeout");
-        return result.toString();
+        String response=result.toString();record(value,response);
+        // A partial SEARCHING reply is not completion. Reconnect rather than sending
+        // another command into an active protocol search (which produces STOPPED).
+        if(!ObdProtocol.complete(response))throw new java.io.IOException("OBD response incomplete: "+value);
+        return response;
     }
 
     private static float toF(float celsius){return celsius*9f/5f+32f;}

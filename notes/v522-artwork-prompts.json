@@ -1,0 +1,22 @@
+[
+  {
+    "key": "hero",
+    "refs": [
+      "/workspace/scratch/92214242e4c9/apex/public/apex-home-oem.webp",
+      "/workspace/scratch/57a78a071cde/generated_images/exec-5b10b370-563c-470f-bc9f-9695ed9c9346.png"
+    ],
+    "prompt": "Production raster artwork for the approved TRX APEX automotive UI. References: first is exact vehicle identity, second approved six-page mockup. Create ONLY the cinematic hero photo, NO UI, no typography, no frames. Landscape 16:9 highest detail. The same dark candy red RAM TRX, lifted stance, black RamBar, offroad tires, front three quarter facing left, parked on crisp rugged rock ledge, alpine lake and dramatic mountains behind, blue hour with narrow warm sunset horizon. Entire truck fully visible centered, occupying central 72% of width and lower 68% of height with generous 12% safe margin around wheels and bumper; do not crop. Premium realistic automotive photography, balanced brighter readable paint highlights and wheel detail for vehicle LCD, rich blacks without crushed detail, subdued distant mountains. No neon glow, no bloom, no lens flare, no added slogans. This must reproduce the artwork aesthetic in top-left and bottom-left of approved mockup."
+  },
+  {
+    "key": "studio",
+    "refs": [
+      "/workspace/scratch/92214242e4c9/apex/public/apex-media-oem.webp"
+    ],
+    "prompt": "Production background artwork for TRX APEX Sonic media player. Reference preserves recording studio identity. Generate a pristine cinematic premium recording studio with matte graphite acoustic walls, one slim restrained deep crimson lighting strip on each side, pair of studio monitors at left and right, mixing desk low in scene, central dark negative space for a circular album disc that the app will render. Wide landscape 16:9, highest detail, subtle soft practical lighting, sharp texture but calm and dark. No record, no UI, no text, no logos, no waveform, no bright glow. Elegant expensive OEM automotive audio aesthetic."
+  },
+  {
+    "key": "album",
+    "refs": [],
+    "prompt": "Production square fallback album artwork for TRX APEX premium automotive launcher, highest resolution. An enormous richly textured crimson moon suspended above a dramatic black alpine mountain peak with a little red light reflecting in still lake at bottom. Cinematic and tasteful like an expensive electronic music album cover. Perfectly centered composition remains beautiful cropped into a circle. Deep charcoal and muted scarlet palette, crisp photographic detail, gentle contrast suitable for an automotive screen, no text, no logo, no border, no record vinyl grooves (rendered separately in UI), no interface."
+  }
+]
