@@ -15,6 +15,7 @@ import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.location.Location;
 import android.location.LocationManager;
+import android.media.AudioManager;
 import android.net.Uri;
 import android.os.Build;
 import android.provider.Settings;
@@ -194,6 +195,10 @@ public class TrxNativePlugin extends Plugin {
         if ("previous".equals(command)) MediaBridge.previous(getContext());
         else if ("next".equals(command)) MediaBridge.next(getContext());
         else if ("seek".equals(command)) MediaBridge.seekTo(getContext(), call.getLong("positionMs", 0L));
+        else if ("volume".equals(command)) {
+            AudioManager audio=(AudioManager)getContext().getSystemService(Context.AUDIO_SERVICE);
+            if(audio!=null){int max=audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC);int percent=Math.max(0,Math.min(100,call.getInt("positionMs",50)));audio.setStreamVolume(AudioManager.STREAM_MUSIC,Math.round(max*percent/100f),0);}
+        }
         else if ("queue".equals(command)) MediaBridge.playQueueItem(getContext(), call.getInt("index", 0));
         else if ("favorite".equals(command)) {
             boolean success=MediaBridge.toggleFavorite(getContext());
