@@ -129,6 +129,12 @@ public class NavigationActivity extends AppCompatActivity {
         GradientDrawable railBg = new GradientDrawable();
         railBg.setColor(0xf4040504); railBg.setCornerRadius(dp(27)); railBg.setStroke(dp(1),withAlpha(accentColor, 0xb8));
         driveControls.setBackground(railBg);
+        Button hideControls = new Button(this);
+        hideControls.setText("‹  HIDE"); hideControls.setTextColor(0xfff4f0e8); hideControls.setTextSize(10);
+        hideControls.setAllCaps(false); hideControls.setPadding(0,0,0,0);
+        hideControls.setBackgroundColor(Color.TRANSPARENT);
+        hideControls.setOnClickListener(v -> toggleDriveControls());
+        driveControls.addView(hideControls, new LinearLayout.LayoutParams(-1, dp(36)));
         Button recenter = railButton("◎\nRECENTER");
         recenter.setOnClickListener(v -> navigationView.getMapAsync(map -> map.followMyLocation(CameraPerspective.TILTED)));
         Button satellite = railButton("◇\nLAYERS");
@@ -156,7 +162,7 @@ public class NavigationActivity extends AppCompatActivity {
         railToggle.setText("+"); railToggle.setTextColor(accentColor); railToggle.setTextSize(24); railToggle.setPadding(0,0,0,0);
         GradientDrawable toggleBg = new GradientDrawable(); toggleBg.setColor(0xf9040504); toggleBg.setShape(GradientDrawable.OVAL); toggleBg.setStroke(dp(1),withAlpha(accentColor,0xee));
         railToggle.setBackground(toggleBg); railToggle.setOnClickListener(v -> toggleDriveControls()); railToggle.setVisibility(View.GONE);
-        positionRailToggle(false);
+        positionRailToggle();
 
         status = new TextView(this);
         status.setText("INITIALIZING GOOGLE NAVIGATION…"); status.setTextColor(0xfff4f0e8); status.setTextSize(12);
@@ -266,7 +272,8 @@ public class NavigationActivity extends AppCompatActivity {
                 if(routeStatus==Navigator.RouteStatus.OK){
                     AudioGuidanceSettings audio=AudioGuidanceSettings.builder().setGuidanceMode(audioEnabled ? AudioGuidanceSettings.GuidanceMode.VOICE_ALERTS_AND_GUIDANCE : AudioGuidanceSettings.GuidanceMode.SILENT).build();
                     navigator.setAudioGuidanceSettings(audio);navigator.startGuidance();status.setVisibility(android.view.View.GONE);destination.clearFocus();
-                    guidanceActive=true;searchBar.setVisibility(View.GONE);driveControls.setVisibility(View.GONE);railToggle.setVisibility(View.VISIBLE);positionRailToggle(true);
+                    guidanceActive=true;searchBar.setVisibility(View.GONE);driveControls.setVisibility(View.GONE);railToggle.setVisibility(View.VISIBLE);positionRailToggle();
+                    if (googleMap != null) googleMap.setPadding(0, 0, 0, dp(64));
                     InputMethodManager keyboard=(InputMethodManager)getSystemService(Context.INPUT_METHOD_SERVICE);
                     if(keyboard!=null)keyboard.hideSoftInputFromWindow(destination.getWindowToken(),0);
                 }else status.setText("ROUTE UNAVAILABLE · "+routeStatus);
@@ -280,23 +287,23 @@ public class NavigationActivity extends AppCompatActivity {
     }
 
     private Button railButton(String label) {
-        Button button=new Button(this);button.setText(label);button.setTextColor(accentColor);button.setTextSize(7.5f);button.setGravity(Gravity.CENTER);button.setAllCaps(false);
+        Button button=new Button(this);button.setText(label);button.setTextColor(accentColor);button.setTextSize(9f);button.setGravity(Gravity.CENTER);button.setAllCaps(false);
         button.setPadding(0,0,0,0);GradientDrawable bg=new GradientDrawable();bg.setShape(GradientDrawable.OVAL);bg.setColor(0xff070807);bg.setStroke(dp(1),withAlpha(accentColor,0xc8));button.setBackground(bg);
-        LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(dp(44),dp(44));lp.topMargin=dp(3);lp.bottomMargin=dp(3);button.setLayoutParams(lp);return button;
+        LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(dp(42),dp(42));lp.topMargin=dp(2);lp.bottomMargin=dp(2);button.setLayoutParams(lp);return button;
     }
 
     private void toggleDriveControls() {
         boolean collapse = driveControls.getVisibility() == View.VISIBLE;
         driveControls.setVisibility(collapse ? View.GONE : View.VISIBLE);
-        railToggle.setText(collapse ? "+" : "‹");
-        if (googleMap != null) googleMap.setPadding(0, 0, collapse ? 0 : dp(68), 0);
-        positionRailToggle(collapse);
+        railToggle.setVisibility(collapse ? View.VISIBLE : View.GONE);
+        if (googleMap != null) googleMap.setPadding(0, 0, collapse ? 0 : dp(64), guidanceActive ? dp(64) : 0);
+        if (collapse) positionRailToggle();
     }
 
-    private void positionRailToggle(boolean collapsed) {
+    private void positionRailToggle() {
         if (railToggle == null || navigationRoot == null) return;
         FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(dp(48), dp(48), Gravity.RIGHT | Gravity.CENTER_VERTICAL);
-        lp.rightMargin = collapsed ? dp(10) : dp(68);
+        lp.rightMargin = dp(10);
         if (railToggle.getParent() == null) navigationRoot.addView(railToggle, lp); else railToggle.setLayoutParams(lp);
     }
 

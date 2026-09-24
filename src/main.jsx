@@ -270,7 +270,7 @@ function HomePage({ onNavigate, now, live }) {
         <button className="home-vehicle" onClick={function () { onNavigate('performance'); }}><span className="deck-title">VEHICLE <ChevronRight /></span><div className="vehicle-live"><Activity /><b>{live.obd?.deviceName || 'OBDLINK MX+'}</b><i /><em>{live.obd?.ecuConnected ? 'LIVE' : live.obd?.connected ? 'ADAPTER' : 'STANDBY'}</em></div><div className="vehicle-glance"><span><small>FUEL</small><b>{reading(live.obd?.fuelLevel, '--')}%</b></span><span><small>BATTERY</small><b>{reading(live.obd?.batteryV, '--', 1)} V</b></span><span><small>ENGINE</small><b>{live.obd?.ecuConnected ? 'LIVE' : '--'}</b></span></div></button>
         <div className="home-quick"><span className="deck-title">QUICK ACTIONS</span><div><button onClick={function () { onNavigate('navigation'); }}><Home /><small>HOME</small></button><button onClick={function () { onNavigate('navigation'); }}><Activity /><small>WORK</small></button><button onClick={function () { onNavigate('navigation'); }}><MapPin /><small>FUEL</small></button><button onClick={function () { onNavigate('apps'); }}><Aperture /><small>CAMERA</small></button></div></div>
       </div>
-      <div className="connection-strip"><i /> {live.location ? 'GPS LOCKED' : 'GPS WAITING'} <span /> OBDLINK MX+ <b>{live.obd?.connected ? 'LIVE' : 'CONNECTING'}</b> <span /> APEX NATIVE</div>
+      <div className="connection-strip"><i /> {live.location ? 'GPS LOCKED' : 'GPS WAITING'} <span /> OBDLINK MX+ <b>{live.obd?.ecuConnected ? 'LIVE' : live.obd?.connected ? 'ADAPTER' : 'CONNECTING'}</b> <span /> APEX NATIVE</div>
     </div>
   </section>;
 }
@@ -411,7 +411,7 @@ function MediaPage({ media }) {
 }
 
 function PerformancePage({ obd }) {
-  const rpm = Math.round(obd?.rpm || 0);
+  const rpm = Number.isFinite(obd?.rpm) ? Math.round(obd.rpm) : null;
   const [dragStarted, setDragStarted] = useState(0);
   const [dragElapsed, setDragElapsed] = useState(3.4);
   useEffect(function () {
@@ -426,10 +426,11 @@ function PerformancePage({ obd }) {
     ['Voltage', reading(obd?.batteryV, '--', 1), 'V', 'voltage'], ['Engine load', reading(obd?.engineLoad ?? obd?.throttle, '--'), '%', 'throttle']
   ];
   return <section className="page performance-page">
-    <PageTag index="05" title="Dynamics" subtitle="Live vehicle intelligence" right={<button className="mx-live" onClick={function () { native.reconnectObd(); }}><i /> {obd?.deviceName || 'OBDLINK MX+'} <b>{obd?.connected ? 'LIVE' : 'CONNECT'}</b></button>} />
+    <PageTag index="05" title="Dynamics" subtitle="Live vehicle intelligence" right={<button className="mx-live" onClick={function () { native.reconnectObd(); }}><i /> {obd?.deviceName || 'OBDLINK MX+'} <b>{obd?.ecuConnected ? 'LIVE' : obd?.connected ? 'ADAPTER' : 'CONNECT'}</b></button>} />
     <div className="dynamics-stage">
-      <div className="rpm-readout"><strong>{rpm.toLocaleString()}</strong><span>RPM</span><div className="gear-readout"><b>M4</b><small>TOW / HAUL OFF</small></div></div>
-      <div className="tach-arc"><div className="tach-fill" style={{ '--rpm': (rpm / 70) + '%' }} />{[1,2,3,4,5,6,7].map(function (n) { return <i key={n} style={{ '--i': n }}>{n}</i>; })}</div>
+      <div className="rpm-readout"><strong>{rpm == null ? '--' : rpm.toLocaleString()}</strong><span>RPM</span></div>
+      <div className="gear-readout"><b>--</b><small>GEAR UNAVAILABLE</small></div>
+      <div className="tach-arc"><div className="tach-fill" style={{ '--rpm': ((rpm ?? 0) / 70) + '%' }} />{[1,2,3,4,5,6,7].map(function (n) { return <i key={n} style={{ '--i': n }}>{n}</i>; })}</div>
       <div className="performance-hero" role="img" aria-label="RAM TRX vehicle telemetry model" />
       <div className="telemetry-grid">{telemetry.map(function (item) { return <div className={'telemetry ' + item[3]} key={item[0]}><span>{item[0]}</span><strong>{item[1]}<small>{item[2]}</small></strong></div>; })}</div>
       <div className="power-surface"><span>LIVE POWER CURVE</span><svg viewBox="0 0 500 160" preserveAspectRatio="none"><path className="gridline" d="M0 130H500M0 90H500M0 50H500"/><path className="hp" d="M0 140 C100 135 125 95 205 88 S330 25 500 35"/><path className="torque" d="M0 145 C90 125 125 58 220 50 S365 62 500 77"/></svg><div><b>HP 702</b><b>TQ 650</b></div></div>
@@ -479,7 +480,7 @@ function AppsPage() {
   return <section className="page apps-page">
     <PageTag index="06" title="Orbit" subtitle={editing ? 'Tap apps below to add · tap orbit to remove' : 'Applications in motion'} right={<div className="apps-page-actions"><small>{installed.length || source.length} INSTALLED</small><button className={'edit-apps' + (editing ? ' active' : '')} onClick={function () { setEditing(!editing); }}><SlidersHorizontal /> {editing ? 'DONE' : 'EDIT FAVORITES'}</button></div>} />
     <div className="app-search"><Search /><input value={query} onChange={function (e) { setQuery(e.target.value); }} placeholder="Search apps, settings, vehicle…" /><Sparkles /></div>
-    <div className={'app-orbit' + (editing ? ' editing' : '')}><div className="orbit-emblem">TRX<small>{editing ? (favorites.length + ' / 6 SELECTED') : 'FAVORITES'}</small></div>{(favorites.length ? favorites : source.slice(0, 6)).map(function (item, i) { return <AppButton key={item.packageName || item.name} app={item} style={{ '--i': i }} editing={editing} onPress={editing ? function () { toggleFavorite(item); } : null} onLaunch={launchApp} />; })}</div>
+    <div className={'app-orbit' + (editing ? ' editing' : '') + (favorites.length === 1 ? ' single-favorite' : '')}><div className="orbit-emblem">TRX<small>{editing ? (favorites.length + ' / 6 SELECTED') : 'FAVORITES'}</small></div>{(favorites.length ? favorites : source.slice(0, 6)).map(function (item, i) { return <AppButton key={item.packageName || item.name} app={item} style={{ '--i': i, left: (favorites.length === 1 ? 50 : 50 + Math.cos(i * Math.PI / 3) * 40) + '%', top: (favorites.length === 1 ? 79 : 50 + Math.sin(i * Math.PI / 3) * 39) + '%' }} editing={editing} onPress={editing ? function () { toggleFavorite(item); } : null} onLaunch={launchApp} />; })}</div>
     <div className={'installed-apps-panel' + (showAll ? ' expanded' : '')}><span className="installed-title">INSTALLED APPS <small>{showAll ? 'A–Z' : 'RECENT + FAVORITES'}</small></span><div className={'all-apps-grid' + (editing ? ' editing' : '')}>{filtered.map(function (item) { return <AppButton key={item.packageName || item.name} app={item} editing={editing && favoritePackages.includes(item.packageName)} onPress={editing ? function () { toggleFavorite(item); } : null} onLaunch={launchApp} />; })}</div><div className="alphabet">{'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map(function (letter) { return <button key={letter} onClick={function () { const target = filtered.find(function (app) { return app.name.toUpperCase().startsWith(letter); }); if (target) document.getElementById('app-' + target.packageName)?.scrollIntoView({ block: 'center' }); }}>{letter}</button>; })}</div></div>
     <div className="app-mode"><button className={mode === 'favorites' ? 'active' : ''} onClick={function () { setMode('favorites'); setQuery(''); }}>FAVORITES</button><button className={mode === 'all' ? 'active' : ''} onClick={function () { setMode('all'); }}>ALL APPS</button></div>
   </section>;
