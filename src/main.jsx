@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { currentWeather, native } from './native';
 import './styles.css';
+import './oem-v517.css';
 
 const NAV = [
   ['home', 'Home', Home], ['navigation', 'Navigate', Navigation],
@@ -244,7 +245,7 @@ function HomePage({ onNavigate, now, live }) {
   function reading(value, fallback, digits) { return value == null ? fallback : Number(value).toFixed(digits || 0); }
   return <section className="page home-page">
     <div className="home-hero">
-      <img src="/apex-home-v2.webp" alt="Red RAM TRX in mountain terrain" />
+      <img src="/apex-home-oem.webp" alt="Red RAM TRX in mountain terrain" />
       <div className="terrain-lines" />
       <div className="solar-arc"><Sun /><span>SUNRISE 6:12</span><i /><span>SUNSET 7:28</span></div>
       <div className="hero-time"><strong>{now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</strong><span>{now.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' }).toUpperCase()}</span></div>
@@ -315,7 +316,7 @@ function NavigationPage({ live, theme, accent }) {
         {(suggestions.length > 0 || searchError) && <div className="nav-suggestions">{searchError && <div className="places-error">{searchError}</div>}{suggestions.map(function (item, index) { return <button key={(item.placeId || item.label) + index} onClick={function () { selectSuggestion(item); }}><MapPin /><span><b>{item.primary || item.label}</b><small>{item.secondary}</small></span><ChevronRight /></button>; })}<div className="places-credit"><span>Google</span> Places</div></div>}
       </div>
       <div className="route-brief">
-        <div className="destination-card"><span>SELECTED DESTINATION</span><h2>{selected?.primary || destination || 'WHERE TO?'}</h2><p>{selected?.secondary || (destination ? 'Ready for Google route calculation' : 'Search above or choose a quick destination')}</p></div>
+        <div className="destination-card"><span>SELECTED DESTINATION</span><h2>{selected?.primary || destination || 'WHERE TO?'}</h2><p>{selected?.secondary || (destination ? 'Ready for Google route calculation' : 'Search above or choose a quick destination')}</p><div className="route-estimate"><b>18.4<small>mi</small></b><b>32<small>min</small></b><b>TRAFFIC<small>NORMAL</small></b></div></div>
         <div className="route-metrics"><div><span>ENGINE</span><b>GOOGLE</b><small>NAVIGATION SDK</small></div><div><span>TRAFFIC</span><b>LIVE</b><small>WHEN GUIDANCE STARTS</small></div><div><span>WEATHER</span><b>{live.weather?.temperature ?? '--'}°</b><small>{live.weather?.condition || 'ACQUIRING'}</small></div><div><span>TOLLS</span><b>{preferences.avoidTolls ? 'AVOID' : 'ALLOW'}</b><small>ROUTE PREFERENCE</small></div></div>
       </div>
       <div className="route-preferences">
@@ -398,22 +399,28 @@ function MediaPage({ media }) {
 
 function PerformancePage({ obd }) {
   const rpm = Math.round(obd?.rpm || 0);
+  const [dragStarted, setDragStarted] = useState(0);
+  const [dragElapsed, setDragElapsed] = useState(3.4);
+  useEffect(function () {
+    if (!dragStarted) return;
+    const timer = setInterval(function () { setDragElapsed((Date.now() - dragStarted) / 1000); }, 50);
+    return function () { clearInterval(timer); };
+  }, [dragStarted]);
   function reading(value, fallback, digits) { return value == null ? fallback : Number(value).toFixed(digits || 0); }
   const telemetry = [
     ['Boost', reading(obd?.boostPsi, '--', 1), 'PSI', 'supercharger'], ['Coolant', reading(obd?.coolantF, '--'), '°F', 'coolant'],
     ['Intake', reading(obd?.intakeF, '--'), '°F', 'oil'], ['Trans', reading(obd?.transmissionF, 'N/A'), '°F', 'trans'],
-    ['Voltage', reading(obd?.batteryV, '--', 1), 'V', 'voltage'], ['Throttle', reading(obd?.throttle ?? obd?.engineLoad, '--'), '%', 'throttle']
+    ['Voltage', reading(obd?.batteryV, '--', 1), 'V', 'voltage'], ['Engine load', reading(obd?.engineLoad ?? obd?.throttle, '--'), '%', 'throttle']
   ];
   return <section className="page performance-page">
     <PageTag index="05" title="Dynamics" subtitle="Live vehicle intelligence" right={<button className="mx-live" onClick={function () { native.reconnectObd(); }}><i /> {obd?.deviceName || 'OBDLINK MX+'} <b>{obd?.connected ? 'LIVE' : 'CONNECT'}</b></button>} />
     <div className="dynamics-stage">
       <div className="rpm-readout"><strong>{rpm.toLocaleString()}</strong><span>RPM</span><div className="gear-readout"><b>M4</b><small>TOW / HAUL OFF</small></div></div>
       <div className="tach-arc"><div className="tach-fill" style={{ '--rpm': (rpm / 70) + '%' }} />{[1,2,3,4,5,6,7].map(function (n) { return <i key={n} style={{ '--i': n }}>{n}</i>; })}</div>
-      <div className="xray-truck"><img src="/trx-hero.webp" alt="RAM TRX vehicle telemetry model" /><div className="thermal headlight-left" /><div className="thermal headlight-right" /></div>
-      <svg className="callout-lines" viewBox="0 0 900 460" preserveAspectRatio="none"><path d="M450 190 L230 95 L96 95"/><path d="M525 218 L720 105 L850 105"/><path d="M397 250 L210 340 L80 340"/><path d="M615 280 L760 340 L868 340"/></svg>
+      <div className="performance-hero" role="img" aria-label="RAM TRX vehicle telemetry model" />
       <div className="telemetry-grid">{telemetry.map(function (item) { return <div className={'telemetry ' + item[3]} key={item[0]}><span>{item[0]}</span><strong>{item[1]}<small>{item[2]}</small></strong></div>; })}</div>
       <div className="power-surface"><span>LIVE POWER CURVE</span><svg viewBox="0 0 500 160" preserveAspectRatio="none"><path className="gridline" d="M0 130H500M0 90H500M0 50H500"/><path className="hp" d="M0 140 C100 135 125 95 205 88 S330 25 500 35"/><path className="torque" d="M0 145 C90 125 125 58 220 50 S365 62 500 77"/></svg><div><b>HP 702</b><b>TQ 650</b></div></div>
-      <button className="zero-sixty"><span>0–60 MPH</span><strong>3.4<small>s</small></strong><em>DRAG TIMER</em></button>
+      <button className={'zero-sixty' + (dragStarted ? ' running' : '')} onClick={function () { if (dragStarted) { setDragStarted(0); } else { setDragElapsed(0); setDragStarted(Date.now()); } }}><span>0–60 MPH</span><strong>{dragElapsed.toFixed(1)}<small>s</small></strong><em>{dragStarted ? 'STOP TIMER' : 'START · DRAG TIMER'}</em></button>
       <div className="rpm-control">{obd?.status || 'PAIR OBDLINK MX+'}<small>{obd?.protocol && obd.protocol !== '--' ? obd.protocol : ''}</small></div>
     </div>
   </section>;
@@ -423,7 +430,7 @@ function AppsPage() {
   const [query, setQuery] = useState('');
   const [installed, setInstalled] = useState([]);
   const [editing, setEditing] = useState(false);
-  const [mode, setMode] = useState('recent');
+  const [mode, setMode] = useState('favorites');
   const [favoritePackages, setFavoritePackages] = useState(function () { return readStoredJson('trx-apex-orbit-favorites', []); });
   const [recentPackages, setRecentPackages] = useState(function () { return readStoredJson('trx-apex-recent-apps', []); });
   useEffect(function () {
@@ -432,17 +439,17 @@ function AppsPage() {
   const source = installed.length ? installed : APP_LIST.map(function (item) { return { name: item[0], glyph: item[1], packageName: '' }; });
   useEffect(function () {
     if (!installed.length || favoritePackages.length) return;
-    const defaults = installed.slice(0, 8).map(function (app) { return app.packageName; });
+    const defaults = installed.slice(0, 6).map(function (app) { return app.packageName; });
     setFavoritePackages(defaults);
     localStorage.setItem('trx-apex-orbit-favorites', JSON.stringify(defaults));
   }, [installed, favoritePackages.length]);
-  const favorites = favoritePackages.map(function (packageName) { return source.find(function (app) { return app.packageName === packageName; }); }).filter(Boolean).slice(0, 8);
+  const favorites = favoritePackages.map(function (packageName) { return source.find(function (app) { return app.packageName === packageName; }); }).filter(Boolean).slice(0, 6);
   const recentApps = recentPackages.map(function (packageName) { return source.find(function (app) { return app.packageName === packageName; }); }).filter(Boolean);
   function toggleFavorite(app) {
     if (!app.packageName) return;
     setFavoritePackages(function (current) {
       const exists = current.includes(app.packageName);
-      const next = exists ? current.filter(function (item) { return item !== app.packageName; }) : current.length < 8 ? [...current, app.packageName] : [...current.slice(1), app.packageName];
+      const next = exists ? current.filter(function (item) { return item !== app.packageName; }) : current.length < 6 ? [...current, app.packageName] : [...current.slice(1), app.packageName];
       localStorage.setItem('trx-apex-orbit-favorites', JSON.stringify(next));
       return next;
     });
@@ -455,17 +462,13 @@ function AppsPage() {
     const next = [app.packageName, ...recentPackages.filter(function (item) { return item !== app.packageName; })].slice(0, 10);
     setRecentPackages(next); localStorage.setItem('trx-apex-recent-apps', JSON.stringify(next)); native.launchApp(app.packageName);
   }
-  const flowApps = recentApps.length ? recentApps : source.slice(0, 10);
   const showAll = mode === 'all' || Boolean(query);
   return <section className="page apps-page">
     <PageTag index="06" title="Orbit" subtitle={editing ? 'Tap apps below to add · tap orbit to remove' : 'Applications in motion'} right={<div className="apps-page-actions"><small>{installed.length || source.length} INSTALLED</small><button className={'edit-apps' + (editing ? ' active' : '')} onClick={function () { setEditing(!editing); }}><SlidersHorizontal /> {editing ? 'DONE' : 'EDIT FAVORITES'}</button></div>} />
     <div className="app-search"><Search /><input value={query} onChange={function (e) { setQuery(e.target.value); }} placeholder="Search apps, settings, vehicle…" /><Sparkles /></div>
-    {!showAll && <div className={'app-orbit' + (editing ? ' editing' : '')}><div className="orbit-emblem">TRX<small>{editing ? (favorites.length + ' / 8 SELECTED') : 'FAVORITES'}</small></div>{(favorites.length ? favorites : source.slice(0, 8)).map(function (item, i) { return <AppButton key={item.packageName || item.name} app={item} style={{ '--i': i }} editing={editing} onPress={editing ? function () { toggleFavorite(item); } : null} onLaunch={launchApp} />; })}</div>}
-    {!showAll && <button className="favorite-editor" onClick={function () { setEditing(!editing); }}><Sparkles /><span><b>{editing ? 'SELECT FAVORITES' : 'EDIT FAVORITES'}</b><small>{editing ? 'Tap apps below to add or remove' : 'Change the apps in your orbit'}</small></span><ChevronRight /></button>}
-    {!showAll && <div className={'app-flow' + (editing ? ' editing' : '')}><span className="app-flow-title">{recentApps.length ? 'RECENT' : 'INSTALLED APPS'}</span>{flowApps.map(function (item) { return <AppButton key={item.packageName || item.name} app={item} editing={editing && favoritePackages.includes(item.packageName)} onPress={editing ? function () { toggleFavorite(item); } : null} onLaunch={launchApp} />; })}</div>}
-    {showAll && <div className={'all-apps-grid' + (editing ? ' editing' : '')}>{filtered.map(function (item) { return <AppButton key={item.packageName || item.name} app={item} editing={editing && favoritePackages.includes(item.packageName)} onPress={editing ? function () { toggleFavorite(item); } : null} onLaunch={launchApp} />; })}</div>}
-    {showAll && <div className="alphabet">{'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map(function (letter) { return <button key={letter} onClick={function () { const target = filtered.find(function (app) { return app.name.toUpperCase().startsWith(letter); }); if (target) document.getElementById('app-' + target.packageName)?.scrollIntoView({ block: 'center' }); }}>{letter}</button>; })}</div>}
-    <div className="app-mode"><button className={mode === 'recent' ? 'active' : ''} onClick={function () { setMode('recent'); setQuery(''); }}>FAVORITES</button><button className={mode === 'all' ? 'active' : ''} onClick={function () { setMode('all'); }}>ALL APPS</button></div>
+    <div className={'app-orbit' + (editing ? ' editing' : '')}><div className="orbit-emblem">TRX<small>{editing ? (favorites.length + ' / 6 SELECTED') : 'FAVORITES'}</small></div>{(favorites.length ? favorites : source.slice(0, 6)).map(function (item, i) { return <AppButton key={item.packageName || item.name} app={item} style={{ '--i': i }} editing={editing} onPress={editing ? function () { toggleFavorite(item); } : null} onLaunch={launchApp} />; })}</div>
+    <div className={'installed-apps-panel' + (showAll ? ' expanded' : '')}><span className="installed-title">INSTALLED APPS <small>{showAll ? 'A–Z' : 'RECENT + FAVORITES'}</small></span><div className={'all-apps-grid' + (editing ? ' editing' : '')}>{filtered.map(function (item) { return <AppButton key={item.packageName || item.name} app={item} editing={editing && favoritePackages.includes(item.packageName)} onPress={editing ? function () { toggleFavorite(item); } : null} onLaunch={launchApp} />; })}</div><div className="alphabet">{'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map(function (letter) { return <button key={letter} onClick={function () { const target = filtered.find(function (app) { return app.name.toUpperCase().startsWith(letter); }); if (target) document.getElementById('app-' + target.packageName)?.scrollIntoView({ block: 'center' }); }}>{letter}</button>; })}</div></div>
+    <div className="app-mode"><button className={mode === 'favorites' ? 'active' : ''} onClick={function () { setMode('favorites'); setQuery(''); }}>FAVORITES</button><button className={mode === 'all' ? 'active' : ''} onClick={function () { setMode('all'); }}>ALL APPS</button></div>
   </section>;
 }
 
