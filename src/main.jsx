@@ -71,6 +71,10 @@ function App() {
   const [iconScale, setIconScale] = useState(Number(localStorage.getItem('trx-apex-icons') || 100));
   const [reducedMotion, setReducedMotion] = useState(localStorage.getItem('trx-apex-motion') === 'true');
   const [displayMode, setDisplayMode] = useState('auto');
+  const [displayProfile, setDisplayProfile] = useState(localStorage.getItem('trx-apex-display-profile') || 'auto');
+  const [visualCalibration, setVisualCalibration] = useState(function () {
+    return readStoredJson('trx-apex-visual-calibration', { blackLevel: 96, contrast: 118, saturation: 114, artwork: 104 });
+  });
   const [calibration, setCalibration] = useState(function () {
     const saved = readStoredJson('trx-apex-screen-calibration', { scale: 100, x: 0, y: 0, inset: 0 });
     // v5.11 used compositor scaling, which softened text on automotive WebViews.
@@ -124,12 +128,19 @@ function App() {
     localStorage.setItem('trx-apex-accent', String(accent));
     localStorage.setItem('trx-apex-icons', String(iconScale));
     localStorage.setItem('trx-apex-motion', String(reducedMotion));
-  }, [theme, accent, iconScale, reducedMotion]);
+    localStorage.setItem('trx-apex-display-profile', displayProfile);
+  }, [theme, accent, iconScale, reducedMotion, displayProfile]);
+
+  useEffect(function () {
+    localStorage.setItem('trx-apex-visual-calibration', JSON.stringify(visualCalibration));
+  }, [visualCalibration]);
 
   useEffect(function () {
     localStorage.setItem('trx-apex-screen-calibration', JSON.stringify(calibration));
   }, [calibration]);
 
+  const resolvedProfile = displayProfile === 'auto' ? (viewport.width < 720 ? 'uconnect' : 'phone') : displayProfile;
+  const blackFloor = Math.max(0, Math.round((100 - visualCalibration.blackLevel) * .2));
   const style = {
     '--accent': THEMES[theme].accent,
     '--signal': THEMES[theme].signal,
@@ -137,7 +148,11 @@ function App() {
     '--icon-scale': iconScale / 100,
     '--screen-x': calibration.x + 'px',
     '--screen-y': calibration.y + 'px',
-    '--screen-inset': calibration.inset + 'px'
+    '--screen-inset': calibration.inset + 'px',
+    '--display-contrast': visualCalibration.contrast / 100,
+    '--display-saturation': visualCalibration.saturation / 100,
+    '--display-black': 'rgb(' + blackFloor + ' ' + blackFloor + ' ' + blackFloor + ')',
+    '--uconnect-art-filter': 'contrast(' + visualCalibration.contrast / 100 + ') saturate(' + visualCalibration.saturation / 100 + ') brightness(' + visualCalibration.artwork / 125 + ')'
   };
 
   function finishCommissioning() {
@@ -147,7 +162,7 @@ function App() {
 
   if (!commissioned) return <Commissioning onComplete={finishCommissioning} />;
 
-  return <div className={'apex-shell theme-' + theme + ' mode-' + displayMode + (reducedMotion ? ' reduce-motion' : '') + (viewport.width < 720 ? ' uconnect-portrait' : '')} style={style}>
+  return <div className={'apex-shell theme-' + theme + ' mode-' + displayMode + ' profile-' + resolvedProfile + (reducedMotion ? ' reduce-motion' : '') + (viewport.width < 720 ? ' uconnect-portrait' : '')} style={style}>
     <div className="calibrated-stage">
       <StatusBar now={now} live={live} />
       <CommandRail active={active} onNavigate={setActive} />
@@ -157,7 +172,7 @@ function App() {
         {active === 'media' && <MediaPage media={live.media} />}
         {active === 'performance' && <PerformancePage obd={live.obd} />}
         {active === 'apps' && <AppsPage onOpenSettings={function () { setActive('settings'); }} />}
-        {active === 'settings' && <SettingsPage theme={theme} setTheme={setTheme} accent={accent} setAccent={setAccent} iconScale={iconScale} setIconScale={setIconScale} reducedMotion={reducedMotion} setReducedMotion={setReducedMotion} displayMode={displayMode} setDisplayMode={setDisplayMode} calibration={calibration} setCalibration={setCalibration} viewport={viewport} obd={live.obd} />}
+        {active === 'settings' && <SettingsPage theme={theme} setTheme={setTheme} accent={accent} setAccent={setAccent} iconScale={iconScale} setIconScale={setIconScale} reducedMotion={reducedMotion} setReducedMotion={setReducedMotion} displayMode={displayMode} setDisplayMode={setDisplayMode} displayProfile={displayProfile} setDisplayProfile={setDisplayProfile} visualCalibration={visualCalibration} setVisualCalibration={setVisualCalibration} calibration={calibration} setCalibration={setCalibration} viewport={viewport} obd={live.obd} />}
       </main>
     </div>
   </div>;
@@ -478,9 +493,10 @@ function AppDisc({ app }) {
 }
 
 function SettingsPage(props) {
-  const { theme, setTheme, accent, setAccent, iconScale, setIconScale, reducedMotion, setReducedMotion, displayMode, setDisplayMode, calibration, setCalibration, viewport, obd } = props;
+  const { theme, setTheme, accent, setAccent, iconScale, setIconScale, reducedMotion, setReducedMotion, displayMode, setDisplayMode, displayProfile, setDisplayProfile, visualCalibration, setVisualCalibration, calibration, setCalibration, viewport, obd } = props;
   const [section, setSection] = useState('appearance');
   const [calibrationOpen, setCalibrationOpen] = useState(false);
+  const [visualOpen, setVisualOpen] = useState(false);
   const sections = [['appearance', 'Drive & Display', Aperture], ['navigation', 'Navigation', Navigation], ['vehicle', 'Vehicle Link', Bluetooth], ['system', 'System', Settings]];
   return <section className="page settings-page">
     <PageTag index="07" title="Studio" subtitle="TRX APEX customization" right={<div className="studio-status"><ShieldCheck /> SETTINGS SAVED</div>} />
@@ -500,7 +516,7 @@ function SettingsPage(props) {
       return <button key={id} onClick={function () { setSection(id); }} className={section === id ? 'active' : ''}><Icon /><span>{label}</span><small>{detail}</small><ChevronRight /></button>;
     })}</div>
     <div className="setting-drawer">
-      {section === 'appearance' && <><Toggle label="REDUCE MOTION" detail="Minimize transitions while driving" value={reducedMotion} setValue={setReducedMotion} /><Action label="SCREEN CALIBRATION" detail={viewport.width + '×' + viewport.height + ' · DPR ' + viewport.dpr + ' · SAFE ' + calibration.inset} onClick={function () { setCalibrationOpen(true); }} /></>}
+      {section === 'appearance' && <><div className="display-profile"><span><b>DISPLAY PROFILE</b><small>Independent phone and vehicle rendering</small></span><div>{['auto', 'phone', 'uconnect', 'custom'].map(function (profile) { return <button key={profile} className={displayProfile === profile ? 'active' : ''} onClick={function () { setDisplayProfile(profile); }}>{profile}</button>; })}</div></div><Action label="VISUAL CALIBRATION" detail={'BLACK ' + visualCalibration.blackLevel + ' · CONTRAST ' + visualCalibration.contrast + ' · COLOR ' + visualCalibration.saturation} onClick={function () { setVisualOpen(true); }} /><Action label="SCREEN CALIBRATION" detail={viewport.width + '×' + viewport.height + ' · DPR ' + viewport.dpr + ' · SAFE ' + calibration.inset} onClick={function () { setCalibrationOpen(true); }} /></>}
       {section === 'navigation' && <><Action label="GOOGLE NAVIGATION SDK" detail="Open native turn-by-turn navigation" onClick={function () { native.navigate(''); }} /><Toggle label="3D TERRAIN" detail="Elevation-aware route rendering" value={true} setValue={function () {}} /></>}
       {section === 'vehicle' && <><Action label="OBDLINK MX+" detail={obd?.status || 'Pair adapter in Android Bluetooth'} onClick={function () { native.settings('bluetooth'); }} /><Action label="RECONNECT VEHICLE LINK" detail="Restart read-only OBD telemetry" onClick={function () { native.reconnectObd(); }} /></>}
       {section === 'system' && <><Action label="DEFAULT LAUNCHER" detail="Choose TRX APEX as Android Home" onClick={function () { native.requestPermissionGroup('launcher'); }} /><Action label="APP PERMISSIONS" detail="Location · Bluetooth · Media" onClick={function () { native.settings('app'); }} /></>}
@@ -516,6 +532,19 @@ function SettingsPage(props) {
           <RangeControl label="SAFE EDGE" value={calibration.inset} onChange={function (value) { setCalibration({ ...calibration, inset: value }); }} min={0} max={36} suffix=" px" />
         </div>
         <div className="calibration-actions"><button onClick={function () { setCalibration({ scale: 100, x: 0, y: 0, inset: 0 }); }}>RESET UCONNECT</button><button className="primary" onClick={function () { setCalibrationOpen(false); }}><Check /> SAVE CALIBRATION</button></div>
+      </div>
+    </div>}
+    {visualOpen && <div className="calibration-scrim">
+      <div className="calibration-panel visual-panel">
+        <div className="calibration-head"><span><small>UCONNECT LCD PROFILE</small><b>VISUAL CALIBRATION</b><em>Tune the physical vehicle display without changing layout geometry.</em></span><button onClick={function () { setVisualOpen(false); }}>×</button></div>
+        <div className="visual-preview"><img src="/trx-hero.webp" alt="Visual calibration preview" /><span><b>TRUE BLACK</b><strong>TRX APEX</strong><small>High-contrast vehicle display preview</small></span></div>
+        <div className="calibration-controls">
+          <RangeControl label="BLACK LEVEL" value={visualCalibration.blackLevel} onChange={function (value) { setVisualCalibration({ ...visualCalibration, blackLevel: value }); setDisplayProfile('custom'); }} min={70} max={100} suffix="%" />
+          <RangeControl label="CONTRAST" value={visualCalibration.contrast} onChange={function (value) { setVisualCalibration({ ...visualCalibration, contrast: value }); setDisplayProfile('custom'); }} min={90} max={135} suffix="%" />
+          <RangeControl label="COLOR SATURATION" value={visualCalibration.saturation} onChange={function (value) { setVisualCalibration({ ...visualCalibration, saturation: value }); setDisplayProfile('custom'); }} min={85} max={135} suffix="%" />
+          <RangeControl label="ARTWORK BRIGHTNESS" value={visualCalibration.artwork} onChange={function (value) { setVisualCalibration({ ...visualCalibration, artwork: value }); setDisplayProfile('custom'); }} min={80} max={125} suffix="%" />
+        </div>
+        <div className="calibration-actions"><button onClick={function () { setVisualCalibration({ blackLevel: 96, contrast: 118, saturation: 114, artwork: 104 }); setDisplayProfile('uconnect'); }}>RESET UCONNECT</button><button className="primary" onClick={function () { setVisualOpen(false); }}><Check /> SAVE PROFILE</button></div>
       </div>
     </div>}
   </section>;

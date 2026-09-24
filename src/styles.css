@@ -62,6 +62,126 @@ svg { stroke-width: 1.65; }
 }
 .mode-night { filter: brightness(.76) saturate(.92); }
 
+/* Vehicle LCD rendering profile. Uconnect's panel and the Ottocast video path
+   lift shadow detail compared with an OLED phone, so this profile uses solid
+   sRGB surfaces and applies color tuning only to imagery—not the whole UI. */
+.profile-uconnect,
+.profile-custom {
+  --ink: #fffdf8;
+  --muted: #cec8bd;
+  --black: var(--display-black);
+  --panel: rgba(3, 4, 3, .97);
+  --line: rgba(255, 248, 235, .31);
+  --titanium: #eee8dc;
+  background: var(--display-black);
+}
+.profile-uconnect.mode-day,
+.profile-uconnect.mode-night,
+.profile-custom.mode-day,
+.profile-custom.mode-night { filter: none; }
+.profile-uconnect::after,
+.profile-custom::after { opacity: .035; mix-blend-mode: normal; }
+.profile-uconnect svg,
+.profile-custom svg { stroke-width: 2.15; }
+.profile-uconnect .status-bar,
+.profile-custom .status-bar {
+  background: #020302;
+  border-bottom-color: rgba(255,255,255,.24);
+  backdrop-filter: none;
+}
+.profile-uconnect .command-rail,
+.profile-custom .command-rail {
+  background: #030403;
+  border-right-color: rgba(255,255,255,.22);
+  box-shadow: 12px 0 30px rgba(0,0,0,.72);
+}
+.profile-uconnect .command-rail button,
+.profile-custom .command-rail button { background: #070807; }
+.profile-uconnect .command-rail button.active,
+.profile-custom .command-rail button.active {
+  background: color-mix(in srgb,var(--accent) 24%,#050605);
+  border-color: var(--accent);
+  box-shadow: inset 4px 0 var(--accent),0 0 16px color-mix(in srgb,var(--accent) 34%,transparent);
+}
+.profile-uconnect .page,
+.profile-custom .page { background-color: var(--display-black); }
+.profile-uconnect .home-hero > img,
+.profile-uconnect .map-stage > img,
+.profile-uconnect .xray-truck img,
+.profile-uconnect .studio-preview img,
+.profile-custom .home-hero > img,
+.profile-custom .map-stage > img,
+.profile-custom .xray-truck img,
+.profile-custom .studio-preview img { filter: var(--uconnect-art-filter); }
+.profile-uconnect .home-hero::after,
+.profile-custom .home-hero::after {
+  background: linear-gradient(90deg,rgba(0,0,0,.82),transparent 38%,transparent 70%,rgba(0,0,0,.6)),linear-gradient(0deg,#000 0%,transparent 31%,rgba(0,0,0,.02) 66%,rgba(0,0,0,.42));
+}
+.profile-uconnect .context-ribbon,
+.profile-custom .context-ribbon,
+.profile-uconnect .source-drawer,
+.profile-custom .source-drawer {
+  background: #060706;
+  backdrop-filter: none;
+  border-color: rgba(255,255,255,.34);
+  box-shadow: 0 18px 42px #000,inset 0 1px rgba(255,255,255,.12);
+}
+.profile-uconnect .navigation-page,
+.profile-custom .navigation-page,
+.profile-uconnect .media-page,
+.profile-custom .media-page,
+.profile-uconnect .performance-page,
+.profile-custom .performance-page,
+.profile-uconnect .apps-page,
+.profile-custom .apps-page,
+.profile-uconnect .settings-page,
+.profile-custom .settings-page { background-color: #000; }
+.profile-uconnect .destination-card,
+.profile-custom .destination-card,
+.profile-uconnect .route-metrics,
+.profile-custom .route-metrics,
+.profile-uconnect .quick-destinations button,
+.profile-custom .quick-destinations button,
+.profile-uconnect .recent-routes button,
+.profile-custom .recent-routes button,
+.profile-uconnect .nav-launch-strip,
+.profile-custom .nav-launch-strip,
+.profile-uconnect .up-next-curve button,
+.profile-custom .up-next-curve button,
+.profile-uconnect .telemetry,
+.profile-custom .telemetry,
+.profile-uconnect .zero-sixty,
+.profile-custom .zero-sixty,
+.profile-uconnect .all-apps-grid > button,
+.profile-custom .all-apps-grid > button,
+.profile-uconnect .studio-sections button,
+.profile-custom .studio-sections button,
+.profile-uconnect .drawer-row,
+.profile-custom .drawer-row {
+  background: #070807;
+  border-color: rgba(255,255,255,.28);
+  backdrop-filter: none;
+}
+.profile-uconnect .transport-arc button,
+.profile-custom .transport-arc button,
+.profile-uconnect .disc,
+.profile-custom .disc {
+  background: radial-gradient(circle at 35% 25%,#30302d,#060706 70%);
+  border-color: rgba(255,255,255,.4);
+}
+.profile-uconnect .page-tag h1,
+.profile-custom .page-tag h1,
+.profile-uconnect .track-editorial h2,
+.profile-custom .track-editorial h2,
+.profile-uconnect .destination-card h2,
+.profile-custom .destination-card h2 { font-weight: 600; text-shadow: 0 2px 3px #000; }
+.profile-uconnect small,
+.profile-custom small { color: #bbb6ad; }
+
+.display-profile { border:1px solid var(--line);background:rgba(11,12,11,.82);display:flex;align-items:center;justify-content:space-between;padding:10px 14px;gap:10px; }
+.display-profile>span{display:grid;gap:4px}.display-profile b{font:600 10px "Barlow Condensed";letter-spacing:.12em}.display-profile small{font:400 8px Inter;color:#8d8a82}.display-profile>div{display:flex;gap:4px}.display-profile button{height:30px;padding:0 9px;border:1px solid var(--line);border-radius:16px;background:#090a09;text-transform:uppercase;font:600 8px "Barlow Condensed";letter-spacing:.08em;color:#8e8b84}.display-profile button.active{background:var(--accent);border-color:var(--accent);color:#090806}
+.visual-preview{position:relative;min-height:260px;border:1px solid rgba(255,255,255,.25);overflow:hidden;background:#000}.visual-preview img{width:100%;height:100%;position:absolute;object-fit:cover;filter:var(--uconnect-art-filter)}.visual-preview::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(0,0,0,.78),rgba(0,0,0,.08))}.visual-preview>span{position:absolute;z-index:2;left:8%;bottom:12%;display:grid;gap:4px}.visual-preview b{font:600 9px "Barlow Condensed";letter-spacing:.22em;color:var(--accent)}.visual-preview strong{font:600 35px "Barlow Condensed"}.visual-preview small{font:500 9px Inter;color:#d2ccc1}
+
 .status-bar {
   position: absolute;
   top: 0;
@@ -781,3 +901,41 @@ input[type=range] { accent-color: var(--accent); }
 .uconnect-portrait .drawer-row { padding: 8px 10px; }
 .uconnect-portrait .drawer-row b { font-size: 9px; }
 .uconnect-portrait .drawer-row small { font-size: 7px; }
+
+/* Final LCD pass must win over theme image treatments declared above. */
+.apex-shell.profile-uconnect .home-hero > img,
+.apex-shell.profile-uconnect .map-stage > img,
+.apex-shell.profile-uconnect .xray-truck img,
+.apex-shell.profile-uconnect .studio-preview img,
+.apex-shell.profile-custom .home-hero > img,
+.apex-shell.profile-custom .map-stage > img,
+.apex-shell.profile-custom .xray-truck img,
+.apex-shell.profile-custom .studio-preview img { filter: var(--uconnect-art-filter); }
+.uconnect-portrait.profile-uconnect,
+.uconnect-portrait.profile-custom { font-synthesis: none; -webkit-font-smoothing: antialiased; text-rendering: geometricPrecision; }
+.uconnect-portrait.profile-uconnect .coordinates,
+.uconnect-portrait.profile-custom .coordinates,
+.uconnect-portrait.profile-uconnect .system-status,
+.uconnect-portrait.profile-custom .system-status { color:#f3eee5; font-weight:600; }
+.uconnect-portrait.profile-uconnect .page-tag small,
+.uconnect-portrait.profile-custom .page-tag small,
+.uconnect-portrait.profile-uconnect .context-ribbon small,
+.uconnect-portrait.profile-custom .context-ribbon small,
+.uconnect-portrait.profile-uconnect .telemetry span,
+.uconnect-portrait.profile-custom .telemetry span { color:#d0c9bd; font-weight:600; }
+.uconnect-portrait.profile-uconnect .context-ribbon b,
+.uconnect-portrait.profile-custom .context-ribbon b { color:#fff; font-weight:700; }
+.uconnect-portrait.profile-uconnect .context-ribbon em,
+.uconnect-portrait.profile-custom .context-ribbon em { color:#d0cbc2; }
+.uconnect-portrait.profile-uconnect .track-editorial p,
+.uconnect-portrait.profile-custom .track-editorial p { color:#e3ddd3; }
+.uconnect-portrait.profile-uconnect .app-search,
+.uconnect-portrait.profile-custom .app-search { background:#020302; border-bottom-color:rgba(255,255,255,.42); }
+.uconnect-portrait.profile-uconnect .app-search input,
+.uconnect-portrait.profile-custom .app-search input { color:#fff; font-weight:500; }
+.uconnect-portrait.profile-uconnect .display-profile,
+.uconnect-portrait.profile-custom .display-profile { grid-column:1/-1;background:#050605;border-color:rgba(255,255,255,.28);padding:7px 9px; }
+.uconnect-portrait.profile-uconnect .display-profile button,
+.uconnect-portrait.profile-custom .display-profile button { height:27px;padding:0 7px; }
+.uconnect-portrait.profile-uconnect .visual-preview,
+.uconnect-portrait.profile-custom .visual-preview { min-height:160px; }
