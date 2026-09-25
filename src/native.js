@@ -32,7 +32,8 @@ export const native = {
     routingStrategy: preferences.routingStrategy || 'fastest',
     avoidTolls: Boolean(preferences.avoidTolls),
     mapMode: preferences.mapMode || 'standard',
-    audioEnabled: preferences.audioEnabled !== false, dayMode: Boolean(preferences.dayMode)
+    audioEnabled: preferences.audioEnabled !== false, dayMode: Boolean(preferences.dayMode),
+    surface: preferences.surface || 'charcoal'
   }, unavailable),
   settings: (target) => safe('openSystemSettings', { target }, unavailable)
 };
