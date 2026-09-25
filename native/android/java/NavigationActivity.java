@@ -391,13 +391,13 @@ public class NavigationActivity extends AppCompatActivity {
 
     private void selectSurface(String name) {
         if ("dark".equals(name)) {
-            surfaceBase=0xff192126; surfaceDeep=0xff10161a; surfacePanel=0xff222c31; surfaceLine=0xff53636a;
+            surfaceBase=0xff202f37; surfaceDeep=0xff0c141a; surfacePanel=0xff19272d; surfaceLine=0xff617b82;
         } else if ("black".equals(name)) {
-            surfaceBase=0xff090b0d; surfaceDeep=0xff030405; surfacePanel=0xff101316; surfaceLine=0xff4a5459;
+            surfaceBase=0xff0b0e10; surfaceDeep=0xff020304; surfacePanel=0xff111719; surfaceLine=0xff617073;
         } else if ("carbon".equals(name)) {
-            surfaceBase=0xff1a2022; surfaceDeep=0xff0d1214; surfacePanel=0xff252e30; surfaceLine=0xff687579;
+            surfaceBase=0xff222d30; surfaceDeep=0xff0b1113; surfacePanel=0xff1c292c; surfaceLine=0xff74888c;
         } else {
-            surfaceBase=0xff30383d; surfaceDeep=0xff242b30; surfacePanel=0xff343d42; surfaceLine=0xff68747a;
+            surfaceBase=0xff323d42; surfaceDeep=0xff171f23; surfacePanel=0xff263137; surfaceLine=0xff71868a;
         }
     }
 

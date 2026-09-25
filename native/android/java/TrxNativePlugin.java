@@ -161,6 +161,13 @@ public class TrxNativePlugin extends Plugin {
             } catch (Throwable error) { call.reject("Unable to open overlay permission",error.getMessage()); }
             return;
         }
+        if ("back".equals(group)) {
+            try {
+                if(!TrxBackService.ready())getActivity().startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS));
+                JSObject result=new JSObject();result.put("granted",TrxBackService.ready());result.put("opened",true);call.resolve(result);
+            }catch(Throwable error){call.reject("Unable to open Android Back control settings",error.getMessage());}
+            return;
+        }
         if ("bluetooth".equals(group) && Build.VERSION.SDK_INT < 31) {
             JSObject result = new JSObject(); result.put("granted", true); call.resolve(result); return;
         }
@@ -271,10 +278,19 @@ public class TrxNativePlugin extends Plugin {
         if(enable&&!granted){result.put("error","Allow Display over other apps in Android settings first.");call.resolve(result);return;}
         try {
             Intent intent=new Intent(getContext(),FloatingRailService.class);
+            intent.putExtra("accentColor",call.getString("accentColor","#f04450"));
+            intent.putExtra("surface",call.getString("surface","carbon"));
             if(enable){ if(Build.VERSION.SDK_INT>=26)getContext().startForegroundService(intent);else getContext().startService(intent); }
             else getContext().stopService(intent);
             result.put("enabled",enable);call.resolve(result);
         }catch(Throwable error){call.reject("Unable to update floating rail",error.getMessage());}
+    }
+
+    @PluginMethod public void railCapabilities(PluginCall call) {
+        JSObject result=new JSObject();
+        result.put("overlay",Settings.canDrawOverlays(getContext()));
+        result.put("back",TrxBackService.ready());
+        call.resolve(result);
     }
 
     @PluginMethod public void consumeRailDestination(PluginCall call) {
@@ -419,6 +435,8 @@ public class TrxNativePlugin extends Plugin {
         result.put("livePidCount", ObdBridge.livePidCount);
         result.put("ageMs",ObdBridge.lastUpdate==0?null:android.os.SystemClock.elapsedRealtime()-ObdBridge.lastUpdate);
         result.put("diagnostics",ObdBridge.diagnostics());
+        result.put("lastError",ObdBridge.lastError);
+        result.put("reconnectAttempts",ObdBridge.reconnectAttempts);
         putNumber(result, "rpm", ObdBridge.rpm);
         putNumber(result, "coolantF", ObdBridge.coolantF);
         putNumber(result, "intakeF", ObdBridge.intakeF);

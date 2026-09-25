@@ -31,6 +31,8 @@ public final class ObdBridge {
     public static volatile boolean connected;
     public static volatile boolean ecuConnected;
     public static volatile String status="PAIR OBDLINK MX+";
+    public static volatile String lastError="";
+    public static volatile int reconnectAttempts;
     public static volatile String deviceName="OBDLink MX+";
     public static volatile String protocol="--";
     public static volatile int livePidCount;
@@ -101,12 +103,20 @@ public final class ObdBridge {
                 // Only connect to a paired adapter; do not require scan permission.
                 BluetoothSocket next=target.createRfcommSocketToServiceRecord(SPP);
                 socket=next;
+                java.util.concurrent.atomic.AtomicBoolean socketReady=new java.util.concurrent.atomic.AtomicBoolean(false);
+                Thread watchdog=new Thread(()->{
+                    try{Thread.sleep(15000);}catch(InterruptedException ignored){return;}
+                    if(!socketReady.get()){try{next.close();}catch(Throwable ignored){}}
+                },"trx-obd-connect-timeout");
+                watchdog.setDaemon(true);watchdog.start();
                 next.connect();
+                socketReady.set(true);
                 input=next.getInputStream();
                 output=next.getOutputStream();
-
-                initializeAdapter();
                 connected=true;
+                lastError="";reconnectAttempts=0;
+                status="ADAPTER CONNECTED • CHECKING ENGINE ECU";
+                initializeAdapter();
                 status=ecuConnected ? "OBD LIVE • "+protocol : "ADAPTER LIVE • START ENGINE";
                 while(running&&next.isConnected()){
                     pollStandardPids();
@@ -115,8 +125,11 @@ public final class ObdBridge {
                 }
             }catch(SecurityException denied){
                 status="BLUETOOTH PERMISSION REQUIRED";
+                lastError="Bluetooth permission required";
             }catch(Throwable error){
-                status="OBD RECONNECTING…";
+                reconnectAttempts++;
+                lastError=error.getClass().getSimpleName()+": "+(error.getMessage()==null?"No details":error.getMessage());
+                status="OBD RECONNECTING • "+lastError.substring(0,Math.min(42,lastError.length()));
             }finally{
                 connected=false;
                 ecuConnected=false;livePidCount=0;protocol="--";lastUpdate=0;

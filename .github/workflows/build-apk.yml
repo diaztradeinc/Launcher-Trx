@@ -2,7 +2,7 @@ name: Build Android APK
 
 on:
   push:
-    branches: [main, trx-apex-v5, candidate/v5.23.1-split-menu, candidate/v5.25-overlay-pair-weather]
+    branches: [main, trx-apex-v5, candidate/v5.23.1-split-menu, candidate/v5.25-overlay-pair-weather, candidate/v5.26-final-design]
   workflow_dispatch:
 
 concurrency:
@@ -85,6 +85,6 @@ jobs:
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: TRX-APEX-v5.25-RAIL-THEMES-PAIR-CANDIDATE-SIGNED-APK
+          name: TRX-APEX-v5.26-FINAL-DESIGN-CANDIDATE-SIGNED-APK
           path: android/app/build/outputs/apk/debug/*.apk
           retention-days: 30
