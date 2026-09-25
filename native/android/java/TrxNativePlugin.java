@@ -16,6 +16,7 @@ import android.graphics.drawable.Drawable;
 import android.location.Location;
 import android.location.LocationManager;
 import android.media.AudioManager;
+import android.media.audiofx.Visualizer;
 import android.net.Uri;
 import android.os.Build;
 import android.provider.Settings;
@@ -47,10 +48,12 @@ import java.util.Locale;
     permissions = {
         @Permission(alias = "location", strings = {Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION}),
         @Permission(alias = "bluetooth", strings = {Manifest.permission.BLUETOOTH_CONNECT}),
-        @Permission(alias = "notifications", strings = {Manifest.permission.POST_NOTIFICATIONS})
+        @Permission(alias = "notifications", strings = {Manifest.permission.POST_NOTIFICATIONS}),
+        @Permission(alias = "visualizer", strings = {Manifest.permission.RECORD_AUDIO})
     }
 )
 public class TrxNativePlugin extends Plugin {
+    private Visualizer spectrum;
     private PlacesClient placesClient;
     private PreviewMapController previewMap;
     private LocationManager locationManager;
@@ -76,8 +79,31 @@ public class TrxNativePlugin extends Plugin {
         previewMap.update(call);
     }
     @Override protected void handleOnResume(){super.handleOnResume();if(previewMap!=null)previewMap.resume();}
-    @Override protected void handleOnPause(){if(previewMap!=null)previewMap.pause();super.handleOnPause();}
-    @Override protected void handleOnDestroy(){if(previewMap!=null)previewMap.destroy();if(locationManager!=null)locationManager.removeUpdates(locationListener);super.handleOnDestroy();}
+    @Override protected void handleOnPause(){stopSpectrum();if(previewMap!=null)previewMap.pause();super.handleOnPause();}
+    @Override protected void handleOnDestroy(){stopSpectrum();if(previewMap!=null)previewMap.destroy();if(locationManager!=null)locationManager.removeUpdates(locationListener);super.handleOnDestroy();}
+
+    private synchronized void stopSpectrum(){
+        if(spectrum!=null){try{spectrum.setEnabled(false);}catch(Throwable ignored){}try{spectrum.release();}catch(Throwable ignored){}spectrum=null;}
+    }
+    @PluginMethod public void stopAudioSpectrum(PluginCall call){stopSpectrum();call.resolve();}
+    @PluginMethod public synchronized void getAudioSpectrum(PluginCall call){
+        JSObject result=new JSObject();
+        if(Build.VERSION.SDK_INT>=23 && getContext().checkSelfPermission(Manifest.permission.RECORD_AUDIO)!=PackageManager.PERMISSION_GRANTED){
+            result.put("available",false);result.put("reason","Enable audio visualization to show live levels.");call.resolve(result);return;
+        }
+        try {
+            if(spectrum==null){spectrum=new Visualizer(0);spectrum.setCaptureSize(Visualizer.getCaptureSizeRange()[0]);spectrum.setEnabled(true);}
+            byte[] fft=new byte[spectrum.getCaptureSize()];
+            if(spectrum.getFft(fft)!=Visualizer.SUCCESS)throw new IllegalStateException("Audio output is not available");
+            JSArray bands=new JSArray();int bins=Math.max(1,fft.length/2-1);
+            for(int i=0;i<32;i++){
+                int from=1+(int)(Math.pow(i/32.0,1.6)*bins);int to=Math.max(from+1,1+(int)(Math.pow((i+1)/32.0,1.6)*bins));
+                float peak=0;for(int b=from;b<Math.min(to,bins);b++){int re=fft[b*2],im=fft[b*2+1];peak=Math.max(peak,(float)Math.sqrt(re*re+im*im));}
+                bands.put(Math.min(1.0,Math.max(0.0,peak/110.0)));
+            }
+            result.put("available",true);result.put("bands",bands);call.resolve(result);
+        }catch(Throwable error){stopSpectrum();result.put("available",false);result.put("reason","Audio output visualization is unavailable on this device.");call.resolve(result);}
+    }
 
     @PluginMethod public void getDisplayInfo(PluginCall call) {
         DisplayMetrics metrics = getContext().getResources().getDisplayMetrics();
@@ -188,6 +214,18 @@ public class TrxNativePlugin extends Plugin {
             getContext().startActivity(intent);
             call.resolve();
         } catch (Throwable error) { call.reject("Unable to launch app", error.getMessage()); }
+    }
+
+    @PluginMethod public void launchAdjacent(PluginCall call){
+        String pkg=call.getString("packageName","");
+        try{
+            Intent intent=getContext().getPackageManager().getLaunchIntentForPackage(pkg);
+            if(intent==null){call.reject("App is not launchable");return;}
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_LAUNCH_ADJACENT);
+            getActivity().startActivity(intent);
+            JSObject result=new JSObject();result.put("success",true);
+            result.put("message","Split screen requested; the device may open the app full screen.");call.resolve(result);
+        }catch(Throwable error){call.reject("Unable to request split screen",error.getMessage());}
     }
 
     @PluginMethod public void appAction(PluginCall call) {

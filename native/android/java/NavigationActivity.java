@@ -102,7 +102,7 @@ public class NavigationActivity extends AppCompatActivity {
 
     private void buildUi(Bundle state) {
         navigationRoot = new FrameLayout(this);
-        navigationRoot.setBackgroundColor(0xff050605);
+        navigationRoot.setBackgroundColor(0xff252b30);
         navigationView = new NavigationView(this);
         navigationRoot.addView(navigationView, new FrameLayout.LayoutParams(-1, -1));
         setContentView(navigationRoot);
@@ -112,10 +112,10 @@ public class NavigationActivity extends AppCompatActivity {
         searchBar.setGravity(Gravity.CENTER_VERTICAL);
         searchBar.setPadding(dp(18), 0, dp(8), 0);
         GradientDrawable bg = new GradientDrawable();
-        bg.setColor(0xf2090a09); bg.setCornerRadius(dp(30)); bg.setStroke(dp(1), withAlpha(accentColor, 0xaa));
+        bg.setColor(0xf2293238); bg.setCornerRadius(dp(17)); bg.setStroke(dp(1), 0xff65747b);
         searchBar.setBackground(bg);
         destination = new EditText(this);
-        destination.setSingleLine(true); destination.setHint("Search destination"); destination.setHintTextColor(0xff777771);
+        destination.setSingleLine(true); destination.setHint("Search destination"); destination.setHintTextColor(0xffbdc5c8);
         destination.setTextColor(Color.WHITE); destination.setTextSize(17); destination.setBackgroundColor(Color.TRANSPARENT);
         searchBar.addView(destination, new LinearLayout.LayoutParams(0, dp(58), 1));
         Button go = actionButton("GO"); go.setOnClickListener(v -> routeToInput());
@@ -129,7 +129,7 @@ public class NavigationActivity extends AppCompatActivity {
         driveControls.setGravity(Gravity.CENTER);
         driveControls.setPadding(dp(5),dp(7),dp(5),dp(7));
         GradientDrawable railBg = new GradientDrawable();
-        railBg.setColor(0xf4040504); railBg.setCornerRadius(dp(27)); railBg.setStroke(dp(1),withAlpha(accentColor, 0xb8));
+        railBg.setColor(0xf22b353b); railBg.setCornerRadius(dp(18)); railBg.setStroke(dp(1),0xff718087);
         driveControls.setBackground(railBg);
         Button hideControls = new Button(this);
         hideControls.setText("‹  HIDE"); hideControls.setTextColor(0xfff4f0e8); hideControls.setTextSize(12);
@@ -157,18 +157,18 @@ public class NavigationActivity extends AppCompatActivity {
         Button exit = railButton("Exit"); exit.setOnClickListener(v -> finish());
         driveControls.addView(recenter); driveControls.addView(satellite); driveControls.addView(overview); driveControls.addView(audio); driveControls.addView(exit);
         driveControls.setVisibility(View.GONE);
-        FrameLayout.LayoutParams railLp = new FrameLayout.LayoutParams(dp(88), -2, Gravity.RIGHT | Gravity.CENTER_VERTICAL);
+        FrameLayout.LayoutParams railLp = new FrameLayout.LayoutParams(dp(80), -2, Gravity.RIGHT | Gravity.CENTER_VERTICAL);
         railLp.rightMargin=dp(8);navigationRoot.addView(driveControls,railLp);
 
         railToggle = new Button(this);
         railToggle.setText("+"); railToggle.setTextColor(accentColor); railToggle.setTextSize(24); railToggle.setPadding(0,0,0,0);
-        GradientDrawable toggleBg = new GradientDrawable(); toggleBg.setColor(0xf9040504); toggleBg.setShape(GradientDrawable.OVAL); toggleBg.setStroke(dp(1),withAlpha(accentColor,0xee));
+        GradientDrawable toggleBg = new GradientDrawable(); toggleBg.setColor(0xf42c373d); toggleBg.setShape(GradientDrawable.OVAL); toggleBg.setStroke(dp(1),withAlpha(accentColor,0xee));
         railToggle.setBackground(toggleBg); railToggle.setOnClickListener(v -> toggleDriveControls()); railToggle.setVisibility(View.VISIBLE);
         positionRailToggle();
 
         status = new TextView(this);
         status.setText("INITIALIZING GOOGLE NAVIGATION…"); status.setTextColor(0xfff4f0e8); status.setTextSize(12);
-        status.setGravity(Gravity.CENTER); status.setBackgroundColor(0xdd050605);
+        status.setGravity(Gravity.CENTER); status.setBackgroundColor(0xee293239);
         FrameLayout.LayoutParams statusLp = new FrameLayout.LayoutParams(-1, dp(34), Gravity.BOTTOM); navigationRoot.addView(status, statusLp);
 
         String requested = getIntent().getStringExtra("destination");
@@ -298,7 +298,7 @@ public class NavigationActivity extends AppCompatActivity {
         boolean collapse = driveControls.getVisibility() == View.VISIBLE;
         driveControls.setVisibility(collapse ? View.GONE : View.VISIBLE);
         railToggle.setVisibility(collapse ? View.VISIBLE : View.GONE);
-        if (googleMap != null) googleMap.setPadding(0, 0, collapse ? 0 : dp(100), guidanceActive ? dp(88) : 0);
+        if (googleMap != null) googleMap.setPadding(0, 0, collapse ? 0 : dp(88), guidanceActive ? dp(88) : 0);
         if (collapse) positionRailToggle();
     }
 
@@ -315,9 +315,9 @@ public class NavigationActivity extends AppCompatActivity {
                 Math.round(Color.green(accentColor) * 0.34f),
                 Math.round(Color.blue(accentColor) * 0.34f));
         return new StylingOptions()
-                .primaryDayModeThemeColor(0xff070807)
+                .primaryDayModeThemeColor(0xff30383d)
                 .secondaryDayModeThemeColor(darkAccent)
-                .primaryNightModeThemeColor(0xff040504)
+                .primaryNightModeThemeColor(0xff293237)
                 .secondaryNightModeThemeColor(darkAccent)
                 .headerLargeManeuverIconColor(accentColor)
                 .headerSmallManeuverIconColor(accentColor)

@@ -34,6 +34,13 @@ jobs:
       - name: Build web app
         run: npm run build
 
+      - name: Require Maps and permanent signing credentials
+        run: |
+          if [ -z "$MAPS_API_KEY" ] || [ -z "$APEX_KEYSTORE_BASE64" ] || [ -z "$APEX_KEYSTORE_PASSWORD" ]; then
+            echo '::error::Maps and permanent signing secrets are required for a signed candidate.'
+            exit 1
+          fi
+
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
@@ -64,21 +71,20 @@ jobs:
           cp -R native/android/res/. android/app/src/main/res/
           mkdir -p android/app/src/main/java/com/diaztradeinc/trxlauncher
           cp native/android/java/*.java android/app/src/main/java/com/diaztradeinc/trxlauncher/
-          if [ -n "$APEX_KEYSTORE_BASE64" ]; then
-            printf '%s' "$APEX_KEYSTORE_BASE64" | base64 --decode > "$APEX_KEYSTORE_PATH"
-          fi
+          printf '%s' "$APEX_KEYSTORE_BASE64" | base64 --decode > "$APEX_KEYSTORE_PATH"
 
       - name: Build APK (debug)
         working-directory: android
         run: ./gradlew assembleDebug --no-daemon
 
       - name: Verify permanent signing fingerprint
-        if: ${{ env.APEX_KEYSTORE_BASE64 != '' }}
-        run: keytool -list -v -keystore "$APEX_KEYSTORE_PATH" -storepass "$APEX_KEYSTORE_PASSWORD" -alias trxapex | grep 'SHA1:'
+        run: |
+          keytool -list -v -keystore "$APEX_KEYSTORE_PATH" -storepass "$APEX_KEYSTORE_PASSWORD" -alias trxapex | grep -F 'SHA1: 03:04:AF:48:B6:70:72:BE:31:3F:17:C2:D8:F7:17:6D:6C:78:D3:BC'
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --print-certs android/app/build/outputs/apk/debug/app-debug.apk | grep -Fi 'Signer #1 certificate SHA-1 digest: 0304af48b67072be313f17c2d8f7176d6c78d3bc'
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: TRX-APEX-v5.22-PREMIUM-LIVE-MAPS-SIGNED-APK
+          name: TRX-APEX-v5.23-INSTRUMENT-CANDIDATE-SIGNED-APK
           path: android/app/build/outputs/apk/debug/*.apk
           retention-days: 30

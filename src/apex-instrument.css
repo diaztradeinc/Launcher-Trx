@@ -1,0 +1,111 @@
+/* Apex Instrument: production layout sized for the measured 602 × 726 CSS pixel window. */
+.apex-shell{--rail:54px;--header:46px;--gap:8px;--panel:#30383d;--line:#68747a;background:#252a2e;color:#f4f2ed}
+.apex-shell.day{--panel:#394148;--line:#7b878d}
+.status-bar{background:linear-gradient(165deg,#30383d,#22292e);border-color:#647078;padding:0 12px}
+.wordmark b{font-size:23px}.wordmark em{font-size:18px}.status-right{gap:8px}
+.command-rail{background:linear-gradient(110deg,#293138,#1b2329);padding:6px 3px;border-color:#607078}
+.command-rail button{min-height:52px;border-radius:10px;transition:background .18s ease}
+.command-rail button.active{background:#3a4449;border-color:#78878f}
+.command-rail button.active:before{animation:rail-awake 2.4s ease-in-out infinite alternate;box-shadow:0 0 10px var(--accent)}
+.page{background:linear-gradient(140deg,#30383d,#242b30);padding:9px;gap:var(--gap)}
+.page:not(.home-page){padding-bottom:65px}
+.panel,button,.search-box{box-shadow:inset 0 1px #ffffff0a}
+.panel{background:linear-gradient(155deg,var(--panel),#252d32);border-color:var(--line)}
+button{background:linear-gradient(150deg,#3a444a,#283137);border-color:#68767d;color:#f4f2ed}
+button:active:not(:disabled){background:#46525a}
+small{color:#c9d0d2}
+.floating-back{position:absolute;z-index:15;right:13px;bottom:9px;width:50px;height:50px;min-height:50px;padding:0;border-radius:50%;background:#303a41;border:1px solid #bd6671;box-shadow:0 7px 16px #000a,0 0 0 3px #1f292de0}
+.floating-back:after{content:'HOLD FOR HOME';position:absolute;right:57px;top:14px;white-space:nowrap;font-size:10px;letter-spacing:.06em;color:#d6d8d7;pointer-events:none;text-shadow:0 1px 4px #000}
+.floating-back:active{background:#a33043}
+.hero-panel{position:relative;margin:0;border-radius:10px;overflow:hidden;background:#15212a}
+.hero-panel .hero-art{object-fit:cover;object-position:center 50%}
+.hero-panel:after{content:'';position:absolute;inset:65% 0 0;background:linear-gradient(transparent,#252c30c0);pointer-events:none}
+.cockpit-home{grid-template-rows:minmax(140px,1.1fr) minmax(135px,.95fr) 61px 83px 53px}
+.home-information{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(0,1fr);gap:8px;min-height:0}
+.home-map{position:relative;display:grid;grid-template-rows:minmax(0,1fr) 44px;overflow:hidden;background:#273238}
+.home-map .map-preview{height:100%;border:0;background:radial-gradient(ellipse at center,#3d4b51,#202a31);font-size:12px}
+.home-map .map-preview>svg{width:22px}
+.map-search{position:relative;z-index:2;height:44px;min-height:44px;padding:7px 9px;border:0;border-top:1px solid #617077;border-radius:0;background:#263037;justify-content:flex-start;white-space:nowrap;font-size:12px}
+.map-search svg{width:17px}.map-search svg:last-child{margin-left:auto}
+.weather-card{position:relative;display:flex;flex-direction:column;justify-content:flex-end;align-items:flex-start;gap:5px;padding:11px;overflow:hidden;text-align:left;background:linear-gradient(90deg,#202930a8,#1c27307c),url('/art/weather-sky.webp') right center/cover no-repeat}
+.weather-card:before{content:'';position:absolute;inset:0;background:linear-gradient(105deg,#1e2932aa,transparent 80%);animation:cloud-drift 8s ease-in-out infinite alternate;pointer-events:none}
+.weather-card>*{position:relative}.weather-card .weather-title{font-size:10px;font-weight:700;letter-spacing:1px;color:#f3f0e7;display:flex;align-items:center;gap:4px}.weather-card .weather-title svg{width:16px;height:16px}
+.weather-card strong{font:600 clamp(26px,6vh,39px) Barlow,Inter;line-height:1}.weather-card>span:not(.weather-title){font-size:12px}.weather-card small{font-size:10px}
+.weather-card.waiting,.weather-card.rain,.weather-card.snow,.weather-card.storms{background-image:linear-gradient(135deg,#2f3c47,#202830)}
+.home-launch{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;min-height:0}
+.home-launch button{min-width:0;min-height:0;height:100%;display:flex;flex-direction:column;gap:3px;padding:5px 2px;font-weight:600;font-size:12px}
+.home-launch svg{color:var(--accent);width:calc(22px * var(--icon-scale));height:calc(22px * var(--icon-scale))}
+.home-now{display:flex;align-items:center;padding:7px;gap:5px;min-width:0}
+.home-now-track{min-width:0;flex:1;height:100%;border:0;box-shadow:none;background:none;justify-content:flex-start;text-align:left;padding:0 4px;overflow:hidden}
+.home-now-track img{height:53px;width:53px;flex-shrink:0;object-fit:cover;border-radius:7px}
+.home-now-track>span{min-width:0;display:grid;gap:3px}.home-now-track b,.home-now-track small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.home-now-track small:first-child{font-size:10px;letter-spacing:.08em}
+.home-now-controls{display:flex;align-items:center;gap:0}.home-now-controls button{border:0;box-shadow:none;background:transparent;min-width:38px;padding:4px}.home-now-controls button svg{width:20px;height:20px}
+.home-now-controls .primary{background:var(--accent);min-height:44px;width:44px;border:1px solid #df6875}
+.cockpit-home>.vehicle-status{min-height:0;height:100%;font-size:12px;padding:5px 10px}
+.cockpit-home>.vehicle-status small{font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
+.navigation-page{grid-template-rows:50px minmax(150px,1fr) 50px 56px 52px}
+.navigation-page .map-stage{border-color:#71808a}
+.navigation-page .quick-row button{font-size:12px;padding:5px}
+.search-box{background:#293238}
+.media-page{grid-template-rows:minmax(122px,1fr) 58px 62px 31px 58px 42px minmax(90px,.58fr);gap:5px}
+.media-top{background-color:#1d2227;background-image:url('/art/sonic-studio.webp');background-position:center}
+.record{border-color:#9aafb3;position:relative}.record.playing:before{content:'';position:absolute;inset:-11px;border-radius:50%;border:2px solid var(--accent);box-shadow:0 0 15px var(--accent);animation:record-awake 2.3s ease-in-out infinite alternate;pointer-events:none}
+.track-editorial h1{font-size:20px}.track-editorial p{color:#d4dbde}
+.audio-spectrum{height:100%;position:relative;background:linear-gradient(#33393e,#272b31);border:1px solid #686d74;border-radius:10px;display:flex;flex-direction:column;justify-content:space-between;padding:5px 8px;overflow:hidden}
+.spectrum-caption{color:#e0e3e4;display:flex;align-items:center;gap:5px;font-size:10px;letter-spacing:.1em}
+.spectrum-caption svg{width:14px;height:14px;color:var(--accent)}
+.spectrum-bars{display:flex;align-items:flex-end;justify-content:space-around;gap:2px;height:30px;min-height:0;overflow:hidden}
+.spectrum-bars i{flex:1;max-width:8px;border-radius:3px 3px 0 0;background:linear-gradient(#ff8b99,var(--accent),var(--tone));transition:height .09s ease-out}
+.audio-spectrum>button,.audio-spectrum>small{position:absolute;right:7px;top:4px;max-width:68%;height:23px;min-height:23px;padding:1px 6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10px;background:#303c43eb}
+.audio-spectrum>small{display:flex;align-items:center}
+.transport{justify-content:space-evenly;gap:3px}.transport>button{min-width:44px;padding:5px}
+.queue-panel{padding:6px 9px}.queue-list>button{min-height:54px}
+.performance-page{grid-template-rows:112px minmax(105px,1fr) 103px 65px}
+.gauge-row>div{background:radial-gradient(circle at 50% 40%,#39454b,#20282e 72%);border-color:#7c898d;border-top-color:var(--accent);border-radius:50% 50% 20px 20px}
+.gauge-row strong{font-size:40px}.performance-hero{border-radius:10px;overflow:hidden}.performance-hero .hero-art{object-fit:cover}
+.telemetry-grid>div{background:linear-gradient(#374047,#283035)}
+.apps-page{grid-template-rows:50px minmax(160px,.75fr) minmax(175px,1fr)}
+.app-orbit{background:radial-gradient(ellipse at center,#394149 0,#273036 42%,#252c31 70%)}
+.app-orbit:before{border-color:var(--line);transform:rotate(-8deg);box-shadow:0 0 8px #e43f5540}
+.app-orbit:after{content:'';position:absolute;left:37%;right:37%;top:24%;bottom:25%;border:1px solid var(--accent);border-radius:50%;box-shadow:0 0 12px #eb455255;opacity:.66;pointer-events:none;animation:iris-breathe 4s ease-in-out infinite alternate}
+.orbit-emblem{z-index:1;font-size:25px}
+.app-orbit .app-tile{z-index:2;width:70px;height:72px;background:linear-gradient(150deg,#343d43,#222a31);border:1px solid #66737b}
+.app-orbit .app-tile b{font-size:11px}
+.apps-library{background:linear-gradient(#343d42,#252d33)}
+.settings-page{grid-template-rows:minmax(100px,.75fr) 92px 267px 52px}
+.studio-hero{border-radius:9px;overflow:hidden}.studio-hero .hero-art{object-fit:cover;object-position:center 50%}
+.theme-panel{background:#30393e}.theme-swatches{gap:1px}.theme-swatches i{width:32px;height:32px}.theme-swatches b{font-size:9px}
+.studio-rows{grid-template-rows:repeat(5,minmax(0,1fr));padding:0 8px}
+.studio-rows .action-row,.studio-rows .range-row{min-height:0;height:100%;font-size:12px}
+.studio-rows .action-row b{font-size:12px}.studio-rows .action-row small{font-size:10px}.studio-rows .range-row>span{font-size:11px;min-width:118px}
+.studio-rows .action-row[role=switch] .switch{margin-left:auto}
+.settings-actions button{min-height:0;font-size:12px}
+.split-picker{max-height:80%;padding-bottom:12px}.split-picker>p{padding:8px 14px 0;font-size:12px}.split-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;padding:13px;overflow:auto}
+.split-options button{min-width:0;min-height:64px;justify-content:flex-start}.split-options button img{width:34px;height:34px;object-fit:contain}.split-options button span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.commissioning{isolation:isolate;position:relative;display:block;padding:0;background:#1b242a;color:#f7f5f0;overflow:hidden}
+.commission-art{position:absolute;top:0;left:0;right:0;height:61%;background-color:#131e27;background-size:cover;background-position:center 76%;animation:splash-arrive 1.3s ease-out both}
+.commission-art:after{content:'';position:absolute;inset:0;background:linear-gradient(#09131a42 0%,transparent 38%,#1b242a 100%)}
+.commission-identity{position:absolute;top:5%;left:6%;z-index:1;text-shadow:0 2px 12px #000;animation:splash-title .8s .15s both}
+.commission-identity h1{font:800 clamp(35px,8vh,59px) Barlow,Inter;margin-top:6px;letter-spacing:-.06em}
+.commission-identity em{color:var(--accent);font-style:italic}
+.splash-overline{font-size:10px;font-weight:600;letter-spacing:.23em;color:#f2e6e2}
+.splash-streak{display:block;width:60%;height:2px;background:linear-gradient(90deg,var(--accent),transparent);box-shadow:0 0 15px var(--accent);animation:streak 1s ease-out both}
+.commission-controls{position:absolute;bottom:0;left:0;right:0;min-height:39%;padding:15px max(20px,6%);display:flex;flex-direction:column;gap:7px;justify-content:flex-end;background:linear-gradient(#202a30ee,#202a30 45%);border-top:1px solid #5a6a70}
+.commission-controls h2{font:600 23px Barlow,Inter}.commission-controls p{color:#d5dce0;font-size:13px;line-height:1.35}
+.commission-controls small{font-size:11px;color:#d1d9dd}.commission-controls button{width:100%;min-height:43px;max-height:45px;flex-shrink:0}
+.commission-controls button:not(.primary){background:transparent;border:0;min-height:38px}
+.commission-progress{display:flex;gap:5px;margin:0 0 2px}.commission-progress span{height:3px;flex:1;background:#66717a}.commission-progress .active{background:var(--accent)}
+.permission-result{font-size:11px;color:#e3c6b9;line-height:1.2}
+.reduce-motion *, .reduce-motion *:before,.reduce-motion *:after{animation:none!important;transition:none!important}
+@keyframes rail-awake{from{opacity:.62;transform:scaleY(.85)}to{opacity:1;transform:scaleY(1)}}
+@keyframes record-awake{from{opacity:.25;transform:scale(.98)}to{opacity:.9;transform:scale(1.02)}}
+@keyframes iris-breathe{from{opacity:.34;transform:scale(.97)}to{opacity:.72;transform:scale(1.03)}}
+@keyframes cloud-drift{from{transform:translateX(-5%)}to{transform:translateX(5%)}}
+@keyframes splash-arrive{from{opacity:.4;transform:scale(1.05)}to{opacity:1;transform:scale(1)}}
+@keyframes splash-title{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+@keyframes streak{from{width:0}to{width:60%}}
+@media(max-width:480px){.apex-shell{--rail:49px;--header:44px;--gap:6px}.page{padding:6px}.cockpit-home{grid-template-rows:minmax(110px,1fr) minmax(135px,1.05fr) 53px 75px 52px}.home-launch{gap:3px}.home-launch button{font-size:10px}.home-information{gap:5px}.weather-card{padding:6px}.weather-card strong{font-size:28px}.home-now-track img{height:40px;width:40px}.home-now-controls button{min-width:32px}.home-now-controls .primary{width:39px;min-height:39px}.settings-page{grid-template-rows:minmax(80px,.65fr) 90px 247px 50px}.studio-rows .range-row>span{min-width:95px}.studio-rows .action-row small{max-width:95px}.theme-swatches i{width:27px;height:27px}.theme-swatches b{font-size:8px}.commission-controls{min-height:44%}}
+@media(max-height:620px){.cockpit-home{grid-template-rows:minmax(75px,1fr) minmax(105px,.8fr) 46px 67px 48px}.weather-card small{display:none}.home-now-track img{height:35px;width:35px}.media-page{grid-template-rows:minmax(75px,1fr) 50px 50px 24px 49px 34px minmax(60px,.5fr)}.settings-page{grid-template-rows:minmax(50px,.6fr) 73px 226px 48px}.theme-swatches i{width:25px;height:25px}.commission-controls{min-height:56%;gap:4px}.commission-controls h2{font-size:18px}}
+@media(min-aspect-ratio:6/5){.cockpit-home{grid-template-columns:1.1fr 1fr;grid-template-rows:minmax(150px,1fr) 55px 70px}.cockpit-home .hero-panel{grid-column:1;grid-row:1/4}.home-information{grid-column:2}.home-launch,.home-now,.cockpit-home>.vehicle-status{grid-column:2}.cockpit-home>.vehicle-status{display:none}.settings-page{grid-template-columns:1fr 1fr;grid-template-rows:92px minmax(190px,1fr) 50px}.studio-hero{grid-row:1/4;grid-column:1}.theme-panel,.studio-rows,.settings-actions{grid-column:2}}
+@media(prefers-reduced-motion:reduce){.apex-shell *, .apex-shell *:before,.apex-shell *:after{animation:none!important;transition:none!important}}
