@@ -1,0 +1,49 @@
+/* Surface finish changes the charcoal UI only. Accent themes and artwork stay independent. */
+.apex-shell{--ui-base:#30383d;--ui-deep:#242b30;--ui-panel:#343d42;--ui-raised:#3a444a;--ui-line:#68747a;--ui-tint:#293238;--ui-map:#273238;--ui-text:#f4f2ed}
+.apex-shell.surface-dark{--ui-base:#192126;--ui-deep:#10161a;--ui-panel:#222c31;--ui-raised:#2b363c;--ui-line:#53636a;--ui-tint:#1b292f;--ui-map:#19282e}
+.apex-shell.surface-black{--ui-base:#090b0d;--ui-deep:#030405;--ui-panel:#101316;--ui-raised:#1b2024;--ui-line:#4a5459;--ui-tint:#11171b;--ui-map:#0d1c22}
+.apex-shell.surface-carbon{--ui-base:#1a2022;--ui-deep:#0d1214;--ui-panel:#252e30;--ui-raised:#313b3d;--ui-line:#687579;--ui-tint:#202a2d;--ui-map:#1a2b30}
+.apex-shell{background:var(--ui-deep);color:var(--ui-text);--panel:var(--ui-panel);--line:var(--ui-line)}
+.apex-shell.day{--panel:var(--ui-panel);--line:var(--ui-line)}
+.apex-shell .status-bar{background:linear-gradient(165deg,var(--ui-base),var(--ui-deep));border-color:var(--ui-line)}
+.apex-shell .command-rail{background:linear-gradient(115deg,var(--ui-base),var(--ui-deep));border-color:var(--ui-line)}
+.apex-shell .command-rail button.active{background:var(--ui-raised);border-color:var(--ui-line)}
+.apex-shell .page{background:linear-gradient(145deg,var(--ui-base),var(--ui-deep))}
+.apex-shell.surface-carbon .page,.apex-shell.surface-carbon .command-rail{background-image:repeating-linear-gradient(135deg,#ffffff05 0 1px,transparent 1px 5px),linear-gradient(145deg,var(--ui-base),var(--ui-deep))}
+.apex-shell .panel{background:linear-gradient(155deg,var(--ui-panel),var(--ui-deep));border-color:var(--ui-line)}
+.apex-shell button:not(.primary):not(.app-tile):not(.floating-back):not(.source-pill):not(.spectrum-style):not(.spectrum-enable){background-color:var(--ui-raised);border-color:var(--ui-line)}
+.apex-shell .search-box,.apex-shell .map-search{background:var(--ui-tint);border-color:var(--ui-line)}
+.apex-shell .home-map,.apex-shell .map-preview{background:var(--ui-map)}
+.apex-shell .gauge-row>div{background:radial-gradient(circle at 50% 36%,var(--ui-raised),var(--ui-deep) 75%);border-color:var(--ui-line);border-top-color:var(--accent)}
+.apex-shell .telemetry-grid>div,.apex-shell .apps-library,.apex-shell .theme-panel{background:linear-gradient(var(--ui-panel),var(--ui-deep))}
+.apex-shell .app-orbit{background:radial-gradient(ellipse at center,var(--ui-raised),var(--ui-base) 65%)}
+.apex-shell .app-orbit .app-tile,.apex-shell .floating-back,.apex-shell .modal{background:var(--ui-panel);border-color:var(--ui-line)}
+.apex-shell .audio-spectrum{background:linear-gradient(var(--ui-panel),var(--ui-deep));border-color:var(--ui-line)}
+.surface-panel{min-height:0;padding:5px 8px;display:flex;align-items:center;gap:9px}
+.surface-panel>span{white-space:nowrap;font-size:10px;font-weight:700;letter-spacing:.11em}
+.surface-choices{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:3px;min-width:0;flex:1}
+.surface-choices button{display:flex;align-items:center;flex-direction:column;min-width:0;min-height:42px;border:1px solid transparent!important;background:transparent!important;padding:2px;gap:2px}
+.surface-choices button.selected{border-color:var(--accent)!important}
+.surface-choices i{height:15px;width:27px;border:1px solid #ffffff65;border-radius:3px}
+.surface-choices i.carbon{background-image:repeating-linear-gradient(135deg,#ffffff22 0 1px,transparent 1px 4px)}
+.surface-choices b{font-size:9px;line-height:1.1;white-space:nowrap}
+.settings-page{grid-template-rows:minmax(72px,.65fr) 92px 55px minmax(225px,1fr) 52px}
+.audio-spectrum{height:100%;padding:4px 8px;gap:0}
+.spectrum-caption{flex-shrink:0;min-height:18px;max-width:60%;font-size:9px}
+.spectrum-stage{height:100%;min-height:0;position:relative;overflow:hidden}
+.spectrum-stage .spectrum-bars{height:100%;gap:2px}
+.spectrum-stage .spectrum-bars i{height:var(--level);max-width:none;background:linear-gradient(var(--accent),var(--tone));box-shadow:0 0 6px var(--accent);opacity:calc(.4 + var(--energy) * .6)}
+.spectrum-style{position:absolute!important;z-index:2;right:7px;top:3px;min-width:57px!important;max-width:38%;min-height:23px!important;height:23px!important;padding:2px 4px!important;background:var(--ui-tint)!important;border:1px solid var(--ui-line)!important;border-radius:5px!important;color:var(--ui-text);font-size:10px!important;gap:1px}
+.spectrum-style svg{width:12px;height:12px}
+.viz-mirror .spectrum-stage .spectrum-bars{align-items:center}
+.viz-mirror .spectrum-stage .spectrum-bars i{height:var(--level);max-height:88%;border-radius:2px;background:linear-gradient(var(--tone),var(--accent),var(--tone))}
+.viz-wave .spectrum-stage svg{display:block;width:100%;height:100%;overflow:visible}
+.viz-wave .spectrum-stage polyline{fill:none;stroke:var(--accent);stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round;vector-effect:non-scaling-stroke;filter:drop-shadow(0 0 4px var(--accent))}
+.viz-wave .spectrum-stage polyline:last-child{stroke:var(--tone);opacity:.75}
+.viz-orbit .spectrum-stage .spectrum-bars{position:relative;display:block}
+.viz-orbit .spectrum-stage .spectrum-bars:before{content:'';position:absolute;width:29px;height:29px;top:50%;left:50%;border-radius:50%;border:1px solid var(--accent);opacity:.6;transform:translate(-50%,-50%);box-shadow:0 0 7px var(--accent)}
+.viz-orbit .spectrum-stage .spectrum-bars i{position:absolute;top:50%;left:50%;width:2px;height:10px;max-width:none;min-height:0;border-radius:2px;transform:translate(-50%,-50%) rotate(calc(var(--index) * 11.25deg)) translateY(-18px) scaleY(calc(.3 + var(--energy)));background:var(--accent);transform-origin:center;box-shadow:0 0 4px var(--accent)}
+.spectrum-enable{position:absolute!important;right:5px;bottom:4px;top:auto!important;max-width:75%;min-height:20px!important;height:20px!important;padding:2px 5px!important;line-height:1;font-size:9px!important;background:var(--ui-tint)!important}
+.spectrum-idle{position:absolute;right:7px;bottom:4px;top:auto!important;height:18px!important;min-height:18px!important;background:var(--ui-tint)!important}
+@media(max-height:620px){.settings-page{grid-template-rows:minmax(50px,.5fr) 70px 49px minmax(190px,1fr) 48px}.surface-panel>span{display:none}.surface-choices b{font-size:8px}}
+@media(min-aspect-ratio:6/5){.settings-page{grid-template-columns:1fr 1fr;grid-template-rows:70px 70px minmax(135px,1fr) 48px}.studio-hero{grid-column:1;grid-row:1/5}.theme-panel{grid-column:2;grid-row:1}.surface-panel{grid-column:2;grid-row:2}.studio-rows{grid-column:2;grid-row:3}.settings-actions{grid-column:2;grid-row:4}}

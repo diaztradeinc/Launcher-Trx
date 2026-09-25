@@ -224,7 +224,7 @@ public class TrxNativePlugin extends Plugin {
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_LAUNCH_ADJACENT);
             getActivity().startActivity(intent);
             JSObject result=new JSObject();result.put("success",true);
-            result.put("message","Split screen requested; the device may open the app full screen.");call.resolve(result);
+            result.put("message","Requested a split beside TRX APEX; Android may open the app full screen.");call.resolve(result);
         }catch(Throwable error){call.reject("Unable to request split screen",error.getMessage());}
     }
 
@@ -414,6 +414,7 @@ public class TrxNativePlugin extends Plugin {
         String placeId=call.getString("placeId");
         if(placeId!=null&&!placeId.trim().isEmpty())intent.putExtra("placeId",placeId);
         intent.putExtra("theme",call.getString("theme","titanium"));
+        intent.putExtra("surface",call.getString("surface","charcoal"));
         intent.putExtra("accentColor",call.getString("accentColor","#f28a32"));
         Integer accentStrength=call.getInt("accentStrength");
         if(accentStrength!=null)intent.putExtra("accentStrength",accentStrength);
