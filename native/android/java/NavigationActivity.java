@@ -293,7 +293,8 @@ public class NavigationActivity extends AppCompatActivity {
 
     private Button actionButton(String label) {
         Button button = new Button(this); button.setText(label); button.setTextColor(Color.WHITE); button.setTextSize(12);
-        GradientDrawable bg = new GradientDrawable(); bg.setColor(accentColor); bg.setCornerRadius(dp(12)); bg.setStroke(dp(1), withAlpha(Color.WHITE, 0x33)); button.setBackground(bg); return button;
+        GradientDrawable bg = new GradientDrawable(GradientDrawable.Orientation.TL_BR,new int[]{0xff1e252a,0xff050708});
+        bg.setCornerRadius(dp(12)); bg.setStroke(dp(1), withAlpha(accentColor, 0xcc)); button.setBackground(bg); return button;
     }
 
     private Button railButton(String label) {

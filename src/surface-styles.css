@@ -47,3 +47,25 @@
 .spectrum-idle{position:absolute;right:7px;bottom:4px;top:auto!important;height:18px!important;min-height:18px!important;background:var(--ui-tint)!important}
 @media(max-height:620px){.settings-page{grid-template-rows:minmax(50px,.5fr) 70px 49px minmax(190px,1fr) 48px}.surface-panel>span{display:none}.surface-choices b{font-size:8px}}
 @media(min-aspect-ratio:6/5){.settings-page{grid-template-columns:1fr 1fr;grid-template-rows:70px 70px minmax(135px,1fr) 48px}.studio-hero{grid-column:1;grid-row:1/5}.theme-panel{grid-column:2;grid-row:1}.surface-panel{grid-column:2;grid-row:2}.studio-rows{grid-column:2;grid-row:3}.settings-actions{grid-column:2;grid-row:4}}
+
+/* The finish is confined to chrome. Photos, album art, and map pixels retain their colors. */
+.apex-shell.surface-charcoal{--finish-sheen:linear-gradient(120deg,#ffffff12,transparent 35%,#00000030 100%);--finish-grain:repeating-linear-gradient(110deg,#ffffff05 0 1px,transparent 1px 9px)}
+.apex-shell.surface-dark{--finish-sheen:linear-gradient(155deg,#a9c7d00b,transparent 42%,#00000070);--finish-grain:repeating-linear-gradient(0deg,#ffffff04 0 1px,transparent 1px 8px)}
+.apex-shell.surface-black{--finish-sheen:linear-gradient(132deg,#ffffff0c,transparent 22%,#000000 90%);--finish-grain:repeating-linear-gradient(90deg,#ffffff03 0 1px,transparent 1px 13px)}
+.apex-shell.surface-carbon{--finish-sheen:linear-gradient(135deg,#ffffff0c,transparent 50%,#0008);--finish-grain:repeating-linear-gradient(135deg,#ffffff0c 0 1px,transparent 1px 5px),repeating-linear-gradient(45deg,#0005 0 1px,transparent 1px 5px)}
+.apex-shell .page{background-image:var(--finish-grain),var(--finish-sheen),linear-gradient(145deg,var(--ui-base),var(--ui-deep))}
+.apex-shell .status-bar,.apex-shell .command-rail{background-image:var(--finish-grain),var(--finish-sheen),linear-gradient(115deg,var(--ui-base),var(--ui-deep))}
+.apex-shell .panel:not(.weather-card):not(.home-map),.apex-shell .modal{background-image:var(--finish-grain),var(--finish-sheen),linear-gradient(155deg,var(--ui-panel),var(--ui-deep))}
+.apex-shell .weather-card{background:linear-gradient(0deg,#050d19cc,transparent 70%),url('/art/weather-sky.webp') right center/cover no-repeat;border-color:var(--ui-line)}
+.apex-shell .weather-card.waiting{background:var(--finish-grain),linear-gradient(145deg,var(--ui-raised),var(--ui-deep))}
+.weather-card:after{content:'';position:absolute;right:-12px;top:-14px;width:85px;height:85px;border:1px solid #ffffff45;border-radius:50%;box-shadow:0 0 0 13px #ffffff08,0 0 0 29px #ffffff08;pointer-events:none}
+.apex-shell .command-rail button{background:var(--finish-sheen),linear-gradient(160deg,var(--ui-raised),var(--ui-deep));border:1px solid var(--ui-line);border-radius:12px;box-shadow:inset 0 1px #ffffff35,inset 0 -2px #0008,0 3px 7px #0005;min-height:52px}
+.apex-shell .command-rail button svg{filter:drop-shadow(0 1px 2px #000);stroke-width:2.1}
+.apex-shell .command-rail button.active{border-color:var(--accent);box-shadow:inset 0 1px #ffffff65,0 0 12px #0008,0 0 4px var(--accent)}
+.apex-shell .route-start{background:linear-gradient(140deg,#20292e,#06090b 70%);border:1px solid var(--accent);box-shadow:inset 0 1px #ffffff32,0 4px 14px #0009;color:#f8f8f5;letter-spacing:.08em}
+.apex-shell .route-start svg{color:var(--accent)}
+.audio-spectrum.idle .spectrum-stage .spectrum-bars i{height:calc(18% + (var(--index) * 3%));opacity:.35;animation:ambient-spectrum 2.6s ease-in-out infinite alternate;animation-delay:calc(var(--index) * -85ms)}
+.audio-spectrum.idle.viz-wave .spectrum-stage svg{opacity:.45}
+.spectrum-stage{background:radial-gradient(ellipse at 50% 100%,var(--tone),transparent 70%)}
+@keyframes ambient-spectrum{from{transform:scaleY(.5)}to{transform:scaleY(1)}}
+.reduce-motion .audio-spectrum.idle .spectrum-stage .spectrum-bars i{animation:none}
