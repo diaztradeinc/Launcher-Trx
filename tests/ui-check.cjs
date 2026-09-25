@@ -23,7 +23,7 @@ async function main(){
     const media={hasAccess:true,hasSession:true,title:'Fall For Your Type (Official Video)',artist:'Jamie Foxx',source:'test.app1',sourceName:'YouTube Music',playing:true,liked:false,canFavorite:true,canPrevious:true,canNext:true,canSeek:true,canQueue:true,volumeAvailable:true,volumePercent:44,durationMs:280000,positionMs:154000,artwork:'/art/crimson-moon.webp',queue:[{id:'11',title:'After Hours — a long title that must never overlap controls',artist:'APEX Radio',artwork:'/art/crimson-moon.webp'},{id:'12',title:'Open Road',artist:'APEX Radio'}]};
     window.__calls=[];window.__media=media;
     const record=(method,args)=>{window.__calls.push({method,args});return {success:true};};
-    window.__APEX_TEST_BRIDGE__={getMediaState:()=>({...media}),getObdState:()=>({connected:true,ecuConnected:false,deviceName:'OBDLink MX+',status:'ADAPTER CONNECTED · ECU NO DATA',livePidCount:0,protocol:'ISO 15765-4 CAN',batteryV:12.4,diagnostics:'010C → NO DATA >'}),getLocation:()=>({latitude:40.32,longitude:-74.59}),getDisplayInfo:()=>({widthPixels:800,heightPixels:965,densityDpi:600,manufacturer:'Ottocast',model:'P3 Pro'}),getInstalledApps:()=>({apps}),mapPreview:a=>record('mapPreview',a),searchDestinations:a=>({suggestions:[{label:'Test destination, New Jersey',primary:'Test destination',secondary:'A longer street address in New Jersey',placeId:'test-place'}]}),openNavigation:a=>record('openNavigation',a),launchApp:a=>record('launchApp',a),launchAdjacent:a=>record('launchAdjacent',a),getAudioSpectrum:()=>({available:true,bands:Array(32).fill(.55)}),stopAudioSpectrum:()=>({success:true}),appAction:a=>record('appAction',a),reconnectObd:a=>record('reconnectObd',a),requestPermissionGroup:a=>({...record('requestPermissionGroup',a),granted:true}),openSystemSettings:a=>record('openSystemSettings',a),mediaCommand:a=>{record('mediaCommand',a);if(a.command==='favorite')media.liked=!media.liked;if(a.command==='toggle')media.playing=!media.playing;return {success:true,liked:media.liked};}};
+    window.__APEX_TEST_BRIDGE__={getMediaState:()=>({...media}),getObdState:()=>({connected:true,ecuConnected:false,deviceName:'OBDLink MX+',status:'ADAPTER CONNECTED · ECU NO DATA',livePidCount:0,protocol:'ISO 15765-4 CAN',batteryV:12.4,diagnostics:'010C → NO DATA >'}),getLocation:()=>({latitude:40.32,longitude:-74.59}),getDisplayInfo:()=>({widthPixels:800,heightPixels:965,densityDpi:600,manufacturer:'Ottocast',model:'P3 Pro'}),getInstalledApps:()=>({apps}),mapPreview:a=>record('mapPreview',a),searchDestinations:a=>({suggestions:[{label:'Test destination, New Jersey',primary:'Test destination',secondary:'A longer street address in New Jersey',placeId:'test-place'}]}),openNavigation:a=>record('openNavigation',a),launchApp:a=>record('launchApp',a),startAppPair:a=>record('startAppPair',a),visualizerAccess:()=>({granted:false}),getAudioSpectrum:()=>({available:true,bands:Array(32).fill(.55)}),stopAudioSpectrum:()=>({success:true}),appAction:a=>record('appAction',a),reconnectObd:a=>record('reconnectObd',a),requestPermissionGroup:a=>({...record('requestPermissionGroup',a),granted:true}),openSystemSettings:a=>record('openSystemSettings',a),mediaCommand:a=>{record('mediaCommand',a);if(a.command==='favorite')media.liked=!media.liked;if(a.command==='toggle')media.playing=!media.playing;return {success:true,liked:media.liked};}};
    });
    await p.goto('http://127.0.0.1:5181');await p.evaluate(()=>document.fonts.ready);
    for(const label of ['Home','Navigation','Media','Performance','Apps','Settings']){
@@ -38,12 +38,17 @@ async function main(){
      await p.getByRole('button',{name:name+' theme',exact:true}).click();
      if(!await p.locator('.theme-'+id).count())throw Error('Theme failed '+id);
     }
+    for(const [name,id] of [['Dark','dark'],['All Black','black'],['Carbon','carbon'],['Charcoal','charcoal']]){
+     await p.getByRole('button',{name:name+' UI finish',exact:true}).click();
+     if(!await p.locator('.surface-'+id).count())throw Error('UI finish failed '+id);
+    }
+    await p.getByRole('button',{name:'Carbon UI finish',exact:true}).click();
     await p.getByRole('slider',{name:'Icon size',exact:true}).fill('125');
     await p.getByRole('button',{name:'Calibrate display',exact:true}).click();await p.getByRole('slider',{name:'Safe edge',exact:true}).fill('12');await p.getByRole('button',{name:'Reset geometry',exact:true}).click();await p.getByRole('button',{name:'Close dialog',exact:true}).click();
     await p.getByRole('navigation').getByRole('button',{name:'Media',exact:true}).click();await p.getByRole('button',{name:'Like track',exact:true}).click();await p.getByRole('button',{name:'Pause',exact:true}).click();await p.getByRole('button',{name:'Next track',exact:true}).click();await p.getByRole('slider',{name:'Media volume',exact:true}).fill('70');
     await p.getByRole('navigation').getByRole('button',{name:'Navigation',exact:true}).click();await p.getByRole('textbox',{name:'Destination',exact:true}).fill('test destination');await p.getByRole('button',{name:/Test destination A longer/}).click();await p.getByRole('button',{name:'Start route',exact:true}).click();
-    const calls=await p.evaluate(()=>window.__calls);for(const cmd of ['favorite','toggle','next','volume'])if(!calls.some(c=>c.method==='mediaCommand'&&c.args.command===cmd))throw Error('Missing '+cmd);if(!calls.some(c=>c.method==='openNavigation'&&c.args.placeId==='test-place'&&c.args.theme==='baja'))throw Error('Route/theme bridge mismatch');
-    await p.reload();if(!await p.locator('.theme-baja').count())throw Error('Theme persistence failed');
+    const calls=await p.evaluate(()=>window.__calls);for(const cmd of ['favorite','toggle','next','volume'])if(!calls.some(c=>c.method==='mediaCommand'&&c.args.command===cmd))throw Error('Missing '+cmd);if(!calls.some(c=>c.method==='openNavigation'&&c.args.placeId==='test-place'&&c.args.theme==='baja'&&c.args.surface==='carbon'))throw Error('Route/theme bridge mismatch');
+    await p.reload();if(!await p.locator('.theme-baja.surface-carbon').count())throw Error('Theme or UI finish persistence failed');
     await p.getByRole('navigation').getByRole('button',{name:'Media',exact:true}).click();
     await p.evaluate(()=>{window.__media.canFavorite=false;});await p.waitForTimeout(1700);
     if(!await p.getByRole('button',{name:/Like track|Unlike track/}).isDisabled())throw Error('Unsupported Like must disable');
@@ -58,13 +63,17 @@ async function main(){
     if(!await p.evaluate(()=>window.__calls.some(c=>c.method==='launchApp'&&c.args.packageName==='test.app4')))throw Error('App launch failed');
     await p.evaluate(()=>localStorage.setItem('trx-apex-orbit-favorites','[]'));await p.reload();await p.getByRole('navigation').getByRole('button',{name:'Apps',exact:true}).click();
     if(!await p.getByRole('button',{name:'Add favorites',exact:true}).count())throw Error('Empty favorites repopulated');
-    await p.getByRole('button',{name:'Choose second app',exact:true}).click();
-    await p.getByRole('dialog',{name:'Choose second app'}).getByRole('button',{name:'Phone',exact:true}).click();
-    if(!await p.evaluate(()=>window.__calls.some(c=>c.method==='launchAdjacent'&&c.args.packageName==='test.app2')))throw Error('Split-screen request was not dispatched');
+    await p.getByRole('button',{name:'Pair two apps',exact:true}).click();
+    await p.getByRole('dialog',{name:'Pair two apps'}).getByRole('button',{name:'Phone',exact:true}).click();
+    await p.getByRole('dialog',{name:'Pair two apps'}).getByRole('button',{name:'Maps',exact:true}).click();
+    if(!await p.evaluate(()=>window.__calls.some(c=>c.method==='startAppPair'&&c.args.first==='test.app2'&&c.args.second==='test.app0')))throw Error('Two-app split request was not dispatched');
     await p.getByRole('navigation').getByRole('button',{name:'Media',exact:true}).click();
-    await p.getByRole('button',{name:/Enable to visualize device audio/}).click();
     await p.waitForTimeout(150);
     if(!await p.evaluate(()=>window.__calls.some(c=>c.method==='requestPermissionGroup'&&c.args.group==='visualizer')))throw Error('Optional audio permission was not requested');
+    for(const name of ['Mirror','Wave','Orbit','Bars']){
+     await p.getByRole('button',{name:'Change visualizer style',exact:true}).click();
+     if(!await p.locator('.viz-'+name.toLowerCase()).count())throw Error('Visualizer style failed '+name);
+    }
 
    }
    await p.close();

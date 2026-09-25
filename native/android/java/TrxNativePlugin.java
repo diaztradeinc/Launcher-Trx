@@ -86,6 +86,11 @@ public class TrxNativePlugin extends Plugin {
         if(spectrum!=null){try{spectrum.setEnabled(false);}catch(Throwable ignored){}try{spectrum.release();}catch(Throwable ignored){}spectrum=null;}
     }
     @PluginMethod public void stopAudioSpectrum(PluginCall call){stopSpectrum();call.resolve();}
+    @PluginMethod public void visualizerAccess(PluginCall call){
+        JSObject result=new JSObject();
+        result.put("granted",Build.VERSION.SDK_INT<23 || getContext().checkSelfPermission(Manifest.permission.RECORD_AUDIO)==PackageManager.PERMISSION_GRANTED);
+        call.resolve(result);
+    }
     @PluginMethod public synchronized void getAudioSpectrum(PluginCall call){
         JSObject result=new JSObject();
         if(Build.VERSION.SDK_INT>=23 && getContext().checkSelfPermission(Manifest.permission.RECORD_AUDIO)!=PackageManager.PERMISSION_GRANTED){
@@ -140,6 +145,20 @@ public class TrxNativePlugin extends Plugin {
         }
         if ("launcher".equals(group)) {
             requestHomeRole(call);
+            return;
+        }
+        if ("overlay".equals(group)) {
+            try {
+                if (!Settings.canDrawOverlays(getContext())) {
+                    Intent permission = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                        Uri.parse("package:" + getContext().getPackageName()));
+                    getActivity().startActivity(permission);
+                }
+                JSObject result = new JSObject();
+                result.put("granted", Settings.canDrawOverlays(getContext()));
+                result.put("opened", true);
+                call.resolve(result);
+            } catch (Throwable error) { call.reject("Unable to open overlay permission",error.getMessage()); }
             return;
         }
         if ("bluetooth".equals(group) && Build.VERSION.SDK_INT < 31) {
@@ -224,8 +243,45 @@ public class TrxNativePlugin extends Plugin {
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_LAUNCH_ADJACENT);
             getActivity().startActivity(intent);
             JSObject result=new JSObject();result.put("success",true);
-            result.put("message","Split screen requested; the device may open the app full screen.");call.resolve(result);
+            result.put("message","Requested a split beside TRX APEX; Android may open the app full screen.");call.resolve(result);
         }catch(Throwable error){call.reject("Unable to request split screen",error.getMessage());}
+    }
+
+    @PluginMethod public void startAppPair(PluginCall call) {
+        String first=call.getString("first", ""), second=call.getString("second", "");
+        if(first.equals(second)){call.reject("Choose two different apps");return;}
+        PackageManager pm=getContext().getPackageManager();
+        Intent left=pm.getLaunchIntentForPackage(first),right=pm.getLaunchIntentForPackage(second);
+        if(left==null||right==null){call.reject("Both apps must be launchable");return;}
+        try {
+            left.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_MULTIPLE_TASK);
+            right.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_MULTIPLE_TASK | Intent.FLAG_ACTIVITY_LAUNCH_ADJACENT);
+            getActivity().startActivities(new Intent[]{left,right});
+            JSObject result=new JSObject();result.put("success",true);
+            result.put("message","Requested two-app split. If Ottocast opens one app full screen, use Android Recents → Split screen to select its partner.");
+            call.resolve(result);
+        }catch(Throwable error){call.reject("Unable to request two-app split",error.getMessage());}
+    }
+
+    @PluginMethod public void floatingRail(PluginCall call) {
+        boolean enable=Boolean.TRUE.equals(call.getBoolean("enabled",false));
+        JSObject result=new JSObject();
+        boolean granted=Settings.canDrawOverlays(getContext());
+        result.put("granted",granted);
+        if(enable&&!granted){result.put("error","Allow Display over other apps in Android settings first.");call.resolve(result);return;}
+        try {
+            Intent intent=new Intent(getContext(),FloatingRailService.class);
+            if(enable){ if(Build.VERSION.SDK_INT>=26)getContext().startForegroundService(intent);else getContext().startService(intent); }
+            else getContext().stopService(intent);
+            result.put("enabled",enable);call.resolve(result);
+        }catch(Throwable error){call.reject("Unable to update floating rail",error.getMessage());}
+    }
+
+    @PluginMethod public void consumeRailDestination(PluginCall call) {
+        Intent intent=getActivity().getIntent();
+        String page=intent.getStringExtra("apexPage");
+        intent.removeExtra("apexPage");
+        JSObject result=new JSObject();result.put("page",page==null?"":page);call.resolve(result);
     }
 
     @PluginMethod public void appAction(PluginCall call) {
@@ -408,12 +464,53 @@ public class TrxNativePlugin extends Plugin {
         } catch (Throwable error) { call.reject("Location unavailable", error.getMessage()); }
     }
 
+    @PluginMethod public void getWeather(PluginCall call) {
+        Double lat=call.getDouble("latitude"),lon=call.getDouble("longitude");
+        if(lat==null||lon==null){
+            if(getPermissionState("location")!=com.getcapacitor.PermissionState.GRANTED){call.reject("Location permission required");return;}
+            try {
+                LocationManager manager=(LocationManager)getContext().getSystemService(Context.LOCATION_SERVICE);
+                Location best=null;
+                for(String provider:manager.getProviders(true)){
+                    Location item=manager.getLastKnownLocation(provider);
+                    if(item!=null&&(best==null||item.getTime()>best.getTime()))best=item;
+                }
+                if(best!=null&&System.currentTimeMillis()-best.getTime()<1800000L){lat=best.getLatitude();lon=best.getLongitude();}
+            }catch(SecurityException ignored){}
+        }
+        if(lat==null||lon==null||Math.abs(lat)>90||Math.abs(lon)>180){call.reject("Location unavailable");return;}
+        final double weatherLat=lat,weatherLon=lon;
+        new Thread(() -> {
+            java.net.HttpURLConnection connection=null;
+            try {
+                String endpoint=String.format(Locale.US,
+                    "https://api.open-meteo.com/v1/forecast?latitude=%.4f&longitude=%.4f&current=temperature_2m,weather_code&temperature_unit=fahrenheit",weatherLat,weatherLon);
+                connection=(java.net.HttpURLConnection)new java.net.URL(endpoint).openConnection();
+                connection.setConnectTimeout(7000);connection.setReadTimeout(7000);
+                if(connection.getResponseCode()!=200)throw new IllegalStateException("Weather service unavailable");
+                byte[] body;
+                try(java.io.InputStream stream=connection.getInputStream();ByteArrayOutputStream output=new ByteArrayOutputStream()){
+                    byte[] buffer=new byte[4096];int count;
+                    while((count=stream.read(buffer))!=-1)output.write(buffer,0,count);
+                    body=output.toByteArray();
+                }
+                org.json.JSONObject current=new org.json.JSONObject(new String(body,java.nio.charset.StandardCharsets.UTF_8)).getJSONObject("current");
+                int code=current.getInt("weather_code");
+                JSObject result=new JSObject();result.put("temperature",Math.round(current.getDouble("temperature_2m")));
+                result.put("condition",code==0?"CLEAR":code<=3?"PARTLY CLOUDY":code<=67?"RAIN":code<=77?"SNOW":"STORMS");
+                call.resolve(result);
+            }catch(Throwable error){call.reject("Weather service unavailable",error.getMessage());}
+            finally{if(connection!=null)connection.disconnect();}
+        }).start();
+    }
+
     @PluginMethod public void openNavigation(PluginCall call) {
         Intent intent = new Intent(getContext(), NavigationActivity.class);
         intent.putExtra("destination", call.getString("destination", ""));
         String placeId=call.getString("placeId");
         if(placeId!=null&&!placeId.trim().isEmpty())intent.putExtra("placeId",placeId);
         intent.putExtra("theme",call.getString("theme","titanium"));
+        intent.putExtra("surface",call.getString("surface","charcoal"));
         intent.putExtra("accentColor",call.getString("accentColor","#f28a32"));
         Integer accentStrength=call.getInt("accentStrength");
         if(accentStrength!=null)intent.putExtra("accentStrength",accentStrength);
