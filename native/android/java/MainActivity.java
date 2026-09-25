@@ -14,8 +14,13 @@ public class MainActivity extends BridgeActivity {
 
     @Override public void onResume() {
         super.onResume();
+        FloatingRailService.setLauncherVisible(true);
         ObdBridge.start(this);
         MediaBridge.ensureConnected(this);
+    }
+    @Override protected void onPause() {
+        FloatingRailService.setLauncherVisible(false);
+        super.onPause();
     }
     @Override protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);

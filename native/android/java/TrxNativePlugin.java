@@ -280,6 +280,7 @@ public class TrxNativePlugin extends Plugin {
             Intent intent=new Intent(getContext(),FloatingRailService.class);
             intent.putExtra("accentColor",call.getString("accentColor","#f04450"));
             intent.putExtra("surface",call.getString("surface","carbon"));
+            getContext().getSharedPreferences("launcher",Context.MODE_PRIVATE).edit().putBoolean("floating_rail_enabled",enable).apply();
             if(enable){ if(Build.VERSION.SDK_INT>=26)getContext().startForegroundService(intent);else getContext().startService(intent); }
             else getContext().stopService(intent);
             result.put("enabled",enable);call.resolve(result);
@@ -290,6 +291,7 @@ public class TrxNativePlugin extends Plugin {
         JSObject result=new JSObject();
         result.put("overlay",Settings.canDrawOverlays(getContext()));
         result.put("back",TrxBackService.ready());
+        result.put("enabled",getContext().getSharedPreferences("launcher",Context.MODE_PRIVATE).getBoolean("floating_rail_enabled",true));
         call.resolve(result);
     }
 

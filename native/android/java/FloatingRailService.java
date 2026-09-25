@@ -22,6 +22,8 @@ import android.widget.Toast;
 
 public class FloatingRailService extends Service {
     private static final String CHANNEL = "trx_apex_rail";
+    private static volatile FloatingRailService instance;
+    private static volatile boolean launcherVisible;
     private WindowManager manager;
     private View rail;
     private boolean expanded = true;
@@ -30,6 +32,7 @@ public class FloatingRailService extends Service {
 
     @Override public void onCreate() {
         super.onCreate();
+        instance=this;
         if (Build.VERSION.SDK_INT >= 26) {
             NotificationManager notifications = (NotificationManager)getSystemService(Context.NOTIFICATION_SERVICE);
             notifications.createNotificationChannel(new NotificationChannel(CHANNEL,"TRX APEX floating rail",NotificationManager.IMPORTANCE_LOW));
@@ -58,26 +61,36 @@ public class FloatingRailService extends Service {
         }
         accentColor=newAccent;surfaceColor=newSurface;
         if (rail == null) showRail();
+        rail.setVisibility(launcherVisible?View.GONE:View.VISIBLE);
         return START_STICKY;
+    }
+
+    public static void setLauncherVisible(boolean visible){
+        launcherVisible=visible;
+        FloatingRailService service=instance;
+        if(service!=null&&service.rail!=null)service.rail.setVisibility(visible?View.GONE:View.VISIBLE);
     }
 
     private void showRail() {
         manager = (WindowManager)getSystemService(WINDOW_SERVICE);
         LinearLayout column = new LinearLayout(this);
         column.setOrientation(LinearLayout.VERTICAL);
-        column.setPadding(dp(4),dp(6),dp(4),dp(6));
+        column.setGravity(Gravity.CENTER_VERTICAL);
+        column.setPadding(dp(6),dp(8),dp(6),dp(8));
         GradientDrawable background = new GradientDrawable(GradientDrawable.Orientation.TL_BR,new int[]{0xf9080c0f,surfaceColor});
-        background.setCornerRadii(new float[]{0,0,dp(16),dp(16),dp(16),dp(16),0,0});
+        background.setCornerRadius(0);
         background.setStroke(dp(1),0xff6a747b);
         column.setBackground(background);
-        TextView handle = button("❯","Expand or collapse rail",column);
+        TextView handle = button("❮","Expand or collapse rail",column);
         LinearLayout destinations = new LinearLayout(this);
         destinations.setOrientation(LinearLayout.VERTICAL);
         column.addView(destinations);
         button("⌂","Home",destinations).setOnClickListener(v -> open("home"));
         button("➤","Navigation",destinations).setOnClickListener(v -> open("navigation"));
         button("♫","Media",destinations).setOnClickListener(v -> open("media"));
+        button("◴","Performance",destinations).setOnClickListener(v -> open("performance"));
         button("▦","Apps",destinations).setOnClickListener(v -> open("apps"));
+        button("⚙","Settings",destinations).setOnClickListener(v -> open("settings"));
         button("←","Back in current app",destinations).setOnClickListener(v -> {
             if(!TrxBackService.pressBack()){
                 Toast.makeText(this,"Enable TRX APEX Back control in Android Accessibility settings",Toast.LENGTH_LONG).show();
@@ -85,20 +98,26 @@ public class FloatingRailService extends Service {
                 startActivity(settings);
             }
         });
-        button("×","Close floating rail",destinations).setOnClickListener(v -> stopSelf());
+        button("×","Close floating rail",destinations).setOnClickListener(v -> {
+            getSharedPreferences("launcher",MODE_PRIVATE).edit().putBoolean("floating_rail_enabled",false).apply();
+            stopSelf();
+        });
         handle.setOnClickListener(v -> {
             expanded=!expanded;
             destinations.setVisibility(expanded?View.VISIBLE:View.GONE);
             handle.setText(expanded?"❮":"❯");
-            manager.updateViewLayout(rail,rail.getLayoutParams());
+            WindowManager.LayoutParams layout=(WindowManager.LayoutParams)rail.getLayoutParams();
+            layout.height=expanded?WindowManager.LayoutParams.MATCH_PARENT:WindowManager.LayoutParams.WRAP_CONTENT;
+            layout.gravity=expanded?Gravity.LEFT | Gravity.TOP:Gravity.LEFT | Gravity.CENTER_VERTICAL;
+            manager.updateViewLayout(rail,layout);
         });
         destinations.setVisibility(expanded?View.VISIBLE:View.GONE);
         rail = column;
-        WindowManager.LayoutParams lp = new WindowManager.LayoutParams(dp(49),WindowManager.LayoutParams.WRAP_CONTENT,
+        WindowManager.LayoutParams lp = new WindowManager.LayoutParams(dp(66),WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE | WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
             PixelFormat.TRANSLUCENT);
-        lp.gravity=Gravity.LEFT | Gravity.CENTER_VERTICAL;
+        lp.gravity=Gravity.LEFT | Gravity.TOP;
         manager.addView(rail,lp);
     }
 
@@ -109,8 +128,8 @@ public class FloatingRailService extends Service {
         GradientDrawable bg=new GradientDrawable(GradientDrawable.Orientation.TL_BR,new int[]{0xff37434a,0xff111a20});
         bg.setCornerRadius(dp(12));bg.setStroke(dp(1),"Back in current app".equals(description)?accentColor:0xff788891);
         view.setBackground(bg);
-        LinearLayout.LayoutParams params=new LinearLayout.LayoutParams(dp(41),dp(46));
-        params.bottomMargin=dp(6);container.addView(view,params);
+        LinearLayout.LayoutParams params=new LinearLayout.LayoutParams(dp(54),dp(48));
+        params.bottomMargin=dp(8);container.addView(view,params);
         return view;
     }
 
@@ -124,6 +143,7 @@ public class FloatingRailService extends Service {
     private int dp(float n){return (int)(n*getResources().getDisplayMetrics().density+.5f);}
     @Override public void onDestroy() {
         if(manager!=null&&rail!=null){try{manager.removeView(rail);}catch(RuntimeException ignored){}rail=null;}
+        if(instance==this)instance=null;
         super.onDestroy();
     }
     @Override public IBinder onBind(Intent intent){return null;}
