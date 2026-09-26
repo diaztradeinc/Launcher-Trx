@@ -49,6 +49,11 @@ async function main(){
     await p.getByRole('slider',{name:'Icon size',exact:true}).fill('125');
     await p.getByRole('button',{name:'Calibrate display',exact:true}).click();await p.getByRole('slider',{name:'Safe edge',exact:true}).fill('12');await p.getByRole('button',{name:'Reset geometry',exact:true}).click();await p.getByRole('button',{name:'Close dialog',exact:true}).click();
     await p.getByRole('navigation').getByRole('button',{name:'Media',exact:true}).click();await p.getByRole('button',{name:'Like track',exact:true}).click();await p.getByRole('button',{name:'Pause',exact:true}).click();await p.getByRole('button',{name:'Next track',exact:true}).click();await p.getByRole('slider',{name:'Media volume',exact:true}).fill('70');
+    if(await p.locator('.media-source-rail').count())throw Error('Legacy media source column still present');
+    await p.getByRole('button',{name:/Media source:.*Choose source/}).click();
+    await p.getByRole('dialog',{name:'Media sources'}).getByRole('button',{name:/Spotify/}).click();
+    if(!await p.evaluate(()=>window.__calls.some(c=>c.method==='launchApp'&&c.args.packageName==='test.app4')))throw Error('Media picker did not launch Spotify');
+    if(!await p.evaluate(()=>JSON.parse(localStorage.getItem('trx-apex-media-source')||'null')?.packageName==='test.app4'))throw Error('Media source selection did not persist');
     await p.getByRole('navigation').getByRole('button',{name:'Navigation',exact:true}).click();await p.getByRole('textbox',{name:'Destination',exact:true}).fill('test destination');await p.getByRole('button',{name:/Test destination A longer/}).click();await p.getByRole('button',{name:'Start route',exact:true}).click();
     const calls=await p.evaluate(()=>window.__calls);for(const cmd of ['favorite','toggle','next','volume'])if(!calls.some(c=>c.method==='mediaCommand'&&c.args.command===cmd))throw Error('Missing '+cmd);if(!calls.some(c=>c.method==='openNavigation'&&c.args.placeId==='test-place'&&c.args.theme==='baja'&&c.args.surface==='carbon'))throw Error('Route/theme bridge mismatch');
     await p.reload();if(!await p.locator('.theme-baja.surface-carbon').count())throw Error('Theme or UI finish persistence failed');
@@ -73,8 +78,8 @@ async function main(){
     await p.getByRole('navigation').getByRole('button',{name:'Media',exact:true}).click();
     await p.waitForTimeout(150);
     if(!await p.evaluate(()=>window.__calls.some(c=>c.method==='requestPermissionGroup'&&c.args.group==='visualizer')))throw Error('Optional audio permission was not requested');
-    for(const name of ['Mirror','Wave','Orbit','Bars']){
-     await p.getByRole('button',{name:'Change visualizer style',exact:true}).click();
+    for(const [label,name] of [['Pulse','Mirror'],['Wave','Wave'],['Orbit','Orbit'],['Spectrum','Bars']]){
+     await p.getByRole('group',{name:'Visualizer style'}).getByRole('button',{name:label,exact:true}).click();
      if(!await p.locator('.viz-'+name.toLowerCase()).count())throw Error('Visualizer style failed '+name);
     }
 
