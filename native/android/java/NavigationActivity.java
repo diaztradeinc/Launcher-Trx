@@ -112,11 +112,11 @@ public class NavigationActivity extends AppCompatActivity {
     private void buildUi(Bundle state) {
         navigationRoot = new FrameLayout(this);
         navigationRoot.setBackgroundColor(surfaceDeep);
-        // Reserve the same left edge as the persistent floating rail so search
-        // and Google navigation controls are never hidden beneath it.
+        // The floating dock occupies the bottom edge over other apps.
+        // Reserve that edge so route controls stay tappable above the dock.
         if(android.provider.Settings.canDrawOverlays(this)
             && getSharedPreferences("launcher",MODE_PRIVATE).getBoolean("floating_rail_enabled",true))
-            navigationRoot.setPadding(dp(66),0,0,0);
+            navigationRoot.setPadding(0,0,0,dp(64));
         navigationView = new NavigationView(this);
         FrameLayout.LayoutParams mapLp = new FrameLayout.LayoutParams(-1, -1);
         // The Ottocast bar consumes the bottom edge of the measured portrait window.

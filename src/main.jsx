@@ -13,9 +13,10 @@ import './approved-mockups.css';
 import './artwork-rebuild.css';
 import './media-performance-v532.css';
 import './media-performance-v533.css';
+import './media-performance-v534.css';
 
 const HERO = '/art/trx-sunset-v528.webp';
-const ALBUM = '/art/media-embers-v532.webp';
+const ALBUM = '/art/media-obsidian-v534.webp';
 const SPLASH = HERO;
 const THEMES = {
   hellfire: { name: 'Hellfire Red', accent: '#f04450', tone: '#76202b' },

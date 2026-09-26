@@ -1,0 +1,12 @@
+/* v5.34: high-resolution stage plate; FFT-driven lines remain separate DOM layers. */
+.apex-shell .media-stage-page>.media-top{isolation:isolate;background:#030608!important}
+.apex-shell .media-stage-page>.media-top:before{content:'';position:absolute;inset:0;z-index:0;pointer-events:none;background:url('/art/media-stage-v534.webp') center center/cover no-repeat;filter:var(--stage-art-tone,none);opacity:.94}
+.apex-shell.theme-titanium{--stage-art-tone:grayscale(.96) brightness(.8)}
+.apex-shell.theme-baja{--stage-art-tone:hue-rotate(27deg) saturate(.72)}
+.apex-shell.theme-arctic{--stage-art-tone:hue-rotate(168deg) saturate(.72)}
+.apex-shell.theme-night{--stage-art-tone:hue-rotate(143deg) saturate(.45) brightness(.66)}
+.apex-shell .media-stage-page .record{border:1px solid color-mix(in srgb,var(--accent) 75%,white);box-shadow:0 0 0 3px #05090de0,0 0 0 5px color-mix(in srgb,var(--accent) 52%,#1c2529),0 0 26px color-mix(in srgb,var(--accent) 47%,transparent),0 12px 23px #000b}
+.apex-shell .media-stage-page .record img{image-rendering:auto}
+.apex-shell .media-stage-page .spectrum-halo{border:1px solid color-mix(in srgb,var(--accent) 76%,white);box-shadow:0 0 6px var(--accent),inset 0 0 7px color-mix(in srgb,var(--accent) 40%,transparent);opacity:.8}
+.apex-shell .media-stage-page .spectrum-halo:before{inset:-10px;opacity:.62}
+.apex-shell .media-stage-page .spectrum-bars i{max-height:56%!important;box-shadow:0 0 3px var(--accent);opacity:calc(.2 + .68 * var(--energy))}

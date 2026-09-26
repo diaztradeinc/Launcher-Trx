@@ -381,7 +381,7 @@ public class TrxNativePlugin extends Plugin {
         if (bitmap == null) return "";
         try {
             ByteArrayOutputStream out = new ByteArrayOutputStream();
-            bitmap.compress(Bitmap.CompressFormat.JPEG, 84, out);
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 93, out);
             return "data:image/jpeg;base64," + Base64.encodeToString(out.toByteArray(), Base64.NO_WRAP);
         } catch (Throwable ignored) { return ""; }
     }

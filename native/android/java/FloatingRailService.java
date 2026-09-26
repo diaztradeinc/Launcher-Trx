@@ -32,7 +32,7 @@ public class FloatingRailService extends Service {
     private boolean expanded = true;
     private int accentColor = 0xfff04450;
     private int surfaceColor = 0xff1b2426;
-    private int buttonHeightDp = 56;
+    private int buttonHeightDp = 42;
 
     @Override public void onCreate() {
         super.onCreate();
@@ -77,20 +77,22 @@ public class FloatingRailService extends Service {
 
     private void showRail() {
         manager = (WindowManager)getSystemService(WINDOW_SERVICE);
-        int screenDp=(int)(getResources().getDisplayMetrics().heightPixels/getResources().getDisplayMetrics().density);
-        buttonHeightDp=Math.max(37,Math.min(56,(screenDp-32)/8-3));
-        LinearLayout column = new LinearLayout(this);
-        column.setOrientation(LinearLayout.VERTICAL);
-        column.setGravity(Gravity.CENTER_VERTICAL);
-        column.setPadding(dp(5),dp(5),dp(5),dp(7));
+        LinearLayout dock = new LinearLayout(this);
+        dock.setOrientation(LinearLayout.HORIZONTAL);
+        dock.setGravity(Gravity.CENTER_VERTICAL);
+        dock.setPadding(dp(4),dp(4),dp(4),dp(4));
         GradientDrawable background = new GradientDrawable(GradientDrawable.Orientation.TL_BR,new int[]{surfaceColor,0xf804080a});
-        background.setCornerRadius(0);
+        background.setCornerRadius(dp(15));
         background.setStroke(dp(1),0xff6a747b);
-        column.setBackground(background);
-        TextView handle = button("❮","Expand or collapse rail",column);
+        dock.setBackground(background);
+        TextView handle = button("⌄","Expand or collapse rail",dock);
+        handle.setTextSize(22);
+        LinearLayout.LayoutParams handleParams=(LinearLayout.LayoutParams)handle.getLayoutParams();
+        handleParams.width=dp(27);handle.setLayoutParams(handleParams);
         LinearLayout destinations = new LinearLayout(this);
-        destinations.setOrientation(LinearLayout.VERTICAL);
-        column.addView(destinations);
+        destinations.setOrientation(LinearLayout.HORIZONTAL);
+        destinations.setGravity(Gravity.CENTER_VERTICAL);
+        dock.addView(destinations,new LinearLayout.LayoutParams(0,dp(buttonHeightDp),1));
         button("⌂","Home",destinations).setOnClickListener(v -> open("home"));
         button("➤","Navigation",destinations).setOnClickListener(v -> open("navigation"));
         button("♫","Media",destinations).setOnClickListener(v -> open("media"));
@@ -107,35 +109,42 @@ public class FloatingRailService extends Service {
         handle.setOnClickListener(v -> {
             expanded=!expanded;
             destinations.setVisibility(expanded?View.VISIBLE:View.GONE);
-            handle.setText(expanded?"❮":"❯");
+            handle.setText(expanded?"⌄":"⌃");
             WindowManager.LayoutParams layout=(WindowManager.LayoutParams)rail.getLayoutParams();
-            layout.height=expanded?WindowManager.LayoutParams.MATCH_PARENT:WindowManager.LayoutParams.WRAP_CONTENT;
-            layout.gravity=expanded?Gravity.LEFT | Gravity.TOP:Gravity.LEFT | Gravity.CENTER_VERTICAL;
+            layout.width=expanded?WindowManager.LayoutParams.MATCH_PARENT:dp(46);
+            layout.height=expanded?dp(50):dp(42);
+            layout.gravity=Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL;
             manager.updateViewLayout(rail,layout);
         });
         destinations.setVisibility(expanded?View.VISIBLE:View.GONE);
-        rail = column;
-        WindowManager.LayoutParams lp = new WindowManager.LayoutParams(dp(66),WindowManager.LayoutParams.MATCH_PARENT,
+        rail = dock;
+        WindowManager.LayoutParams lp = new WindowManager.LayoutParams(WindowManager.LayoutParams.MATCH_PARENT,dp(50),
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE | WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
             PixelFormat.TRANSLUCENT);
-        lp.gravity=Gravity.LEFT | Gravity.TOP;
+        lp.gravity=Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL;
+        lp.y=dp(12); // Clear the system gesture area and Uconnect's lower controls.
         manager.addView(rail,lp);
     }
 
     private TextView button(String icon,String description,LinearLayout container) {
         TextView view = new TextView(this);
-        String label="Back in current app".equals(description)?"Back":description;
+        String label="Back in current app".equals(description)?"Back":
+            "Navigation".equals(description)?"Nav":
+            "Performance".equals(description)?"Perf":
+            "Settings".equals(description)?"Setup":description;
         String caption="Expand or collapse rail".equals(description)?icon:icon+"\n"+label;
         SpannableString styled=new SpannableString(caption);
         if(caption.length()>icon.length())styled.setSpan(new RelativeSizeSpan(.37f),icon.length()+1,caption.length(),Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
         view.setText(styled);view.setContentDescription(description);view.setTextColor(Color.WHITE);
-        view.setTextSize(25);view.setGravity(Gravity.CENTER);view.setLineSpacing(0,.89f);
+        view.setTextSize(17);view.setGravity(Gravity.CENTER);view.setLineSpacing(0,.91f);
         GradientDrawable bg=new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,new int[]{surfaceColor,0xff060a0c});
-        bg.setCornerRadius(dp(2));bg.setStroke(dp(1),0x345d7077);
+        bg.setCornerRadius(dp(9));bg.setStroke(dp(1),0x785d7077);
         view.setBackground(bg);
-        LinearLayout.LayoutParams params=new LinearLayout.LayoutParams(dp(54),dp(buttonHeightDp));
-        params.bottomMargin=dp(3);container.addView(view,params);
+        LinearLayout.LayoutParams params=new LinearLayout.LayoutParams(0,dp(buttonHeightDp),1);
+        if("Expand or collapse rail".equals(description))params=new LinearLayout.LayoutParams(dp(27),dp(buttonHeightDp));
+        else {params.leftMargin=dp(1);params.rightMargin=dp(1);}
+        container.addView(view,params);
         return view;
     }
 
