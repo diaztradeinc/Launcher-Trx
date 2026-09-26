@@ -1,4 +1,3 @@
-const {spawn}=require('node:child_process');
 const fs=require('node:fs');
 const path=require('node:path');
 const {chromium}=require('playwright');
@@ -9,7 +8,7 @@ async function main(){
  const server=spawn(process.execPath,['node_modules/vite/bin/vite.js','--host','127.0.0.1','--port','5181','--strictPort'],{cwd:base,stdio:'pipe'});
  let browser;
  try{
-  await new Promise((resolve,reject)=>{server.stdout.on('data',d=>{if(d.toString().includes('Local:'))resolve();});server.stderr.on('data',d=>process.stderr.write(d));server.on('exit',c=>reject(Error('Vite stopped '+c)));setTimeout(()=>reject(Error('Vite startup timeout')),10000).unref();});
+  await new Promise((resolve,reject)=>{let elapsed=0;let diagnostics='';server.stdout.on('data',d=>{diagnostics+=d.toString();});server.stderr.on('data',d=>{diagnostics+=d.toString();});server.on('exit',c=>reject(Error('Vite stopped '+c+' '+diagnostics.slice(-600))));const probe=setInterval(async()=>{elapsed+=250;try{const response=await fetch('http://127.0.0.1:5181/');if(response.ok){clearInterval(probe);resolve();return;}}catch{}if(elapsed>=30000){clearInterval(probe);reject(Error('Vite startup timeout '+diagnostics.slice(-600)));}},250);});
   const args=process.env.APEX_CHROMIUM_ARGS_MODULE ? (await import(process.env.APEX_CHROMIUM_ARGS_MODULE)).default.args.filter(a=>a!=='--single-process') : [];
   browser=await chromium.launch({executablePath:process.env.APEX_CHROMIUM||undefined,args,headless:true});
   const errors=[];const results=[];
