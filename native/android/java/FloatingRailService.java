@@ -82,8 +82,8 @@ public class FloatingRailService extends Service {
         LinearLayout column = new LinearLayout(this);
         column.setOrientation(LinearLayout.VERTICAL);
         column.setGravity(Gravity.CENTER_VERTICAL);
-        column.setPadding(dp(6),dp(8),dp(6),dp(8));
-        GradientDrawable background = new GradientDrawable(GradientDrawable.Orientation.TL_BR,new int[]{0xf9080c0f,surfaceColor});
+        column.setPadding(dp(5),dp(5),dp(5),dp(7));
+        GradientDrawable background = new GradientDrawable(GradientDrawable.Orientation.TL_BR,new int[]{0xfe040709,0xf6080c0f});
         background.setCornerRadius(0);
         background.setStroke(dp(1),0xff6a747b);
         column.setBackground(background);
@@ -131,8 +131,8 @@ public class FloatingRailService extends Service {
         if(caption.length()>icon.length())styled.setSpan(new RelativeSizeSpan(.37f),icon.length()+1,caption.length(),Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
         view.setText(styled);view.setContentDescription(description);view.setTextColor(Color.WHITE);
         view.setTextSize(25);view.setGravity(Gravity.CENTER);view.setLineSpacing(0,.89f);
-        GradientDrawable bg=new GradientDrawable(GradientDrawable.Orientation.TL_BR,new int[]{surfaceColor,0xff070c10});
-        bg.setCornerRadius(dp(10));bg.setStroke(dp(1),"Back in current app".equals(description)?accentColor:0xff52616b);
+        GradientDrawable bg=new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,new int[]{0x10152022,0x08060a0c});
+        bg.setCornerRadius(dp(2));bg.setStroke(dp(1),0x345d7077);
         view.setBackground(bg);
         LinearLayout.LayoutParams params=new LinearLayout.LayoutParams(dp(54),dp(buttonHeightDp));
         params.bottomMargin=dp(3);container.addView(view,params);

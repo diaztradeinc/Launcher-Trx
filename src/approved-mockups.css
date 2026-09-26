@@ -1,0 +1,92 @@
+/* Approved September cockpit comps: high contrast woven black, continuous left rail. */
+.apex-shell{--rail:clamp(66px,10.3vw,105px);--header:clamp(47px,5.4vh,64px);--gap:8px}
+.apex-shell .status-bar{background:repeating-linear-gradient(135deg,#ffffff05 0 1px,transparent 1px 5px),linear-gradient(180deg,#080c10,#020406);border-bottom:1px solid #77858b50}
+.apex-shell .wordmark b{font-size:clamp(23px,3.5vh,39px);font-style:italic;letter-spacing:-.075em}
+.apex-shell .wordmark em{font-size:clamp(20px,3vh,35px);letter-spacing:-.065em}
+.apex-shell .status-right{font-size:clamp(12px,1.7vh,18px)}
+.apex-shell .command-rail{background:repeating-linear-gradient(135deg,#ffffff05 0 1px,transparent 1px 5px),linear-gradient(90deg,#0b1115,#030608);border-right:1px solid #5b686b75;gap:0;padding:5px 5px 9px}
+.apex-shell .command-rail button,.apex-shell .command-rail button:last-child{background:transparent!important;border:0!important;border-bottom:1px solid #84909843!important;border-radius:0;box-shadow:none;flex:1 1 0;max-height:none;width:100%;gap:7px}
+.apex-shell .command-rail button.active{background:radial-gradient(ellipse at center,color-mix(in srgb,var(--accent) 22%,transparent),transparent 80%)!important;border:1px solid var(--accent)!important;border-radius:13px;box-shadow:0 0 15px color-mix(in srgb,var(--accent) 50%,transparent),inset 0 0 10px color-mix(in srgb,var(--accent) 30%,transparent)}
+.apex-shell .command-rail button:last-child{flex:0 1 52px;margin-top:0;border-bottom:0!important}
+.apex-shell .command-rail button span{display:block;font-size:clamp(10px,1.65vh,17px);letter-spacing:0}
+.apex-shell .command-rail button svg{height:clamp(25px,3.7vh,37px);width:clamp(25px,3.7vh,37px)}
+.apex-shell .page{background-image:repeating-linear-gradient(135deg,#ffffff06 0 1px,transparent 1px 6px),linear-gradient(130deg,var(--ui-deep),#010304 70%);padding:9px;gap:8px}
+.apex-shell .panel:not(.home-map):not(.weather-card){background-image:repeating-linear-gradient(135deg,#ffffff05 0 1px,transparent 1px 6px),linear-gradient(160deg,var(--ui-panel),var(--ui-deep));border-color:#71818978;box-shadow:inset 0 1px #ffffff22,0 4px 10px #0008}
+.apex-shell .home-page{grid-template-rows:minmax(165px,1.25fr) minmax(178px,1fr) minmax(45px,.18fr) minmax(65px,.33fr) minmax(49px,.16fr)}
+.apex-shell .hero-panel{border-radius:14px;overflow:hidden}
+.apex-shell .hero-panel .hero-art{object-fit:cover;object-position:center 58%}
+.apex-shell .home-information{grid-template-columns:1.53fr 1fr;gap:9px}
+.apex-shell .home-map{border-radius:12px;overflow:hidden}
+.apex-shell .map-search{border-radius:22px;min-height:39px;background:#090f16ed!important;color:#fff}
+.apex-shell .weather-card{background:radial-gradient(circle at 83% 24%,#f4af755b,transparent 28%),radial-gradient(circle at 17% 75%,#3b7eab65,transparent 53%),linear-gradient(155deg,#142639,#050c17)!important;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:clamp(5px,1vh,12px);padding:clamp(9px,2vw,21px);text-align:left}
+.apex-shell .weather-card strong{font-size:clamp(36px,7vh,73px);line-height:1}
+.apex-shell .weather-card .weather-title{font-weight:700;font-size:clamp(13px,2vh,20px)}
+.apex-shell .weather-card>span:not(.weather-title){font-size:clamp(12px,1.7vh,18px)}
+.apex-shell .weather-card small{display:block;border-top:1px solid #ffffff52;padding-top:8px;font-size:clamp(10px,1.3vh,14px)}
+.apex-shell .home-launch button{background:#070b0f!important;border-color:#87969b77;border-radius:12px}
+.apex-shell .home-launch button svg{color:var(--accent)}
+.apex-shell .home-now{background-image:radial-gradient(ellipse at 78% 100%,color-mix(in srgb,var(--accent) 20%,transparent),transparent 40%),linear-gradient(#0a1013,#020305)!important}
+.apex-shell .vehicle-status{background:repeating-linear-gradient(135deg,#ffffff09 0 1px,transparent 1px 7px),linear-gradient(135deg,#0b161b,#030708)!important;border:1px solid #77898d8f;color:#f8f8f4}
+.apex-shell .media-page{grid-template-rows:minmax(185px,1.12fr) clamp(45px,7vh,75px) clamp(49px,7vh,74px) 29px clamp(52px,7vh,72px) 38px minmax(110px,.63fr)}
+.apex-shell .media-top{grid-template-columns:minmax(84px,25%) 1fr;padding:clamp(8px,1.3vw,18px);background:radial-gradient(circle at 62% 56%,color-mix(in srgb,var(--accent) 44%,transparent),transparent 35%),linear-gradient(125deg,#090d13,#190d12 53%,#05080d)}
+.apex-shell .media-source-rail>span{font-size:clamp(10px,1.5vh,14px);letter-spacing:.12em}
+.apex-shell .media-source-rail button{min-height:clamp(30px,4.7vh,48px);border-radius:10px;background:#0a141bdb!important}
+.apex-shell .media-source-rail img{width:clamp(20px,3.3vh,34px);height:clamp(20px,3.3vh,34px)}
+.apex-shell .media-source-rail small{font-size:clamp(10px,1.45vh,15px)}
+.apex-shell .media-top .record{max-height:94%;height:94%;border:2px solid #b6bdbb8c;box-shadow:0 0 22px color-mix(in srgb,var(--accent) 62%,transparent),0 9px 24px #000e}
+.apex-shell .media-top .source-pill{min-height:31px;width:min(220px,100%);background:#090e13e9;border:1px solid #8f9c9d88}
+.apex-shell .track-editorial h1{font-size:clamp(23px,3.7vh,38px)}
+.apex-shell .track-editorial p{font-size:clamp(13px,1.9vh,19px)}
+.apex-shell .audio-spectrum{border:1px solid #77858a8c;border-radius:12px;background:radial-gradient(ellipse at bottom,color-mix(in srgb,var(--accent) 25%,transparent),transparent 65%),#070b0e!important}
+.apex-shell .transport{justify-content:space-evenly}
+.apex-shell .transport>.primary{box-shadow:0 0 13px color-mix(in srgb,var(--accent) 54%,transparent)}
+.apex-shell .queue-panel{padding:8px 12px;background:#070b0eed}
+.apex-shell .queue-heading b{font-size:clamp(14px,2vh,21px)}
+.apex-shell .queue-list>button{min-height:clamp(50px,7vh,75px)}
+.apex-shell .queue-list img{width:clamp(34px,5.7vh,55px);height:clamp(34px,5.7vh,55px)}
+.apex-shell .navigation-page{grid-template-rows:clamp(52px,7vh,77px) minmax(150px,1fr) clamp(75px,9vh,110px) clamp(54px,7vh,77px);position:relative}
+.apex-shell .navigation-page .search-box{grid-row:1;border-radius:17px;background:#080e14ed;border-color:#899ba393}
+.apex-shell .navigation-page .map-stage{grid-row:2;grid-column:1;border-radius:14px;min-height:0}
+.apex-shell .navigation-page .selected-destination{grid-row:3;grid-column:1;padding-right:clamp(118px,22vw,230px);border-radius:15px;background:#090e12f4}
+.apex-shell .navigation-page .route-start{grid-row:3;grid-column:1;justify-self:end;align-self:center;z-index:2;margin-right:10px;width:min(25%,175px);min-width:103px;min-height:49px;font-size:clamp(10px,1.45vh,15px);border-radius:12px}
+.apex-shell .navigation-page .quick-row{grid-row:4;grid-column:1}
+.apex-shell .navigation-page .quick-row button{background:#0b1217!important;border:1px solid #82949a7a;border-radius:12px;justify-content:flex-start}
+.apex-shell .navigation-page .quick-row button svg{color:#50adf4}
+.apex-shell .navigation-page .suggestions{z-index:5}
+.apex-shell .performance-page{grid-template-rows:clamp(44px,7vh,66px) minmax(180px,1.3fr) minmax(155px,.65fr) clamp(40px,6vh,59px)}
+.apex-shell .performance-heading{font-size:clamp(17px,2.5vh,27px);letter-spacing:.02em}
+.apex-shell .performance-heading b{border-left:4px solid var(--accent);padding-left:12px}
+.apex-shell .performance-heading button{min-height:clamp(37px,5vh,51px);font-size:clamp(10px,1.5vh,14px);background:#0b1318!important}
+.apex-shell .performance-hero .hero-art{filter:var(--art-filter) brightness(.8);object-position:center 52%}
+.apex-shell .performance-hero .gauge-row{top:8%;bottom:12%;left:1.5%;right:1.5%;align-items:center}
+.apex-shell .performance-hero .gauge-row>div.instrument-dial{position:relative;isolation:isolate;overflow:hidden;width:clamp(88px,27%,240px);height:auto;aspect-ratio:1;background:radial-gradient(circle at center,#070a0def 0 35%,transparent 37%),repeating-conic-gradient(from 220deg,#e6f0f0 0deg 1.1deg,transparent 1.1deg 13deg),conic-gradient(from 220deg,var(--accent),#e7eef0 40%,#e7eef0 70%,var(--accent) 82%,transparent 83%);border:2px solid color-mix(in srgb,var(--accent) 60%,#647079);box-shadow:0 0 16px color-mix(in srgb,var(--accent) 26%,transparent),inset 0 0 12px #000e}
+.apex-shell .performance-hero .instrument-dial:before{content:'';position:absolute;inset:7%;border-radius:50%;background:radial-gradient(circle,#05090ce8 0 49%,#10141af2 62%,#070b0ce8 73%);z-index:0}
+.apex-shell .performance-hero .instrument-dial>span,.apex-shell .performance-hero .instrument-dial>strong,.apex-shell .performance-hero .instrument-dial>small{position:relative;z-index:1}
+.apex-shell .performance-hero .gauge-row strong{font-size:clamp(22px,5vh,47px)}
+.apex-shell .performance-hero .gauge-row span{font-size:clamp(10px,1.5vh,14px)}
+.apex-shell .performance-hero .boost-dial{bottom:1%;background:#070c10ef}
+.apex-shell .telemetry-grid>div{background:#070d11e8;border-radius:12px;border:1px solid #71868b83}
+.apex-shell .telemetry-grid span{font-size:clamp(10px,1.5vh,15px)}
+.apex-shell .telemetry-grid strong{font-size:clamp(20px,3.7vh,36px)}
+.apex-shell .apps-page{grid-template-rows:clamp(50px,8vh,73px) minmax(145px,.86fr) minmax(180px,1fr)}
+.apex-shell .apps-page .search-box{background:#080f14ed;border-radius:16px}
+.apex-shell .app-orbit{background:linear-gradient(#05090a69,#0306099f),url('/art/trx-sunset-v528.webp') center 37%/cover}
+.apex-shell .orbit-emblem{background:repeating-linear-gradient(135deg,#ffffff16 0 1px,transparent 1px 6px),radial-gradient(circle,#182126,#020406);box-shadow:0 0 20px var(--accent),inset 0 0 17px #000;border:3px solid var(--accent)}
+.apex-shell .app-orbit .app-tile,.apex-shell .app-orbit .orbit-add{background:radial-gradient(circle at 40% 27%,#26333d,#030708 74%)!important;border:2px solid color-mix(in srgb,var(--accent) 60%,#667a85);box-shadow:0 0 12px color-mix(in srgb,var(--accent) 40%,transparent),inset 0 2px #ffffff16}
+.apex-shell .apps-library{background:#050a0dec!important}
+.apex-shell .apps-grid .app-tile{background:#081016!important;border-color:#516c77b9}
+.apex-shell .apps-grid .app-tile b{color:#f9f9f6}
+.apex-shell .weather-page{grid-template-rows:minmax(205px,1.27fr) minmax(125px,.57fr) minmax(133px,.67fr)}
+.apex-shell .weather-hero{background:linear-gradient(90deg,#070c1699,#080e18b0),url('/art/trx-sunset-v528.webp') center 5%/auto 315% no-repeat,#122237}
+.apex-shell .weather-hero.sky-rain,.apex-shell .weather-hero.sky-storm{background:radial-gradient(circle at 79% 21%,#9ba9c0a8,transparent 52%),linear-gradient(145deg,#091724,#294354)}
+.apex-shell .weather-hero-copy{left:7%;bottom:15%;max-width:64%}
+.apex-shell .weather-hero-copy strong{font-size:clamp(56px,10vh,110px)}
+.apex-shell .weather-hero-icon{width:clamp(30px,5vh,54px);height:clamp(30px,5vh,54px)}
+.apex-shell .weather-hero-stats{right:7%;bottom:17%;font-size:clamp(10px,1.5vh,14px);gap:12px}
+.apex-shell .weather-hero-stats b{font-size:clamp(15px,2.4vh,25px)}
+.apex-shell .forecast-panel h2{font-size:clamp(15px,2.2vh,22px)}
+.apex-shell .forecast-strip>div{flex-basis:clamp(48px,11%,90px);min-width:clamp(48px,11%,90px);max-width:none;background:#070e13dc;border:1px solid #66818a90}
+.apex-shell .forecast-strip svg{color:#f0bd64;width:clamp(18px,3vh,32px);height:clamp(18px,3vh,32px)}
+.apex-shell .forecast-strip b{font-size:clamp(13px,2vh,20px)}
+@media(max-width:650px){.apex-shell{--rail:62px}.apex-shell .home-information{grid-template-columns:1.2fr 1fr}.apex-shell .command-rail button span{font-size:9px}.apex-shell .performance-hero .gauge-row>div.instrument-dial{width:30%}.apex-shell .navigation-page .selected-destination{padding-right:120px}}
+@media(max-height:650px){.apex-shell .home-page{grid-template-rows:minmax(100px,1.15fr) minmax(118px,1fr) 43px 62px 43px}.apex-shell .weather-page{grid-template-rows:minmax(120px,1fr) minmax(79px,.55fr) minmax(85px,.6fr)}.apex-shell .performance-page{grid-template-rows:36px minmax(125px,1.2fr) minmax(95px,.65fr) 40px}.apex-shell .navigation-page{grid-template-rows:48px minmax(105px,1fr) 63px 45px}.apex-shell .media-page{grid-template-rows:minmax(110px,1fr) 39px 42px 22px 45px 31px minmax(65px,.6fr)}}
