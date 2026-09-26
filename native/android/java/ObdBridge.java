@@ -31,6 +31,8 @@ public final class ObdBridge {
     public static volatile boolean connected;
     public static volatile boolean ecuConnected;
     public static volatile String status="PAIR OBDLINK MX+";
+    public static volatile String lastError="";
+    public static volatile int reconnectAttempts;
     public static volatile String deviceName="OBDLink MX+";
     public static volatile String protocol="--";
     public static volatile int livePidCount;
@@ -99,14 +101,13 @@ public final class ObdBridge {
                 deviceName=safeName(target);
                 status="CONNECTING "+deviceName.toUpperCase(Locale.US)+"…";
                 // Only connect to a paired adapter; do not require scan permission.
-                BluetoothSocket next=target.createRfcommSocketToServiceRecord(SPP);
-                socket=next;
-                next.connect();
+                BluetoothSocket next=connectSocket(adapter,target);
                 input=next.getInputStream();
                 output=next.getOutputStream();
-
-                initializeAdapter();
                 connected=true;
+                lastError="";reconnectAttempts=0;
+                status="ADAPTER CONNECTED • CHECKING ENGINE ECU";
+                initializeAdapter();
                 status=ecuConnected ? "OBD LIVE • "+protocol : "ADAPTER LIVE • START ENGINE";
                 while(running&&next.isConnected()){
                     pollStandardPids();
@@ -115,16 +116,63 @@ public final class ObdBridge {
                 }
             }catch(SecurityException denied){
                 status="BLUETOOTH PERMISSION REQUIRED";
+                lastError="Bluetooth permission required";
             }catch(Throwable error){
-                status="OBD RECONNECTING…";
+                reconnectAttempts++;
+                lastError=error.getClass().getSimpleName()+": "+(error.getMessage()==null?"No details":error.getMessage());
+                status="OBD RECONNECTING • "+lastError.substring(0,Math.min(42,lastError.length()));
             }finally{
                 connected=false;
                 ecuConnected=false;livePidCount=0;protocol="--";lastUpdate=0;
                 rpm=coolantF=intakeF=engineLoad=batteryV=obdSpeedMph=boostPsi=transmissionF=throttle=fuelLevel=mafGps=Float.NaN;
                 closeSocket();
             }
-            if(running)sleep(3000);
+            if(running)sleep(Math.min(15000,3000+Math.max(0,reconnectAttempts-2)*1000));
         }
+    }
+
+    private static BluetoothSocket connectSocket(BluetoothAdapter adapter,BluetoothDevice target) throws Exception {
+        // Discovery can delay RFCOMM negotiation. Android 12+ requires a separate scan
+        // permission to cancel it; connecting to a bonded device does not.
+        try {
+            if(Build.VERSION.SDK_INT<31)adapter.cancelDiscovery();
+        } catch(SecurityException ignored){}
+        Exception secureFailure=null;
+        for(int mode=0;mode<2;mode++){
+            if(!running)throw new java.io.IOException("Connection stopped");
+            String label=mode==0?"secure":"insecure";
+            status="CONNECTING "+deviceName.toUpperCase(Locale.US)+" • "+label.toUpperCase(Locale.US);
+            BluetoothSocket attempt=null;
+            try {
+                attempt=mode==0?target.createRfcommSocketToServiceRecord(SPP)
+                    :target.createInsecureRfcommSocketToServiceRecord(SPP);
+                socket=attempt;
+                BluetoothSocket pending=attempt;
+                java.util.concurrent.atomic.AtomicBoolean finished=new java.util.concurrent.atomic.AtomicBoolean(false);
+                Thread watchdog=new Thread(()->{
+                    try{Thread.sleep(12000);}catch(InterruptedException ignored){return;}
+                    if(!finished.get())try{pending.close();}catch(Exception ignored){}
+                },"trx-obd-"+label+"-timeout");
+                watchdog.setDaemon(true);watchdog.start();
+                try {attempt.connect();} finally {finished.set(true);watchdog.interrupt();}
+                if(!running)throw new java.io.IOException("Connection stopped");
+                record("RFCOMM",label+" connected");
+                return attempt;
+            } catch(Exception error){
+                if(attempt!=null)try{attempt.close();}catch(Exception ignored){}
+                socket=null;
+                record("RFCOMM "+label,error.getClass().getSimpleName()+": "+error.getMessage());
+                if(mode==0)secureFailure=error;
+                else throw new java.io.IOException("Secure: "+brief(secureFailure)+"; insecure: "+brief(error),error);
+            }
+        }
+        throw new java.io.IOException("RFCOMM connection unavailable");
+    }
+
+    private static String brief(Exception error){
+        if(error==null)return "unknown";
+        String detail=error.getMessage();
+        return error.getClass().getSimpleName()+(detail==null?"":": "+detail);
     }
 
     private static BluetoothDevice findMx(Set<BluetoothDevice> bonded){
