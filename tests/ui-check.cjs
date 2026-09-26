@@ -15,7 +15,7 @@ async function main(){
   const errors=[];const results=[];
   for(const size of [{width:602,height:726},{width:480,height:800},{width:390,height:680},{width:800,height:600}]){
    const p=await browser.newPage({viewport:size,deviceScaleFactor:1.33});p.on('pageerror',e=>errors.push(e.message));
-   await p.route('https://api.open-meteo.com/**',r=>r.fulfill({json:{current:{temperature_2m:61,weather_code:2}}}));
+   await p.route('https://api.open-meteo.com/**',r=>r.fulfill({json:{current:{time:'2026-09-26T12:00',temperature_2m:61,apparent_temperature:58,weather_code:2},hourly:{time:['2026-09-26T12:00','2026-09-26T13:00'],temperature_2m:[61,63],weather_code:[2,2]},daily:{time:['2026-09-26','2026-09-27'],temperature_2m_max:[65,67],temperature_2m_min:[50,52],weather_code:[2,1],sunset:['2026-09-26T18:55','2026-09-27T18:53']}}}));
    await p.addInitScript(()=>{
     localStorage.setItem('trx-apex-commissioned','true');localStorage.setItem('trx-apex-rail-setup-v526','done');localStorage.setItem('trx-apex-floating-rail','false');if(!localStorage.getItem('trx-apex-theme'))localStorage.setItem('trx-apex-theme','hellfire');localStorage.setItem('trx-apex-display-profile','phone');
     const icon='data:image/svg+xml,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect rx="14" width="64" height="64" fill="#6e8a9f"/><circle cx="32" cy="32" r="17" fill="#fff"/></svg>');
@@ -26,14 +26,16 @@ async function main(){
     window.__APEX_TEST_BRIDGE__={getMediaState:()=>({...media}),getObdState:()=>({connected:true,ecuConnected:false,deviceName:'OBDLink MX+',status:'ADAPTER CONNECTED · ECU NO DATA',livePidCount:0,protocol:'ISO 15765-4 CAN',batteryV:12.4,diagnostics:'010C → NO DATA >'}),getLocation:()=>({latitude:40.32,longitude:-74.59}),getDisplayInfo:()=>({widthPixels:800,heightPixels:965,densityDpi:600,manufacturer:'Ottocast',model:'P3 Pro'}),getInstalledApps:()=>({apps}),mapPreview:a=>record('mapPreview',a),searchDestinations:a=>({suggestions:[{label:'Test destination, New Jersey',primary:'Test destination',secondary:'A longer street address in New Jersey',placeId:'test-place'}]}),openNavigation:a=>record('openNavigation',a),launchApp:a=>record('launchApp',a),startAppPair:a=>record('startAppPair',a),visualizerAccess:()=>({granted:false}),getAudioSpectrum:()=>({available:true,bands:Array(32).fill(.55)}),stopAudioSpectrum:()=>({success:true}),appAction:a=>record('appAction',a),reconnectObd:a=>record('reconnectObd',a),requestPermissionGroup:a=>({...record('requestPermissionGroup',a),granted:true}),openSystemSettings:a=>record('openSystemSettings',a),mediaCommand:a=>{record('mediaCommand',a);if(a.command==='favorite')media.liked=!media.liked;if(a.command==='toggle')media.playing=!media.playing;return {success:true,liked:media.liked};}};
    });
    await p.goto('http://127.0.0.1:5181');await p.evaluate(()=>document.fonts.ready);
-   for(const label of ['Home','Navigation','Media','Performance','Apps','Settings']){
+   for(const label of ['Home','Navigation','Media','Performance','Apps','Settings','Weather']){
+    if(label==='Weather'){await p.getByRole('button',{name:'Open weather',exact:true}).click();}else
     await p.getByRole('navigation').getByRole('button',{name:label,exact:true}).click();await p.waitForTimeout(500);
     const geometry=await p.evaluate(()=>{const rect=e=>{const r=e.getBoundingClientRect();return {x:r.x,y:r.y,width:r.width,height:r.height,right:r.right,bottom:r.bottom};};const page=document.querySelector('.page');const children=[...page.children].filter(e=>!e.classList.contains('modal-scrim'));const outside=children.filter(e=>{const r=rect(e),p=rect(page);return r.x<p.x-1||r.y<p.y-1||r.right>p.right+1||r.bottom>p.bottom+1;}).map(e=>e.className);const overlaps=[];for(let i=0;i<children.length;i++)for(let j=i+1;j<children.length;j++){const a=rect(children[i]),b=rect(children[j]);if(Math.min(a.right,b.right)-Math.max(a.x,b.x)>1&&Math.min(a.bottom,b.bottom)-Math.max(a.y,b.y)>1)overlaps.push([children[i].className,children[j].className]);}return {outside,overlaps};});
     results.push({viewport:size,page:label,...geometry});
     if(size.width===602)await p.screenshot({animations:'disabled',path:path.join(output,label.toLowerCase()+'.png')});
    }
    if(size.width===602){
-    await p.getByRole('button',{name:'Baja Sand theme',exact:true}).click();if(await p.locator('.apex-shell').evaluate(e=>getComputedStyle(e).getPropertyValue('--accent').trim())!=='#d9b078')throw Error('Theme not applied');
+    await p.getByRole('navigation').getByRole('button',{name:'Settings',exact:true}).click();
+    await p.getByRole('button',{name:'Baja Sand theme',exact:true}).click();if(await p.locator('.apex-shell').evaluate(e=>getComputedStyle(e).getPropertyValue('--accent').trim())!=='#dcae74')throw Error('Theme not applied');
     for(const [name,id] of [['Hellfire Red','hellfire'],['Titanium','titanium'],['Arctic Ice','arctic'],['Night Ops','night'],['Baja Sand','baja']]){
      await p.getByRole('button',{name:name+' theme',exact:true}).click();
      if(!await p.locator('.theme-'+id).count())throw Error('Theme failed '+id);

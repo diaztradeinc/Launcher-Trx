@@ -35,6 +35,7 @@ public final class ObdBridge {
     public static volatile int reconnectAttempts;
     public static volatile String deviceName="OBDLink MX+";
     public static volatile String protocol="--";
+    public static volatile String connectionMode="--";
     public static volatile int livePidCount;
     public static volatile long lastUpdate;
     private static long lastProbe;
@@ -122,7 +123,7 @@ public final class ObdBridge {
                 lastError=error.getClass().getSimpleName()+": "+(error.getMessage()==null?"No details":error.getMessage());
                 status="OBD RECONNECTING • "+lastError.substring(0,Math.min(42,lastError.length()));
             }finally{
-                connected=false;
+                connected=false;connectionMode="--";
                 ecuConnected=false;livePidCount=0;protocol="--";lastUpdate=0;
                 rpm=coolantF=intakeF=engineLoad=batteryV=obdSpeedMph=boostPsi=transmissionF=throttle=fuelLevel=mafGps=Float.NaN;
                 closeSocket();
@@ -156,6 +157,7 @@ public final class ObdBridge {
                 watchdog.setDaemon(true);watchdog.start();
                 try {attempt.connect();} finally {finished.set(true);watchdog.interrupt();}
                 if(!running)throw new java.io.IOException("Connection stopped");
+                connectionMode=label.toUpperCase(Locale.US)+" SPP";
                 record("RFCOMM",label+" connected");
                 return attempt;
             } catch(Exception error){

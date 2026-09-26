@@ -108,6 +108,11 @@ public class NavigationActivity extends AppCompatActivity {
     private void buildUi(Bundle state) {
         navigationRoot = new FrameLayout(this);
         navigationRoot.setBackgroundColor(surfaceDeep);
+        // Reserve the same left edge as the persistent floating rail so search
+        // and Google navigation controls are never hidden beneath it.
+        if(android.provider.Settings.canDrawOverlays(this)
+            && getSharedPreferences("launcher",MODE_PRIVATE).getBoolean("floating_rail_enabled",true))
+            navigationRoot.setPadding(dp(66),0,0,0);
         navigationView = new NavigationView(this);
         FrameLayout.LayoutParams mapLp = new FrameLayout.LayoutParams(-1, -1);
         // The Ottocast bar consumes the bottom edge of the measured portrait window.
@@ -162,7 +167,9 @@ public class NavigationActivity extends AppCompatActivity {
             if (navigator != null) navigator.setAudioGuidanceSettings(setting);
             audio.setText(audioEnabled ? "Voice on" : "Muted");
         });
-        Button exit = railButton("Exit"); exit.setOnClickListener(v -> finish());
+        Button exit = railButton("End route"); exit.setOnClickListener(v -> finish());
+        GradientDrawable exitBg=new GradientDrawable(GradientDrawable.Orientation.TL_BR,new int[]{0xff172027,0xff04080b});
+        exitBg.setCornerRadius(dp(10));exitBg.setStroke(dp(1),accentColor);exit.setBackground(exitBg);
         driveControls.addView(recenter); driveControls.addView(satellite); driveControls.addView(overview); driveControls.addView(audio); driveControls.addView(exit);
         driveControls.setVisibility(View.GONE);
         FrameLayout.LayoutParams railLp = new FrameLayout.LayoutParams(dp(72), -2, Gravity.RIGHT | Gravity.CENTER_VERTICAL);
@@ -176,7 +183,9 @@ public class NavigationActivity extends AppCompatActivity {
 
         status = new TextView(this);
         status.setText("INITIALIZING GOOGLE NAVIGATION…"); status.setTextColor(0xfff4f0e8); status.setTextSize(12);
-        status.setGravity(Gravity.CENTER); status.setBackgroundColor(surfacePanel);
+        status.setGravity(Gravity.CENTER);
+        GradientDrawable statusBg=new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,new int[]{surfacePanel,surfaceDeep});
+        statusBg.setStroke(dp(1),surfaceLine);status.setBackground(statusBg);
         FrameLayout.LayoutParams statusLp = new FrameLayout.LayoutParams(-1, dp(34), Gravity.BOTTOM); navigationRoot.addView(status, statusLp);
 
         String requested = getIntent().getStringExtra("destination");

@@ -242,18 +242,6 @@ public class TrxNativePlugin extends Plugin {
         } catch (Throwable error) { call.reject("Unable to launch app", error.getMessage()); }
     }
 
-    @PluginMethod public void launchAdjacent(PluginCall call){
-        String pkg=call.getString("packageName","");
-        try{
-            Intent intent=getContext().getPackageManager().getLaunchIntentForPackage(pkg);
-            if(intent==null){call.reject("App is not launchable");return;}
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_LAUNCH_ADJACENT);
-            getActivity().startActivity(intent);
-            JSObject result=new JSObject();result.put("success",true);
-            result.put("message","Requested a split beside TRX APEX; Android may open the app full screen.");call.resolve(result);
-        }catch(Throwable error){call.reject("Unable to request split screen",error.getMessage());}
-    }
-
     @PluginMethod public void startAppPair(PluginCall call) {
         String first=call.getString("first", ""), second=call.getString("second", "");
         if(first.equals(second)){call.reject("Choose two different apps");return;}
@@ -265,7 +253,7 @@ public class TrxNativePlugin extends Plugin {
             right.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_MULTIPLE_TASK | Intent.FLAG_ACTIVITY_LAUNCH_ADJACENT);
             getActivity().startActivities(new Intent[]{left,right});
             JSObject result=new JSObject();result.put("success",true);
-            result.put("message","Requested two-app split. If Ottocast opens one app full screen, use Android Recents → Split screen to select its partner.");
+            result.put("message","Requested the two selected apps side by side. Ottocast may open one full screen; if so use Recents → Split screen to pick its partner.");
             call.resolve(result);
         }catch(Throwable error){call.reject("Unable to request two-app split",error.getMessage());}
     }
@@ -439,6 +427,7 @@ public class TrxNativePlugin extends Plugin {
         result.put("diagnostics",ObdBridge.diagnostics());
         result.put("lastError",ObdBridge.lastError);
         result.put("reconnectAttempts",ObdBridge.reconnectAttempts);
+        result.put("connectionMode",ObdBridge.connectionMode);
         putNumber(result, "rpm", ObdBridge.rpm);
         putNumber(result, "coolantF", ObdBridge.coolantF);
         putNumber(result, "intakeF", ObdBridge.intakeF);
@@ -504,7 +493,7 @@ public class TrxNativePlugin extends Plugin {
             java.net.HttpURLConnection connection=null;
             try {
                 String endpoint=String.format(Locale.US,
-                    "https://api.open-meteo.com/v1/forecast?latitude=%.4f&longitude=%.4f&current=temperature_2m,weather_code&temperature_unit=fahrenheit",weatherLat,weatherLon);
+                    "https://api.open-meteo.com/v1/forecast?latitude=%.4f&longitude=%.4f&current=temperature_2m,apparent_temperature,weather_code&hourly=temperature_2m,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min,sunset&forecast_days=5&timezone=auto&temperature_unit=fahrenheit",weatherLat,weatherLon);
                 connection=(java.net.HttpURLConnection)new java.net.URL(endpoint).openConnection();
                 connection.setConnectTimeout(7000);connection.setReadTimeout(7000);
                 if(connection.getResponseCode()!=200)throw new IllegalStateException("Weather service unavailable");
@@ -514,14 +503,43 @@ public class TrxNativePlugin extends Plugin {
                     while((count=stream.read(buffer))!=-1)output.write(buffer,0,count);
                     body=output.toByteArray();
                 }
-                org.json.JSONObject current=new org.json.JSONObject(new String(body,java.nio.charset.StandardCharsets.UTF_8)).getJSONObject("current");
+                org.json.JSONObject forecast=new org.json.JSONObject(new String(body,java.nio.charset.StandardCharsets.UTF_8));
+                org.json.JSONObject current=forecast.getJSONObject("current");
                 int code=current.getInt("weather_code");
                 JSObject result=new JSObject();result.put("temperature",Math.round(current.getDouble("temperature_2m")));
-                result.put("condition",code==0?"CLEAR":code<=3?"PARTLY CLOUDY":code<=67?"RAIN":code<=77?"SNOW":"STORMS");
+                result.put("condition",weatherCondition(code));
+                result.put("feelsLike",Math.round(current.optDouble("apparent_temperature",current.getDouble("temperature_2m"))));
+                org.json.JSONObject hourly=forecast.getJSONObject("hourly"),daily=forecast.getJSONObject("daily");
+                org.json.JSONArray times=hourly.getJSONArray("time"),temperatures=hourly.getJSONArray("temperature_2m"),codes=hourly.getJSONArray("weather_code");
+                JSArray hours=new JSArray();String currentHour=current.getString("time").substring(0,13);
+                int start=0;while(start<times.length()&&times.getString(start).compareTo(currentHour)<0)start++;
+                for(int i=start;i<Math.min(start+8,times.length());i++){
+                    JSObject item=new JSObject();item.put("time",times.getString(i));item.put("temperature",Math.round(temperatures.getDouble(i)));
+                    item.put("condition",weatherCondition(codes.getInt(i)));hours.put(item);
+                }
+                result.put("hourly",hours);
+                org.json.JSONArray dates=daily.getJSONArray("time"),highs=daily.getJSONArray("temperature_2m_max"),lows=daily.getJSONArray("temperature_2m_min"),sunsets=daily.getJSONArray("sunset"),dayCodes=daily.getJSONArray("weather_code");
+                JSArray days=new JSArray();for(int i=0;i<Math.min(5,dates.length());i++){
+                    JSObject item=new JSObject();item.put("date",dates.getString(i));item.put("high",Math.round(highs.getDouble(i)));
+                    item.put("low",Math.round(lows.getDouble(i)));item.put("sunset",sunsets.getString(i));
+                    item.put("condition",weatherCondition(dayCodes.getInt(i)));days.put(item);
+                }
+                result.put("daily",days);
                 call.resolve(result);
             }catch(Throwable error){call.reject("Weather service unavailable",error.getMessage());}
             finally{if(connection!=null)connection.disconnect();}
         }).start();
+    }
+
+    private static String weatherCondition(int code){
+        if(code==0)return "CLEAR";
+        if(code<=3)return "PARTLY CLOUDY";
+        if(code<=48)return "FOGGY";
+        if(code<=67)return "RAIN";
+        if(code<=77)return "SNOW";
+        if(code<=82)return "SHOWERS";
+        if(code<=86)return "SNOW";
+        return "STORMS";
     }
 
     @PluginMethod public void openNavigation(PluginCall call) {

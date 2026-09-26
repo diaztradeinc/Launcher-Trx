@@ -13,6 +13,9 @@ import android.graphics.drawable.GradientDrawable;
 import android.os.Build;
 import android.os.IBinder;
 import android.provider.Settings;
+import android.text.SpannableString;
+import android.text.Spanned;
+import android.text.style.RelativeSizeSpan;
 import android.view.Gravity;
 import android.view.View;
 import android.view.WindowManager;
@@ -29,6 +32,7 @@ public class FloatingRailService extends Service {
     private boolean expanded = true;
     private int accentColor = 0xfff04450;
     private int surfaceColor = 0xff1b2426;
+    private int buttonHeightDp = 56;
 
     @Override public void onCreate() {
         super.onCreate();
@@ -73,6 +77,8 @@ public class FloatingRailService extends Service {
 
     private void showRail() {
         manager = (WindowManager)getSystemService(WINDOW_SERVICE);
+        int screenDp=(int)(getResources().getDisplayMetrics().heightPixels/getResources().getDisplayMetrics().density);
+        buttonHeightDp=Math.max(37,Math.min(56,(screenDp-32)/8-3));
         LinearLayout column = new LinearLayout(this);
         column.setOrientation(LinearLayout.VERTICAL);
         column.setGravity(Gravity.CENTER_VERTICAL);
@@ -88,7 +94,7 @@ public class FloatingRailService extends Service {
         button("⌂","Home",destinations).setOnClickListener(v -> open("home"));
         button("➤","Navigation",destinations).setOnClickListener(v -> open("navigation"));
         button("♫","Media",destinations).setOnClickListener(v -> open("media"));
-        button("◴","Performance",destinations).setOnClickListener(v -> open("performance"));
+        button("◉","Performance",destinations).setOnClickListener(v -> open("performance"));
         button("▦","Apps",destinations).setOnClickListener(v -> open("apps"));
         button("⚙","Settings",destinations).setOnClickListener(v -> open("settings"));
         button("←","Back in current app",destinations).setOnClickListener(v -> {
@@ -97,10 +103,6 @@ public class FloatingRailService extends Service {
                 Intent settings=new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                 startActivity(settings);
             }
-        });
-        button("×","Close floating rail",destinations).setOnClickListener(v -> {
-            getSharedPreferences("launcher",MODE_PRIVATE).edit().putBoolean("floating_rail_enabled",false).apply();
-            stopSelf();
         });
         handle.setOnClickListener(v -> {
             expanded=!expanded;
@@ -123,13 +125,17 @@ public class FloatingRailService extends Service {
 
     private TextView button(String icon,String description,LinearLayout container) {
         TextView view = new TextView(this);
-        view.setText(icon);view.setContentDescription(description);view.setTextColor(Color.WHITE);
-        view.setTextSize(26);view.setGravity(Gravity.CENTER);
-        GradientDrawable bg=new GradientDrawable(GradientDrawable.Orientation.TL_BR,new int[]{0xff37434a,0xff111a20});
-        bg.setCornerRadius(dp(12));bg.setStroke(dp(1),"Back in current app".equals(description)?accentColor:0xff788891);
+        String label="Back in current app".equals(description)?"Back":description;
+        String caption="Expand or collapse rail".equals(description)?icon:icon+"\n"+label;
+        SpannableString styled=new SpannableString(caption);
+        if(caption.length()>icon.length())styled.setSpan(new RelativeSizeSpan(.37f),icon.length()+1,caption.length(),Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        view.setText(styled);view.setContentDescription(description);view.setTextColor(Color.WHITE);
+        view.setTextSize(25);view.setGravity(Gravity.CENTER);view.setLineSpacing(0,.89f);
+        GradientDrawable bg=new GradientDrawable(GradientDrawable.Orientation.TL_BR,new int[]{surfaceColor,0xff070c10});
+        bg.setCornerRadius(dp(10));bg.setStroke(dp(1),"Back in current app".equals(description)?accentColor:0xff52616b);
         view.setBackground(bg);
-        LinearLayout.LayoutParams params=new LinearLayout.LayoutParams(dp(54),dp(48));
-        params.bottomMargin=dp(8);container.addView(view,params);
+        LinearLayout.LayoutParams params=new LinearLayout.LayoutParams(dp(54),dp(buttonHeightDp));
+        params.bottomMargin=dp(3);container.addView(view,params);
         return view;
     }
 

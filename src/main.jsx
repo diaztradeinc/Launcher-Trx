@@ -6,10 +6,11 @@ import { currentWeather, native } from './native';
 import './styles.css';
 import './apex-instrument.css';
 import './surface-styles.css';
+import './sunset-theme.css';
 
-const HERO = '/art/trx-alpine.webp';
+const HERO = '/art/trx-sunset-v528.webp';
 const ALBUM = '/art/crimson-moon.webp';
-const SPLASH = '/art/first-run-splash.webp';
+const SPLASH = HERO;
 const THEMES = {
   hellfire: { name: 'Hellfire Red', accent: '#f04450', tone: '#76202b' },
   titanium: { name: 'Titanium', accent: '#d2d9dc', tone: '#535d62' },
@@ -65,7 +66,7 @@ function App(){
   const [railCapabilities,setRailCapabilities]=useState({overlay:false,back:false,enabled:true});
   const [commissioned,setCommissioned]=useState(localStorage.getItem('trx-apex-commissioned')==='true');
   const [theme,setTheme]=useState(()=>{const t=legacyString('trx-apex-theme','hellfire');return THEMES[t]?t:'hellfire';});
-  const [surface,setSurface]=useState(()=>{const s=legacyString('trx-apex-surface','charcoal');return SURFACES[s]?s:'charcoal';});
+  const [surface,setSurface]=useState(()=>{const s=legacyString('trx-apex-surface','carbon');return SURFACES[s]?s:'carbon';});
   const [accent,setAccent]=useState(Number(localStorage.getItem('trx-apex-accent')) || 82);
   const [iconScale,setIconScale]=useState(Number(localStorage.getItem('trx-apex-icons')) || 100);
   const [reducedMotion,setReducedMotion]=useState(localStorage.getItem('trx-apex-motion')==='true');
@@ -109,17 +110,17 @@ function App(){
   const shared={live,go,notify,act,route,theme,day,preferences};
   return <div className={`apex-shell theme-${theme} surface-${surface} ${day?'day':'night'} profile-${displayProfile} ${reducedMotion?'reduce-motion':''}`} style={style}>
     {!commissioned?<Commissioning finish={finish} act={act}/>:<div className="calibrated-stage">
-      <header className="status-bar"><div className="wordmark"><b>TRX</b><em>APEX</em></div><div className="status-right"><Bluetooth className={live.obd?.connected?'connected':''}/><span>{now.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</span><button aria-label="Refresh weather" onClick={async()=>notify(await live.refreshWeather()?'Weather updated':'Weather requires a current GPS fix and internet.')}><CloudSun/>{live.weather?live.weather.temperature+'°':'—°'}</button>{active==='settings'&&<button aria-label="Close settings" onClick={()=>go('home')}><X/></button>}</div></header>
-      <nav className="command-rail" aria-label="Main navigation">{NAV.map(([id,label,Icon])=><button key={id} aria-label={label} aria-current={active===id?'page':undefined} className={active===id?'active':''} onClick={()=>go(id)}><Icon/><span>{label}</span></button>)}</nav>
+      <header className="status-bar"><div className="wordmark"><b>TRX</b><em>APEX</em></div><div className="status-right"><Bluetooth className={live.obd?.connected?'connected':''}/><span>{now.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</span><button aria-label="Open weather" onClick={()=>go('weather')}><CloudSun/>{live.weather?live.weather.temperature+'°':'—°'}</button>{active==='settings'&&<button aria-label="Close settings" onClick={()=>go('home')}><X/></button>}</div></header>
+      <nav className="command-rail" aria-label="Main navigation">{NAV.map(([id,label,Icon])=><button key={id} aria-label={label} aria-current={active===id?'page':undefined} className={active===id?'active':''} onClick={()=>go(id)}><Icon/><span>{label}</span></button>)}<button aria-label="Back" onClick={back}><ArrowLeft/><span>Back</span></button></nav>
       <main className="apex-canvas">
         {active==='home'&&<HomePage {...shared}/>}
         {active==='navigation'&&<NavigationPage {...shared} quick={quick} theme={theme} preferences={preferences} setPreferences={setPreferences} day={day}/>}
         {active==='media'&&<MediaPage media={live.media} act={act} notify={notify}/>}
         {active==='performance'&&<PerformancePage obd={live.obd} act={act}/>}
         {active==='apps'&&<AppsPage act={act} notify={notify} quick={quick} openSplit={app=>{setSplitFirst(app||null);setSplitOpen(true);}}/>}
+        {active==='weather'&&<WeatherPage live={live} act={act} notify={notify}/>}
         {active==='settings'&&<SettingsPage {...{theme,setTheme,surface,setSurface,accent,setAccent,iconScale,setIconScale,reducedMotion,setReducedMotion,displayMode,setDisplayMode,displayProfile,setDisplayProfile,calibration,setCalibration,visual,setVisual,preferences,setPreferences,device,viewport,act,notify,railEnabled,setRailEnabled,railCapabilities}} obd={live.obd}/>}
       </main>
-      {active!=='home'&&<button className="floating-back" aria-label="Back; hold for Home" onPointerDown={e=>{const button=e.currentTarget;button.dataset.held='';button._hold=setTimeout(()=>{button.dataset.held='yes';go('home');},650);}} onPointerUp={e=>{clearTimeout(e.currentTarget._hold);if(e.currentTarget.dataset.held!=='yes')back();}} onPointerCancel={e=>clearTimeout(e.currentTarget._hold)} onClick={e=>{if(e.detail===0)back();}} onKeyDown={e=>{if(e.key==='Escape'){e.preventDefault();back();}}}><ArrowLeft/></button>}
       {active==='apps'&&splitOpen&&<SplitPicker first={splitFirst} close={()=>setSplitOpen(false)} act={act} notify={notify}/>}
       {railPrompt&&<Modal title="Floating navigation" close={()=>{setRailPrompt(false);localStorage.setItem('trx-apex-rail-setup-v526','done');}}><p>Keep the TRX APEX rail over other Android apps. Android asks you to allow Display over other apps. Back in other apps also needs optional Accessibility access.</p><Action label="Allow floating rail" detail="Opens Android Display over other apps" onClick={()=>act(native.requestPermissionGroup('overlay'))}/><Action label="Set up Back button" detail="Optional Android Accessibility control" onClick={()=>act(native.requestPermissionGroup('back'))}/><Action label="Later" onClick={()=>{setRailPrompt(false);setRailEnabled(false);localStorage.setItem('trx-apex-rail-setup-v526','done');}}/></Modal>}
     </div>}
@@ -141,12 +142,30 @@ function SplitPicker({first,close,act,notify}){
 function VehicleStatus({obd,action}){return <button className={'vehicle-status '+(obd?.ecuConnected?'live':'waiting')} onClick={action}><Activity/><span><b>{obd?.ecuConnected?'Vehicle data live':obd?.connected?'Adapter connected':'Vehicle link'}</b><small>{obd?.status || 'Pair OBDLink MX+ to connect'}</small></span><ChevronRight/></button>;}
 function HomePage({live,go,act,theme,day,preferences}){
   return <section className="page home-page cockpit-home" aria-label="Home page">
-    <div className="hero-panel"><img className="hero-art" src={HERO} alt="Red RAM TRX in the mountains"/></div>
+    <div className="hero-panel"><img className="hero-art" src={HERO} alt="Red RAM TRX beneath a sunset sky"/></div>
     <div className="home-information"><div className="home-map panel"><MapPreview location={live.location} theme={theme} day={day} mapMode={preferences.mapMode}/><button className="map-search" onClick={()=>go('navigation')}><Search/>Search destination <ChevronRight/></button></div>
-      <button className={'weather-card panel '+(live.weather?.condition?.toLowerCase().replaceAll(' ','-')||'waiting')} onClick={async()=>{if(!live.location)await act(native.requestPermissionGroup('location'));else await live.refreshWeather();}} aria-label="Refresh weather or enable location"><span className="weather-title"><CloudSun/> WEATHER</span><strong>{live.weather?live.weather.temperature+'°':'—°'}</strong><span>{live.weather?.condition||'Location needed'}</span><small>{live.weather?'Tap to refresh':'Tap to enable location'}</small></button></div>
+      <button className={'weather-card panel '+(live.weather?.condition?.toLowerCase().replaceAll(' ','-')||'waiting')} onClick={()=>go('weather')} aria-label="Open weather forecast"><span className="weather-title"><CloudSun/> WEATHER</span><strong>{live.weather?live.weather.temperature+'°':'—°'}</strong><span>{live.weather?.condition||'Location needed'}</span><small>{live.weather?'Tap for forecast':'Tap to set up weather'}</small></button></div>
     <div className="home-launch" aria-label="Quick launch">{[['navigation','Maps',Navigation],['media','Media',Music2],['performance','OBD',Gauge],['apps','Phone',Phone]].map(([id,label,Icon])=><button key={label} onClick={()=>go(id,label==='Phone'?'phone':null)}><Icon/><span>{label}</span></button>)}</div>
     <div className="home-now panel"><button className="home-now-track" onClick={()=>go('media')}><img src={live.media?.artwork||ALBUM} alt=""/><span><small>NOW PLAYING</small><b>{live.media?.hasSession?live.media.title:'Choose a media source'}</b><small>{live.media?.hasSession?live.media.artist:'Open Media to connect'}</small></span></button><div className="home-now-controls"><button aria-label="Previous track" disabled={!live.media?.canPrevious} onClick={()=>act(native.mediaCommand('previous'))}><SkipBack/></button><button className="primary round" aria-label={live.media?.playing?'Pause':'Play'} onClick={()=>live.media?.hasSession?act(native.mediaCommand('toggle')):go('media')}>{live.media?.playing?<Pause/>:<Play/>}</button><button aria-label="Next track" disabled={!live.media?.canNext} onClick={()=>act(native.mediaCommand('next'))}><SkipForward/></button></div></div>
     <VehicleStatus obd={live.obd} action={()=>go('performance')}/>
+  </section>;
+}
+function WeatherPage({live,act,notify}){
+  const [busy,setBusy]=useState(false);
+  const attempted=useRef(false);
+  useEffect(()=>{if(live.location&&!live.weather?.daily?.length&&!attempted.current){attempted.current=true;live.refreshWeather();}},[Boolean(live.location),Boolean(live.weather?.daily?.length)]);
+  async function refresh(){
+    if(!live.location){await act(native.requestPermissionGroup('location'));notify('Allow location, then refresh the forecast.');return;}
+    setBusy(true);const okay=await live.refreshWeather();setBusy(false);
+    notify(okay?'Forecast updated.':'Weather needs an internet connection and a current GPS fix.');
+  }
+  const weather=live.weather;
+  const hours=weather?.hourly||[],days=weather?.daily||[];
+  return <section className="page weather-page" aria-label="Weather page">
+    <div className="weather-hero"><img src={HERO} alt="Red RAM TRX at sunset"/></div>
+    <div className="weather-current panel"><header><span><CloudSun/> WEATHER <small>{weather?.location||'Current location'}</small></span><button aria-label="Refresh forecast" disabled={busy} onClick={refresh}><RotateCcw/></button></header><div className="weather-main"><strong>{weather?`${weather.temperature}°`:'—°'}</strong><span>{weather?.condition||'Location needed'}<small>{weather?.feelsLike!=null?`Feels like ${weather.feelsLike}°`:'Tap refresh for local conditions'}</small></span></div><div className="weather-secondary"><span>High / Low <b>{days[0]?`${days[0].high}° / ${days[0].low}°`:'—'}</b></span><span>Sunset <b>{days[0]?.sunset?new Date(days[0].sunset).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'}):'—'}</b></span></div></div>
+    <section className="forecast-panel panel" aria-label="Hourly forecast"><h2>Next hours</h2><div className="forecast-strip">{hours.length?hours.map((hour,i)=><div key={hour.time||i}><small>{new Date(hour.time).toLocaleTimeString([],{hour:'numeric'})}</small><CloudSun/><b>{hour.temperature}°</b></div>):<p>Hourly forecast appears after a weather update.</p>}</div></section>
+    <section className="forecast-panel panel" aria-label="Five-day forecast"><h2>5-day forecast</h2><div className="forecast-strip">{days.length?days.map((day,i)=><div key={day.date||i}><small>{new Date(day.date+'T12:00:00').toLocaleDateString([],{weekday:'short'})}</small><CloudSun/><b>{day.high}° <small>/ {day.low}°</small></b></div>):<p>Daily forecast appears after a weather update.</p>}</div></section>
   </section>;
 }
 function MapPreview({location,theme,mapMode,day,hidden}){
@@ -213,7 +232,7 @@ function MediaPage({media,act,notify}){
 function PerformancePage({obd,act}){
   const [details,setDetails]=useState(false);
   const metrics=[['Boost',obd?.boostPsi,'PSI',1],['Coolant',obd?.coolantF,'°F',0],['Adapter',obd?.batteryV,'V',1],['Intake',obd?.intakeF,'°F',0]];
-  return <section className="page performance-page" aria-label="Performance page"><div className="gauge-row"><div><span>RPM</span><strong>{reading(obd?.rpm)}</strong><small>{obd?.ecuConnected?'Engine data':'Awaiting ECU'}</small></div><div><span>Speed</span><strong>{reading(obd?.speedMph)}</strong><small>MPH · OBD</small></div></div><div className="performance-hero"><img className="hero-art" src={HERO} alt="Red RAM TRX"/></div><div className="telemetry-grid">{metrics.map(([label,value,unit,digits])=><div className="panel" key={label}><span>{label}</span><strong>{reading(value,digits)}</strong><small>{unit}</small></div>)}</div><VehicleStatus obd={obd} action={()=>setDetails(true)}/>{details&&<Modal title="OBDLink MX+ diagnostics" close={()=>setDetails(false)}><p>{obd?.status || 'Not connected'}</p><dl className="diagnostics"><dt>Adapter</dt><dd>{obd?.deviceName || 'OBDLink MX+'}</dd><dt>Protocol</dt><dd>{obd?.protocol || '—'}</dd><dt>Live PIDs</dt><dd>{obd?.livePidCount || 0}</dd><dt>Last response</dt><dd>{obd?.ageMs==null?'None':Math.round(obd.ageMs/1000)+'s ago'}</dd><dt>Reconnect attempts</dt><dd>{obd?.reconnectAttempts || 0}</dd><dt>Last connection error</dt><dd>{obd?.lastError || 'None'}</dd><dt>Engine load</dt><dd>{reading(obd?.engineLoad)}%</dd><dt>Throttle</dt><dd>{reading(obd?.throttle)}%</dd><dt>Fuel</dt><dd>{reading(obd?.fuelLevel)}%</dd></dl><p>Gear and transmission temperature require verified RAM-specific data and are not displayed as live readings.</p><Action label="Bluetooth permission" onClick={()=>act(native.requestPermissionGroup('bluetooth'))}/><Action label="Pair adapter" onClick={()=>act(native.settings('bluetooth'))}/><Action label="Reconnect" onClick={()=>act(native.reconnectObd())}/><p>Keep other OBD apps disconnected while APEX uses the adapter.</p><details><summary>Recent adapter responses</summary><pre>{obd?.diagnostics || 'No responses recorded yet.'}</pre></details></Modal>}</section>;
+  return <section className="page performance-page" aria-label="Performance page"><div className="gauge-row"><div><span>RPM</span><strong>{reading(obd?.rpm)}</strong><small>{obd?.ecuConnected?'Engine data':'Awaiting ECU'}</small></div><div><span>Speed</span><strong>{reading(obd?.speedMph)}</strong><small>MPH · OBD</small></div></div><div className="performance-hero"><img className="hero-art" src={HERO} alt="Red RAM TRX"/></div><div className="telemetry-grid">{metrics.map(([label,value,unit,digits])=><div className="panel" key={label}><span>{label}</span><strong>{reading(value,digits)}</strong><small>{unit}</small></div>)}</div><VehicleStatus obd={obd} action={()=>setDetails(true)}/>{details&&<Modal title="OBDLink MX+ diagnostics" close={()=>setDetails(false)}><p>{obd?.status || 'Not connected'}</p><dl className="diagnostics"><dt>Adapter</dt><dd>{obd?.deviceName || 'OBDLink MX+'}</dd><dt>Bluetooth link</dt><dd>{obd?.connectionMode || '—'}</dd><dt>Protocol</dt><dd>{obd?.protocol || '—'}</dd><dt>Live PIDs</dt><dd>{obd?.livePidCount || 0}</dd><dt>Last response</dt><dd>{obd?.ageMs==null?'None':Math.round(obd.ageMs/1000)+'s ago'}</dd><dt>Reconnect attempts</dt><dd>{obd?.reconnectAttempts || 0}</dd><dt>Last connection error</dt><dd>{obd?.lastError || 'None'}</dd><dt>Engine load</dt><dd>{reading(obd?.engineLoad)}%</dd><dt>Throttle</dt><dd>{reading(obd?.throttle)}%</dd><dt>Fuel</dt><dd>{reading(obd?.fuelLevel)}%</dd></dl><p>Gear and transmission temperature require verified RAM-specific data and are not displayed as live readings.</p><Action label="Bluetooth permission" onClick={()=>act(native.requestPermissionGroup('bluetooth'))}/><Action label="Pair adapter" onClick={()=>act(native.settings('bluetooth'))}/><Action label="Reconnect" onClick={()=>act(native.reconnectObd())}/><p>Keep other OBD apps disconnected while APEX uses the adapter.</p><details><summary>Recent adapter responses</summary><pre>{obd?.diagnostics || 'No responses recorded yet.'}</pre></details></Modal>}</section>;
 }
 function AppsPage({act,notify,quick,openSplit}){
   const [apps,setApps]=useState([]);const [loaded,setLoaded]=useState(false);const [query,setQuery]=useState('');const [editing,setEditing]=useState(false);const [all,setAll]=useState(false);const [context,setContext]=useState(null);
