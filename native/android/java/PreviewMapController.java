@@ -43,7 +43,7 @@ final class PreviewMapController {
                     FrameLayout.LayoutParams toolParams=new FrameLayout.LayoutParams(dp,-2,android.view.Gravity.RIGHT|android.view.Gravity.TOP);
                     toolParams.topMargin=dp/3;toolParams.rightMargin=dp/6;
                     container.addView(toolbar,toolParams);
-                    addControl("◇",()->{mapMode="satellite".equals(mapMode)?"standard":"satellite";apply();});
+                    addControl("▱",()->{mapMode="satellite".equals(mapMode)?"standard":"satellite";apply();});
                     addControl("⌖",()->{if(map!=null&&latitude!=null&&longitude!=null)map.animateCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(latitude,longitude),16f));});
                     addControl("3D",()->{if(map!=null){CameraPosition c=map.getCameraPosition();map.animateCamera(CameraUpdateFactory.newCameraPosition(new CameraPosition.Builder(c).tilt(c.tilt>15?0:55).build()));}});
                     addControl("+",()->{if(map!=null)map.animateCamera(CameraUpdateFactory.zoomIn());});
@@ -68,7 +68,11 @@ final class PreviewMapController {
     private void addControl(String label,Runnable action){
         TextView button=new TextView(activity);button.setText(label);button.setTextColor(Color.WHITE);
         button.setTextSize(21);button.setGravity(android.view.Gravity.CENTER);
-        button.setBackgroundColor(Color.argb(235,7,12,16));
+        android.graphics.drawable.GradientDrawable background=new android.graphics.drawable.GradientDrawable(
+            android.graphics.drawable.GradientDrawable.Orientation.TL_BR,new int[]{Color.rgb(18,29,37),Color.rgb(4,8,12)});
+        background.setCornerRadius(activity.getResources().getDisplayMetrics().density*11);
+        background.setStroke((int)Math.max(1,activity.getResources().getDisplayMetrics().density),Color.rgb(110,132,141));
+        button.setBackground(background);
         int side=(int)(activity.getResources().getDisplayMetrics().density*49);
         LinearLayout.LayoutParams params=new LinearLayout.LayoutParams(-1,side);params.bottomMargin=side/9;
         toolbar.addView(button,params);button.setOnClickListener(v->action.run());

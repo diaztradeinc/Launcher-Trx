@@ -129,11 +129,21 @@ public class TrxNativePlugin extends Plugin {
             byte[] fft=new byte[spectrum.getCaptureSize()];
             if(spectrum.getFft(fft)!=Visualizer.SUCCESS)throw new IllegalStateException("Audio output is not available");
             JSArray bands=new JSArray();int bins=Math.max(1,fft.length/2-1);
+            float strongest=0;
+            float[] values=new float[32];
             for(int i=0;i<32;i++){
                 int from=1+(int)(Math.pow(i/32.0,1.6)*bins);int to=Math.max(from+1,1+(int)(Math.pow((i+1)/32.0,1.6)*bins));
                 float peak=0;for(int b=from;b<Math.min(to,bins);b++){int re=fft[b*2],im=fft[b*2+1];peak=Math.max(peak,(float)Math.sqrt(re*re+im*im));}
-                bands.put(Math.min(1.0,Math.max(0.0,peak/110.0)));
+                values[i]=peak;strongest=Math.max(strongest,peak);
             }
+            // Some device mixers return a silent FFT while waveform capture remains live.
+            if(strongest<2){byte[] waveform=new byte[spectrum.getCaptureSize()];if(spectrum.getWaveForm(waveform)==Visualizer.SUCCESS){
+                for(int i=0;i<32;i++){float peak=0;int from=i*waveform.length/32,to=(i+1)*waveform.length/32;
+                    for(int j=from;j<to;j++)peak=Math.max(peak,Math.abs((waveform[j]&255)-128));
+                    values[i]=peak;strongest=Math.max(strongest,peak);
+                }
+            }}
+            for(float peak:values)bands.put(Math.min(1.0,Math.max(0.0,peak/90.0)));
             result.put("available",true);result.put("bands",bands);call.resolve(result);
         }catch(Throwable error){stopSpectrum();result.put("available",false);result.put("reason","Audio output visualization is unavailable on this device.");call.resolve(result);}
     }
