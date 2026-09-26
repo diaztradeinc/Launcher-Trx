@@ -1,7 +1,7 @@
 import { StrictMode, useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { StatusBar as NativeStatusBar, Style } from '@capacitor/status-bar';
-import { Activity, ArrowLeft, Bluetooth, Check, ChevronRight, Gauge, Grid2X2, Heart, Home, MapPin, Music2, Navigation, Pause, Play, Radio, Search, Settings, SkipBack, SkipForward, SlidersHorizontal, Volume2, X, RotateCcw, Briefcase, CloudSun, Phone, PanelLeft } from 'lucide-react';
+import { Activity, ArrowLeft, Bluetooth, Check, ChevronRight, Gauge, Grid2X2, Heart, Home, MapPin, Music2, Navigation, Pause, Play, Radio, Search, Settings, SkipBack, SkipForward, SlidersHorizontal, Volume2, X, RotateCcw, Briefcase, CloudSun, CloudRain, CloudSnow, CloudFog, CloudLightning, Sun, Phone, PanelLeft } from 'lucide-react';
 import { currentWeather, native } from './native';
 import './styles.css';
 import './apex-instrument.css';
@@ -57,6 +57,7 @@ function useLive() {
   return {...live,refreshWeather};
 }
 function App(){
+  const [showLaunch,setShowLaunch]=useState(true);
   const [active,setActive]=useState('home');
   const [previous,setPrevious]=useState('home');
   const [splitOpen,setSplitOpen]=useState(false);
@@ -84,7 +85,7 @@ function App(){
   const noticeTimer=useRef();
   function notify(message){setNotice(message);clearTimeout(noticeTimer.current);noticeTimer.current=setTimeout(()=>setNotice(''),5500);}
   async function act(promise,message){const r=await promise;if(r?.error || r?.success===false)notify(r?.error || r?.message || 'This action is not available.');else if(message)notify(message);return r;}
-  useEffect(()=>{native.displayInfo().then(setDevice);NativeStatusBar.setOverlaysWebView({overlay:false}).catch(()=>{});NativeStatusBar.setStyle({style:Style.Dark}).catch(()=>{});NativeStatusBar.hide().catch(()=>{});},[]);
+  useEffect(()=>{native.displayInfo().then(setDevice);NativeStatusBar.setOverlaysWebView({overlay:false}).catch(()=>{});NativeStatusBar.setStyle({style:Style.Dark}).catch(()=>{});NativeStatusBar.hide().catch(()=>{});const timer=setTimeout(()=>setShowLaunch(false),1800);return()=>clearTimeout(timer);},[]);
   useEffect(()=>{const id=setInterval(()=>setNow(new Date()),30000);const resize=()=>setViewport({width:innerWidth,height:innerHeight,dpr:devicePixelRatio});addEventListener('resize',resize);return()=>{clearInterval(id);removeEventListener('resize',resize);clearTimeout(noticeTimer.current);};},[]);
   useEffect(()=>{for(const [key,val] of Object.entries({'theme':theme,'surface':surface,'accent':accent,'icons':iconScale,'motion':reducedMotion,'display-profile':displayProfile,'mode':displayMode}))localStorage.setItem('trx-apex-'+key,String(val));},[theme,surface,accent,iconScale,reducedMotion,displayProfile,displayMode]);
   useEffect(()=>{
@@ -107,11 +108,11 @@ function App(){
   function back(){if(splitOpen){setSplitOpen(false);return;}go(previous===active?'home':previous);}
   function route(item){if(!item?.label){notify('Choose a destination first.');return;}act(native.navigate(item.label,item.latitude,item.longitude,item.placeId,theme,tone.accent,accent,{...preferences,dayMode:day,surface}));}
   function finish(){localStorage.setItem('trx-apex-commissioned','true');localStorage.setItem('trx-apex-rail-setup-v526','done');setCommissioned(true);}
-  const shared={live,go,notify,act,route,theme,day,preferences};
+  const shared={live,go,notify,act,route,theme,day,preferences,mapHidden:showLaunch||railPrompt};
   return <div className={`apex-shell theme-${theme} surface-${surface} ${day?'day':'night'} profile-${displayProfile} ${reducedMotion?'reduce-motion':''}`} style={style}>
     {!commissioned?<Commissioning finish={finish} act={act}/>:<div className="calibrated-stage">
       <header className="status-bar"><div className="wordmark"><b>TRX</b><em>APEX</em></div><div className="status-right"><Bluetooth className={live.obd?.connected?'connected':''}/><span>{now.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</span><button aria-label="Open weather" onClick={()=>go('weather')}><CloudSun/>{live.weather?live.weather.temperature+'°':'—°'}</button>{active==='settings'&&<button aria-label="Close settings" onClick={()=>go('home')}><X/></button>}</div></header>
-      <nav className="command-rail" aria-label="Main navigation">{NAV.map(([id,label,Icon])=><button key={id} aria-label={label} aria-current={active===id?'page':undefined} className={active===id?'active':''} onClick={()=>go(id)}><Icon/><span>{label}</span></button>)}<button aria-label="Back" onClick={back}><ArrowLeft/><span>Back</span></button></nav>
+      <nav className="command-rail" aria-label="Main navigation">{NAV.map(([id,label,Icon])=><button key={id} aria-label={label} aria-current={active===id?'page':undefined} className={active===id?'active':''} onClick={()=>go(id)}><Icon/><span>{id==='navigation'?'Nav':id==='performance'?'OBD':label}</span></button>)}<button aria-label="Back" onClick={back}><ArrowLeft/><span>Back</span></button></nav>
       <main className="apex-canvas">
         {active==='home'&&<HomePage {...shared}/>}
         {active==='navigation'&&<NavigationPage {...shared} quick={quick} theme={theme} preferences={preferences} setPreferences={setPreferences} day={day}/>}
@@ -125,6 +126,7 @@ function App(){
       {railPrompt&&<Modal title="Floating navigation" close={()=>{setRailPrompt(false);localStorage.setItem('trx-apex-rail-setup-v526','done');}}><p>Keep the TRX APEX rail over other Android apps. Android asks you to allow Display over other apps. Back in other apps also needs optional Accessibility access.</p><Action label="Allow floating rail" detail="Opens Android Display over other apps" onClick={()=>act(native.requestPermissionGroup('overlay'))}/><Action label="Set up Back button" detail="Optional Android Accessibility control" onClick={()=>act(native.requestPermissionGroup('back'))}/><Action label="Later" onClick={()=>{setRailPrompt(false);setRailEnabled(false);localStorage.setItem('trx-apex-rail-setup-v526','done');}}/></Modal>}
     </div>}
     {notice&&<div role="status" className="notice">{notice}<button aria-label="Dismiss notice" onClick={()=>setNotice('')}><X/></button></div>}
+    {showLaunch&&<div className="launch-splash" role="img" aria-label="TRX APEX starting"><div className="launch-splash-photo"/><div className="launch-splash-content"><span>6.2L SUPERCHARGED · COMMAND CENTER</span><strong>TRX <em>APEX</em></strong><p>READY FOR THE ROAD</p><i/></div></div>}
   </div>;
 }
 function Commissioning({finish,act}){
@@ -140,10 +142,10 @@ function SplitPicker({first,close,act,notify}){
   return <div className="modal-scrim" onClick={close}><section className="modal split-picker" role="dialog" aria-modal="true" aria-label="Pair two apps" onClick={e=>e.stopPropagation()}><header><h2>Pair two apps</h2><button aria-label="Close dialog" onClick={close}><X/></button></header><p>{left?`${left.name} selected. Choose the second app.`:'Choose the first app, then the second.'} Android and Ottocast decide whether the pair opens side by side. If one opens full screen, use Android Recents → Split screen.</p><div className="split-options">{apps.length?apps.filter(app=>app.packageName!==left?.packageName).map(app=><button key={app.packageName} onClick={async()=>{if(!left){setLeft(app);return;}const r=await act(native.startAppPair(left.packageName,app.packageName));if(r?.success)notify(r.message);close();}}>{app.icon?<img src={app.icon} alt=""/>:<Grid2X2/>}<span>{app.name}</span></button>):<p>No launchable apps found.</p>}</div>{left&&<button onClick={()=>setLeft(null)}>Change first app</button>}</section></div>;
 }
 function VehicleStatus({obd,action}){return <button className={'vehicle-status '+(obd?.ecuConnected?'live':'waiting')} onClick={action}><Activity/><span><b>{obd?.ecuConnected?'Vehicle data live':obd?.connected?'Adapter connected':'Vehicle link'}</b><small>{obd?.status || 'Pair OBDLink MX+ to connect'}</small></span><ChevronRight/></button>;}
-function HomePage({live,go,act,theme,day,preferences}){
+function HomePage({live,go,act,theme,day,preferences,mapHidden}){
   return <section className="page home-page cockpit-home" aria-label="Home page">
     <div className="hero-panel"><img className="hero-art" src={HERO} alt="Red RAM TRX beneath a sunset sky"/></div>
-    <div className="home-information"><div className="home-map panel"><MapPreview location={live.location} theme={theme} day={day} mapMode={preferences.mapMode}/><button className="map-search" onClick={()=>go('navigation')}><Search/>Search destination <ChevronRight/></button></div>
+    <div className="home-information"><div className="home-map panel"><MapPreview location={live.location} theme={theme} day={day} mapMode={preferences.mapMode} hidden={mapHidden}/><button className="map-search" onClick={()=>go('navigation')}><Search/>Search destination <ChevronRight/></button></div>
       <button className={'weather-card panel '+(live.weather?.condition?.toLowerCase().replaceAll(' ','-')||'waiting')} onClick={()=>go('weather')} aria-label="Open weather forecast"><span className="weather-title"><CloudSun/> WEATHER</span><strong>{live.weather?live.weather.temperature+'°':'—°'}</strong><span>{live.weather?.condition||'Location needed'}</span><small>{live.weather?'Tap for forecast':'Tap to set up weather'}</small></button></div>
     <div className="home-launch" aria-label="Quick launch">{[['navigation','Maps',Navigation],['media','Media',Music2],['performance','OBD',Gauge],['apps','Phone',Phone]].map(([id,label,Icon])=><button key={label} onClick={()=>go(id,label==='Phone'?'phone':null)}><Icon/><span>{label}</span></button>)}</div>
     <div className="home-now panel"><button className="home-now-track" onClick={()=>go('media')}><img src={live.media?.artwork||ALBUM} alt=""/><span><small>NOW PLAYING</small><b>{live.media?.hasSession?live.media.title:'Choose a media source'}</b><small>{live.media?.hasSession?live.media.artist:'Open Media to connect'}</small></span></button><div className="home-now-controls"><button aria-label="Previous track" disabled={!live.media?.canPrevious} onClick={()=>act(native.mediaCommand('previous'))}><SkipBack/></button><button className="primary round" aria-label={live.media?.playing?'Pause':'Play'} onClick={()=>live.media?.hasSession?act(native.mediaCommand('toggle')):go('media')}>{live.media?.playing?<Pause/>:<Play/>}</button><button aria-label="Next track" disabled={!live.media?.canNext} onClick={()=>act(native.mediaCommand('next'))}><SkipForward/></button></div></div>
@@ -161,13 +163,16 @@ function WeatherPage({live,act,notify}){
   }
   const weather=live.weather;
   const hours=weather?.hourly||[],days=weather?.daily||[];
+  const condition=(weather?.condition||'').toLowerCase();
+  const sky=condition.includes('rain')||condition.includes('shower')?'rain':condition.includes('snow')?'snow':condition.includes('storm')?'storm':condition.includes('fog')?'fog':'clear';
   return <section className="page weather-page" aria-label="Weather page">
-    <div className="weather-hero"><img src={HERO} alt="Red RAM TRX at sunset"/></div>
-    <div className="weather-current panel"><header><span><CloudSun/> WEATHER <small>{weather?.location||'Current location'}</small></span><button aria-label="Refresh forecast" disabled={busy} onClick={refresh}><RotateCcw/></button></header><div className="weather-main"><strong>{weather?`${weather.temperature}°`:'—°'}</strong><span>{weather?.condition||'Location needed'}<small>{weather?.feelsLike!=null?`Feels like ${weather.feelsLike}°`:'Tap refresh for local conditions'}</small></span></div><div className="weather-secondary"><span>High / Low <b>{days[0]?`${days[0].high}° / ${days[0].low}°`:'—'}</b></span><span>Sunset <b>{days[0]?.sunset?new Date(days[0].sunset).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'}):'—'}</b></span></div></div>
-    <section className="forecast-panel panel" aria-label="Hourly forecast"><h2>Next hours</h2><div className="forecast-strip">{hours.length?hours.map((hour,i)=><div key={hour.time||i}><small>{new Date(hour.time).toLocaleTimeString([],{hour:'numeric'})}</small><CloudSun/><b>{hour.temperature}°</b></div>):<p>Hourly forecast appears after a weather update.</p>}</div></section>
-    <section className="forecast-panel panel" aria-label="Five-day forecast"><h2>5-day forecast</h2><div className="forecast-strip">{days.length?days.map((day,i)=><div key={day.date||i}><small>{new Date(day.date+'T12:00:00').toLocaleDateString([],{weekday:'short'})}</small><CloudSun/><b>{day.high}° <small>/ {day.low}°</small></b></div>):<p>Daily forecast appears after a weather update.</p>}</div></section>
+    <div className={'weather-hero sky-'+sky}><div className="weather-sky-orb"/><div className="weather-sky-lines"/><div className="weather-hero-copy"><span>TRX APEX · LOCAL FORECAST</span><h1>The road ahead.</h1><p>{weather?`${weather.condition} · Your current location`:'Allow location for your local forecast'}</p></div><WeatherGlyph condition={weather?.condition} className="weather-hero-icon"/></div>
+    <div className="weather-current panel"><header><span><WeatherGlyph condition={weather?.condition}/> CURRENT CONDITIONS <small>{weather?.location||'Near you'}</small></span><button aria-label="Refresh forecast" disabled={busy} onClick={refresh}><RotateCcw/></button></header><div className="weather-main"><strong>{weather?`${weather.temperature}°`:'—°'}</strong><span>{weather?.condition||'Location needed'}<small>{weather?.feelsLike!=null?`Feels like ${weather.feelsLike}°`:'Tap refresh for local conditions'}</small></span></div><div className="weather-secondary"><span>High / Low <b>{days[0]?`${days[0].high}° / ${days[0].low}°`:'—'}</b></span><span>Sunset <b>{days[0]?.sunset?new Date(days[0].sunset).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'}):'—'}</b></span></div></div>
+    <section className="forecast-panel panel" aria-label="Hourly forecast"><h2>Next hours</h2><div className="forecast-strip">{hours.length?hours.map((hour,i)=><div key={hour.time||i}><small>{new Date(hour.time).toLocaleTimeString([],{hour:'numeric'})}</small><WeatherGlyph condition={hour.condition}/><b>{hour.temperature}°</b></div>):<p>Hourly forecast appears after a weather update.</p>}</div></section>
+    <section className="forecast-panel panel" aria-label="Five-day forecast"><h2>5-day forecast</h2><div className="forecast-strip">{days.length?days.map((day,i)=><div key={day.date||i}><small>{new Date(day.date+'T12:00:00').toLocaleDateString([],{weekday:'short'})}</small><WeatherGlyph condition={day.condition}/><b>{day.high}° <small>/ {day.low}°</small></b></div>):<p>Daily forecast appears after a weather update.</p>}</div></section>
   </section>;
 }
+function WeatherGlyph({condition,className}){const s=(condition||'').toLowerCase();const Icon=s.includes('storm')?CloudLightning:s.includes('rain')||s.includes('shower')?CloudRain:s.includes('snow')?CloudSnow:s.includes('fog')?CloudFog:s==='clear'?Sun:CloudSun;return <Icon className={className} aria-hidden="true"/>;}
 function MapPreview({location,theme,mapMode,day,hidden}){
   const ref=useRef();const [error,setError]=useState('Loading live map…');
   useEffect(()=>{
