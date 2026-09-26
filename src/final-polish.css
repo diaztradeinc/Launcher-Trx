@@ -1,0 +1,61 @@
+/* Final cockpit pass: all finishes color the chrome, never the artwork or map. */
+.apex-shell.surface-charcoal{--ui-base:#20292e;--ui-deep:#0b1115;--ui-panel:#182126;--ui-raised:#29343a;--ui-line:#65737a;--finish-grain:repeating-linear-gradient(90deg,#ffffff08 0 1px,transparent 1px 11px)}
+.apex-shell.surface-dark{--ui-base:#121a21;--ui-deep:#04080d;--ui-panel:#101820;--ui-raised:#1c2830;--ui-line:#5a6b75;--finish-grain:repeating-linear-gradient(0deg,#ffffff05 0 1px,transparent 1px 10px)}
+.apex-shell.surface-black{--ui-base:#07090b;--ui-deep:#010203;--ui-panel:#080b0d;--ui-raised:#151a1d;--ui-line:#556168;--finish-grain:repeating-linear-gradient(90deg,#ffffff05 0 1px,transparent 1px 16px)}
+.apex-shell.surface-carbon{--ui-base:#181f22;--ui-deep:#070c0e;--ui-panel:#121b1e;--ui-raised:#242f33;--ui-line:#65777d;--finish-grain:repeating-linear-gradient(135deg,#ffffff0d 0 1px,transparent 1px 6px),repeating-linear-gradient(45deg,#0009 0 1px,transparent 1px 6px)}
+.apex-shell .page{background-image:var(--finish-grain),linear-gradient(145deg,var(--ui-base),var(--ui-deep))}
+.apex-shell .panel:not(.weather-card):not(.home-map){background-image:var(--finish-grain),linear-gradient(155deg,var(--ui-panel),var(--ui-deep));border-color:var(--ui-line)}
+.apex-shell .command-rail{gap:4px;padding:7px 4px;justify-content:stretch;background-image:var(--finish-grain),linear-gradient(105deg,var(--ui-base),var(--ui-deep))}
+.apex-shell .command-rail button,.apex-shell .command-rail button:last-child{width:100%;flex:1 1 0;max-height:none;min-height:0;min-width:0;aspect-ratio:auto;align-self:stretch;border-radius:9px;background:var(--finish-grain),linear-gradient(155deg,var(--ui-raised),var(--ui-deep))!important;border:1px solid var(--ui-line)!important;box-shadow:inset 0 1px #ffffff20,0 2px 7px #0008}
+.apex-shell .command-rail button.active{border-color:var(--accent)!important;box-shadow:inset 0 1px #ffffff36,0 0 9px color-mix(in srgb,var(--accent) 40%,transparent)}
+.apex-shell .command-rail button:last-child{flex:0 1 65px;margin-top:auto}
+.apex-shell .command-rail button span{font-size:clamp(8px,1.25vh,11px)}
+.apex-shell .command-rail button svg{height:clamp(18px,3vh,29px);width:clamp(18px,3vh,29px)}
+.apex-shell .status-right button[aria-label="Close"]{background:transparent!important;border:0!important;box-shadow:none!important;padding:0 2px}
+.apex-shell .home-launch button,.apex-shell .quick-row button,.apex-shell .settings-actions button{background:var(--finish-grain),linear-gradient(145deg,var(--ui-raised),var(--ui-deep))!important;border-color:var(--ui-line)}
+.apex-shell .theme-panel{min-height:104px!important;padding:8px 10px;display:grid;gap:5px}
+.apex-shell .theme-swatches{min-height:69px}
+.apex-shell .theme-swatches button{background:var(--finish-grain),linear-gradient(155deg,var(--ui-raised),var(--ui-deep))!important;border-radius:9px}
+.apex-shell .theme-swatches i{height:39px;width:min(60px,85%);border:2px solid #ffffff75;box-shadow:inset 0 2px 8px #fff4,0 2px 8px #0008}
+.apex-shell .theme-swatches b{font-size:clamp(9px,1.3vh,12px)}
+.apex-shell .surface-panel{min-height:82px!important;gap:8px}
+.apex-shell .surface-choices button{min-height:70px;border-radius:8px!important;gap:3px}
+.apex-shell .surface-choices i{height:35px;width:min(64px,78%);border:1px solid #ffffff75;box-shadow:inset 0 2px #ffffff30,0 3px 9px #0009}
+.apex-shell .surface-choices i.charcoal{background-image:repeating-linear-gradient(90deg,#ffffff24 0 1px,transparent 1px 8px)}
+.apex-shell .surface-choices i.dark{background-image:repeating-linear-gradient(0deg,#ffffff1c 0 1px,transparent 1px 8px)}
+.apex-shell .surface-choices i.black{background-image:linear-gradient(145deg,#101519,#010101 70%)}
+.apex-shell .surface-choices i.carbon{background-image:repeating-linear-gradient(135deg,#ffffff42 0 1px,transparent 1px 5px),repeating-linear-gradient(45deg,#0009 0 1px,transparent 1px 5px)}
+.apex-shell .surface-choices b{font-size:clamp(9px,1.25vh,12px)}
+.apex-shell .settings-page .studio-hero{height:clamp(84px,16vh,143px)}
+.apex-shell .settings-page .studio-rows{min-height:275px}
+.apex-shell .media-top{background:radial-gradient(ellipse at 60% 50%,color-mix(in srgb,var(--accent) 26%,transparent),transparent 50%),radial-gradient(ellipse at 50% 35%,var(--tone),#06090e 80%)}
+.apex-shell .media-source-rail button{min-height:clamp(27px,4vh,43px);background:linear-gradient(145deg,var(--ui-panel),var(--ui-deep))!important}
+.apex-shell .media-source-rail small{font-size:clamp(9px,1.35vh,13px)}
+.apex-shell .media-top .record{max-height:94%;height:94%;max-width:95%;border-radius:14px;box-shadow:0 0 27px color-mix(in srgb,var(--accent) 35%,transparent),0 9px 19px #000b}
+.apex-shell .track-editorial h1{font-size:clamp(20px,3.1vh,31px)}
+.apex-shell .audio-spectrum.idle .spectrum-stage .spectrum-bars i{height:calc(10% + (var(--index) * 1.4%))!important;opacity:.45;animation:ambient-spectrum 2.6s ease-in-out infinite alternate;animation-delay:calc(var(--index) * -85ms)}
+.apex-shell .reduce-motion .audio-spectrum.idle .spectrum-stage .spectrum-bars i{animation:none}
+.apex-shell .queue-list>button{opacity:1;background:linear-gradient(90deg,var(--ui-panel),transparent)!important;border-bottom:1px solid #ffffff18;justify-content:flex-start}
+.apex-shell .queue-list>button b{font-size:clamp(11px,1.7vh,15px);color:#f5f3f0}
+.apex-shell .queue-list>button small{color:#bac3c6}
+.apex-shell .transport>button:not(.primary){background:linear-gradient(145deg,var(--ui-raised),var(--ui-deep))!important;border:1px solid var(--ui-line)!important;border-radius:12px}
+.apex-shell .performance-hero .gauge-row{top:5%;height:auto;align-items:flex-start}
+.apex-shell .performance-hero .gauge-row>div{width:clamp(74px,22%,140px);height:auto;aspect-ratio:1;border-radius:50%;background:radial-gradient(circle,#0b1520ef,#09121bcc 75%)}
+.apex-shell .performance-hero .gauge-row strong{font-size:clamp(20px,3.7vh,34px)}
+.apex-shell .telemetry-grid>div{background:var(--finish-grain),linear-gradient(155deg,var(--ui-panel),var(--ui-deep))}
+.apex-shell .apps-page{grid-template-rows:50px minmax(145px,.86fr) minmax(175px,1fr)}
+.apex-shell .app-orbit{background:radial-gradient(circle at 50% 50%,#02060965,#05080fc7 85%),url('/art/trx-sunset-v528.webp') center 52%/cover}
+.apex-shell .app-orbit:before{border-color:#d9e4e27a;top:11%;bottom:11%;left:11%;right:11%}
+.apex-shell .orbit-emblem{top:50%;width:clamp(76px,18%,136px);aspect-ratio:1;display:flex;justify-content:center;align-items:center;flex-direction:column;border-radius:50%;border:2px solid color-mix(in srgb,var(--accent) 68%,#929a9a);background:var(--finish-grain),radial-gradient(circle at 30% 25%,#45535b,#091114 72%);box-shadow:0 0 20px #000e,inset 0 0 12px var(--tone);font-size:clamp(23px,4vh,37px)}
+.apex-shell .app-orbit .app-tile,.apex-shell .app-orbit .orbit-add{position:absolute;transform:translate(-50%,-50%);width:clamp(56px,13%,100px);height:auto;aspect-ratio:1;min-height:0;padding:3px;border-radius:50%;background:linear-gradient(155deg,var(--ui-raised),var(--ui-deep))!important;border:1px solid color-mix(in srgb,var(--accent) 70%,var(--ui-line));box-shadow:0 0 15px #000c,inset 0 1px #fff4;display:flex;flex-direction:column;justify-content:center;gap:2px}
+.apex-shell .app-orbit .app-icon{width:clamp(25px,4vh,44px);height:clamp(25px,4vh,44px)}
+.apex-shell .app-orbit .app-tile b{font-size:clamp(8px,1.35vh,12px);max-width:95%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.apex-shell .orbit-add{color:#d3dbe0;border-style:dashed!important;opacity:.87}
+.apex-shell .orbit-add svg{width:23px;height:23px;color:var(--accent)}
+.apex-shell .orbit-add small{font-size:10px}
+.apex-shell .apps-grid{grid-template-columns:repeat(5,minmax(0,1fr));grid-auto-rows:clamp(68px,10vh,99px);gap:5px}
+.apex-shell .apps-grid .app-tile{background:var(--finish-grain),linear-gradient(155deg,var(--ui-raised),var(--ui-deep));border:1px solid var(--ui-line);border-radius:9px}
+.apex-shell .apps-grid .app-icon{width:clamp(28px,5vh,43px);height:clamp(28px,5vh,43px)}
+.apex-shell .apps-grid .app-tile b{font-size:clamp(9px,1.35vh,12px)}
+@media(max-width:680px){.apex-shell .apps-grid{grid-template-columns:repeat(4,minmax(0,1fr))}.apex-shell .app-orbit .app-tile,.apex-shell .app-orbit .orbit-add{width:clamp(46px,13%,77px)}.apex-shell .orbit-emblem{width:clamp(62px,18%,98px)}.apex-shell .surface-panel>span{display:none}}
+@media(max-height:620px){.apex-shell .settings-page .studio-hero{height:72px}.apex-shell .theme-panel{min-height:80px!important}.apex-shell .surface-panel{min-height:66px!important}.apex-shell .surface-choices button{min-height:55px}.apex-shell .surface-choices i{height:26px}.apex-shell .theme-swatches i{height:28px}.apex-shell .command-rail button:last-child{flex-basis:47px}}
