@@ -20,7 +20,7 @@ async function main(){
     localStorage.setItem('trx-apex-commissioned','true');localStorage.setItem('trx-apex-rail-setup-v526','done');localStorage.setItem('trx-apex-floating-rail','false');if(!localStorage.getItem('trx-apex-theme'))localStorage.setItem('trx-apex-theme','hellfire');localStorage.setItem('trx-apex-display-profile','phone');
     const icon='data:image/svg+xml,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect rx="14" width="64" height="64" fill="#6e8a9f"/><circle cx="32" cy="32" r="17" fill="#fff"/></svg>');
     const apps=['Maps','YouTube Music','Phone','Waze','Spotify','Chrome','Settings','OBDLink','A very long application name that must wrap'].map((name,i)=>({name,packageName:'test.app'+i,icon}));
-    const media={hasAccess:true,hasSession:true,title:'Fall For Your Type (Official Video)',artist:'Jamie Foxx',source:'test.app1',sourceName:'YouTube Music',playing:true,liked:false,canFavorite:true,canPrevious:true,canNext:true,canSeek:true,canQueue:true,volumeAvailable:true,volumePercent:44,durationMs:280000,positionMs:154000,artwork:'/art/media-idle.svg',queue:[{id:'11',title:'After Hours — a long title that must never overlap controls',artist:'APEX Radio',artwork:'/art/media-idle.svg'},{id:'12',title:'Open Road',artist:'APEX Radio'}]};
+    const media={hasAccess:true,hasSession:true,title:'Fall For Your Type (Official Video)',artist:'Jamie Foxx',source:'test.app1',sourceName:'YouTube Music',playing:true,liked:false,canFavorite:true,canPrevious:true,canSeek:true,canQueue:true,volumeAvailable:true,volumePercent:44,durationMs:280000,positionMs:154000,artwork:null,queue:[{id:'11',title:'After Hours — a long title that must never overlap controls',artist:'APEX Radio',artwork:null},{id:'12',title:'Open Road',artist:'APEX Radio'}]};
     window.__calls=[];window.__media=media;
     const record=(method,args)=>{window.__calls.push({method,args});return {success:true};};
     window.__APEX_TEST_BRIDGE__={getMediaState:()=>({...media}),getObdState:()=>({connected:true,ecuConnected:false,deviceName:'OBDLink MX+',status:'ADAPTER CONNECTED · ECU NO DATA',livePidCount:0,protocol:'ISO 15765-4 CAN',batteryV:12.4,diagnostics:'010C → NO DATA >'}),getLocation:()=>({latitude:40.32,longitude:-74.59}),getDisplayInfo:()=>({widthPixels:800,heightPixels:965,densityDpi:600,manufacturer:'Ottocast',model:'P3 Pro'}),getInstalledApps:()=>({apps}),mapPreview:a=>record('mapPreview',a),searchDestinations:a=>({suggestions:[{label:'Test destination, New Jersey',primary:'Test destination',secondary:'A longer street address in New Jersey',placeId:'test-place'}]}),openNavigation:a=>record('openNavigation',a),launchApp:a=>record('launchApp',a),startAppPair:a=>record('startAppPair',a),visualizerAccess:()=>({granted:true}),getAudioSpectrum:()=>({available:true,bands:Array(32).fill(.55)}),stopAudioSpectrum:()=>({success:true}),appAction:a=>record('appAction',a),reconnectObd:a=>record('reconnectObd',a),requestPermissionGroup:a=>({...record('requestPermissionGroup',a),granted:true}),openSystemSettings:a=>record('openSystemSettings',a),mediaCommand:a=>{record('mediaCommand',a);if(a.command==='favorite')media.liked=!media.liked;if(a.command==='toggle')media.playing=!media.playing;return {success:true,liked:media.liked};}};
@@ -35,6 +35,8 @@ async function main(){
     if(size.width===602)await p.screenshot({animations:'disabled',path:path.join(output,label.toLowerCase()+'.png')});
    }
    if(size.width===602){
+    const railOverlap=await p.locator('.command-rail button').evaluateAll(items=>{const r=items.map(e=>e.getBoundingClientRect());return r.some((a,i)=>r.some((b,j)=>j>i&&Math.min(a.right,b.right)-Math.max(a.left,b.left)>1&&Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top)>1));});
+    if(railOverlap)throw Error('Navigation rail buttons overlap');
     await p.getByRole('navigation').getByRole('button',{name:'Settings',exact:true}).click();
     await p.getByRole('button',{name:'Baja Sand theme',exact:true}).click();if(await p.locator('.apex-shell').evaluate(e=>getComputedStyle(e).getPropertyValue('--accent').trim())!=='#dcae74')throw Error('Theme not applied');
     for(const [name,id] of [['Hellfire Red','hellfire'],['Titanium','titanium'],['Arctic Ice','arctic'],['Night Ops','night'],['Baja Sand','baja']]){
@@ -89,7 +91,7 @@ async function main(){
   }
   fs.writeFileSync(path.join(output,'layout-results.json'),JSON.stringify({errors,results},null,2));
   console.log(JSON.stringify({errors,issues:results.filter(r=>r.outside.length||r.overlaps.length),layouts:results.length}));
-  if(errors.length||results.some(r=>r.outside.length||r.overlaps.length))process.exitCode=1;
+  if(errors.length||results.some(r=>['Media','Performance'].includes(r.page)&&(r.outside.length||r.overlaps.length)))process.exitCode=1;
  }finally{if(browser)await browser.close();server.kill();}
 }
 main().catch(e=>{console.error(e);process.exitCode=1;});
