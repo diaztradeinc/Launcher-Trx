@@ -18,7 +18,7 @@ public class MainActivity extends BridgeActivity {
         ObdBridge.start(this);
         MediaBridge.ensureConnected(this);
     }
-    @Override protected void onPause() {
+    @Override public void onPause() {
         FloatingRailService.setLauncherVisible(false);
         super.onPause();
     }
