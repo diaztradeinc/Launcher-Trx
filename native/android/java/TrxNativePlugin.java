@@ -13,9 +13,11 @@ import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
+import android.content.res.AssetFileDescriptor;
 import android.location.Location;
 import android.location.LocationManager;
 import android.media.AudioManager;
+import android.media.MediaPlayer;
 import android.media.audiofx.Visualizer;
 import android.net.Uri;
 import android.os.Build;
@@ -54,6 +56,9 @@ import java.util.Locale;
 )
 public class TrxNativePlugin extends Plugin {
     private Visualizer spectrum;
+    private MediaPlayer startupPlayer;
+    private AudioManager startupAudio;
+    private boolean startupPlayed;
     private PlacesClient placesClient;
     private PreviewMapController previewMap;
     private LocationManager locationManager;
@@ -79,8 +84,31 @@ public class TrxNativePlugin extends Plugin {
         previewMap.update(call);
     }
     @Override protected void handleOnResume(){super.handleOnResume();if(previewMap!=null)previewMap.resume();}
-    @Override protected void handleOnPause(){stopSpectrum();if(previewMap!=null)previewMap.pause();super.handleOnPause();}
-    @Override protected void handleOnDestroy(){stopSpectrum();if(previewMap!=null)previewMap.destroy();if(locationManager!=null)locationManager.removeUpdates(locationListener);super.handleOnDestroy();}
+    @Override protected void handleOnPause(){stopSpectrum();releaseStartupSound();if(previewMap!=null)previewMap.pause();super.handleOnPause();}
+    @Override protected void handleOnDestroy(){stopSpectrum();releaseStartupSound();if(previewMap!=null)previewMap.destroy();if(locationManager!=null)locationManager.removeUpdates(locationListener);super.handleOnDestroy();}
+
+    private synchronized void releaseStartupSound(){
+        if(startupPlayer!=null){try{startupPlayer.release();}catch(Throwable ignored){}startupPlayer=null;}
+        if(startupAudio!=null){startupAudio.abandonAudioFocus(null);startupAudio=null;}
+    }
+    @PluginMethod public void playStartupSound(PluginCall call){
+        if(startupPlayed){JSObject response=new JSObject();response.put("success",true);response.put("alreadyPlayed",true);call.resolve(response);return;}
+        getActivity().runOnUiThread(()->{
+            try(AssetFileDescriptor clip=getContext().getAssets().openFd("public/audio/hellrex-startup.mp3")){
+                if(startupPlayed){call.resolve();return;}
+                startupAudio=(AudioManager)getContext().getSystemService(Context.AUDIO_SERVICE);
+                if(startupAudio!=null)startupAudio.requestAudioFocus(null,AudioManager.STREAM_MUSIC,AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK);
+                startupPlayer=new MediaPlayer();
+                startupPlayer.setAudioStreamType(AudioManager.STREAM_MUSIC);
+                startupPlayer.setDataSource(clip.getFileDescriptor(),clip.getStartOffset(),clip.getLength());
+                startupPlayer.setOnCompletionListener(player->releaseStartupSound());
+                startupPlayer.prepare();
+                startupPlayer.start();
+                startupPlayed=true;
+                JSObject response=new JSObject();response.put("success",true);call.resolve(response);
+            }catch(Throwable error){releaseStartupSound();call.reject("Unable to play the startup greeting",error.getMessage());}
+        });
+    }
 
     private synchronized void stopSpectrum(){
         if(spectrum!=null){try{spectrum.setEnabled(false);}catch(Throwable ignored){}try{spectrum.release();}catch(Throwable ignored){}spectrum=null;}

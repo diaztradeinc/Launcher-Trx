@@ -14,6 +14,7 @@ async function safe(method, args, fallback) {
 export const native = {
   mapPreview: (args) => safe('mapPreview', args, {error:'Live map available on Android'}),
   displayInfo: () => safe('getDisplayInfo', {}, null),
+  playStartupSound: () => safe('playStartupSound', {}, unavailable),
   requestPermissionGroup: (group) => safe('requestPermissionGroup', { group }, { granted: false }),
   apps: () => safe('getInstalledApps', {}, { apps: [] }),
   launchApp: (packageName) => safe('launchApp', { packageName }, unavailable),
