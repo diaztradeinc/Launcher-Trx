@@ -32,6 +32,8 @@ import androidx.core.content.ContextCompat;
 
 import com.google.android.gms.maps.GoogleMap.CameraPerspective;
 import com.google.android.gms.maps.GoogleMap;
+import com.google.android.gms.maps.CameraUpdateFactory;
+import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.MapStyleOptions;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
@@ -72,6 +74,8 @@ public class NavigationActivity extends AppCompatActivity {
     private RoadSnappedLocationProvider roadSnappedLocationProvider;
     private boolean locationListenerRegistered;
     private boolean guidanceActive;
+    private boolean pendingGuidanceZoom;
+    private Location lastRoadLocation;
     private final RoadSnappedLocationProvider.LocationListener roadLocationListener = new RoadSnappedLocationProvider.LocationListener() {
         @Override public void onLocationChanged(@NonNull Location location) { updateTrxMarker(location); }
     };
@@ -151,7 +155,7 @@ public class NavigationActivity extends AppCompatActivity {
         hideControls.setOnClickListener(v -> toggleDriveControls());
         driveControls.addView(hideControls, new LinearLayout.LayoutParams(-1, dp(44)));
         Button recenter = railButton("Recenter");
-        recenter.setOnClickListener(v -> navigationView.getMapAsync(map -> map.followMyLocation(CameraPerspective.TILTED)));
+        recenter.setOnClickListener(v -> focusGuidanceCamera());
         Button satellite = railButton("Layers");
         satellite.setOnClickListener(v -> navigationView.getMapAsync(map -> {
             satelliteMode = !satelliteMode;
@@ -291,8 +295,9 @@ public class NavigationActivity extends AppCompatActivity {
                 if(routeStatus==Navigator.RouteStatus.OK){
                     AudioGuidanceSettings audio=AudioGuidanceSettings.builder().setGuidanceMode(audioEnabled ? AudioGuidanceSettings.GuidanceMode.VOICE_ALERTS_AND_GUIDANCE : AudioGuidanceSettings.GuidanceMode.SILENT).build();
                     navigator.setAudioGuidanceSettings(audio);navigator.startGuidance();status.setVisibility(android.view.View.GONE);destination.clearFocus();
-                    guidanceActive=true;searchBar.setVisibility(View.GONE);driveControls.setVisibility(View.GONE);railToggle.setVisibility(View.VISIBLE);positionRailToggle();
+                    guidanceActive=true;pendingGuidanceZoom=true;searchBar.setVisibility(View.GONE);driveControls.setVisibility(View.GONE);railToggle.setVisibility(View.VISIBLE);positionRailToggle();
                     if (googleMap != null) googleMap.setPadding(0, 0, 0, dp(88));
+                    focusGuidanceCamera();
                     InputMethodManager keyboard=(InputMethodManager)getSystemService(Context.INPUT_METHOD_SERVICE);
                     if(keyboard!=null)keyboard.hideSoftInputFromWindow(destination.getWindowToken(),0);
                 }else status.setText("ROUTE UNAVAILABLE · "+routeStatus);
@@ -370,7 +375,9 @@ public class NavigationActivity extends AppCompatActivity {
 
     private void updateTrxMarker(Location location) {
         if (googleMap == null || location == null || !guidanceActive) return;
+        lastRoadLocation = location;
         if (location.hasAccuracy() && location.getAccuracy() > 30f) {if (trxMarker != null) trxMarker.setVisible(false);return;}
+        if (pendingGuidanceZoom) { pendingGuidanceZoom=false;focusGuidanceCamera(); }
         LatLng position = new LatLng(location.getLatitude(), location.getLongitude());
         if (trxMarker == null) {
             trxMarker = googleMap.addMarker(new MarkerOptions()
@@ -385,6 +392,22 @@ public class NavigationActivity extends AppCompatActivity {
             trxMarker.setPosition(position);
             if (location.hasBearing()) trxMarker.setRotation(location.getBearing());
         }
+    }
+
+    private void focusGuidanceCamera() {
+        navigationView.getMapAsync(map -> {
+            map.followMyLocation(CameraPerspective.TILTED);
+            Location location=lastRoadLocation;
+            if (location == null && ContextCompat.checkSelfPermission(this,Manifest.permission.ACCESS_FINE_LOCATION)==PackageManager.PERMISSION_GRANTED) {
+                android.location.LocationManager manager=(android.location.LocationManager)getSystemService(Context.LOCATION_SERVICE);
+                try { if (manager!=null) location=manager.getLastKnownLocation(android.location.LocationManager.GPS_PROVIDER); }
+                catch (SecurityException ignored) {}
+            }
+            if (location == null) return;
+            LatLng target=new LatLng(location.getLatitude(),location.getLongitude());
+            float bearing=location.hasBearing()?location.getBearing():map.getCameraPosition().bearing;
+            map.animateCamera(CameraUpdateFactory.newCameraPosition(new CameraPosition.Builder().target(target).zoom(17f).tilt(50f).bearing(bearing).build()),650,null);
+        });
     }
 
     private Bitmap createTrxMarkerBitmap() {

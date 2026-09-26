@@ -81,8 +81,8 @@ async function main(){
     await p.waitForTimeout(150);
     if(await p.getByRole('button',{name:'Play',exact:true}).count())await p.getByRole('button',{name:'Play',exact:true}).click();
     await p.locator('.audio-spectrum.live').waitFor({timeout:2500});
-    for(const [label,name] of [['Pulse','Mirror'],['Wave','Wave'],['Orbit','Orbit'],['Spectrum','Bars']]){
-     await p.getByRole('group',{name:'Visualizer style'}).getByRole('button',{name:label,exact:true}).click();
+    for(const [label,name] of [['Crown','Crown'],['Ripple','Ripple'],['Wings','Wings'],['Halo','Halo']]){
+     await p.getByRole('group',{name:'Visualizer shape'}).getByRole('button',{name:label,exact:true}).click();
      if(!await p.locator('.viz-'+name.toLowerCase()).count())throw Error('Visualizer style failed '+name);
     }
 

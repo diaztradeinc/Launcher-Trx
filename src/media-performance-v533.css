@@ -1,0 +1,32 @@
+/* v5.33: visible surround, four distinct geometry choices, unobstructed gauges. */
+.apex-shell .media-stage-page>.media-top{background:radial-gradient(ellipse at center,color-mix(in srgb,var(--accent) 20%,transparent),transparent 62%),repeating-linear-gradient(135deg,#ffffff07 0 1px,transparent 1px 7px),#030608!important}
+.apex-shell .media-stage-page .record{z-index:3;max-width:40%;height:min(75%,37vh);transform:none;box-shadow:0 0 0 7px #04070cd9,0 0 28px color-mix(in srgb,var(--accent) 78%,transparent),0 14px 22px #000d}
+.apex-shell .media-stage-page .audio-spectrum .spectrum-stage{inset:4% 0;width:100%;height:92%;background:none!important;overflow:hidden}
+.apex-shell .media-stage-page .spectrum-halo{position:absolute;width:min(49%,41vh);aspect-ratio:1;left:50%;top:50%;transform:translate(-50%,-50%);border:2px solid color-mix(in srgb,var(--accent) 85%,white);border-radius:50%;box-shadow:0 0 9px var(--accent),inset 0 0 16px color-mix(in srgb,var(--accent) 55%,transparent);opacity:.85}
+.apex-shell .media-stage-page .spectrum-halo:before{content:'';position:absolute;inset:-14px;border-radius:50%;background:repeating-conic-gradient(from 8deg,color-mix(in srgb,var(--accent) 60%,white) 0deg 1deg,transparent 1deg 5deg);mask:radial-gradient(circle,transparent 68%,#000 70% 75%,transparent 77%);opacity:.8}
+.apex-shell .media-stage-page .spectrum-bars{inset:0;display:flex!important;align-items:center;justify-content:space-between;gap:1px;padding:0 2%!important}
+.apex-shell .media-stage-page .spectrum-bars i{position:static!important;display:block!important;flex:1;min-width:1px;width:auto!important;height:clamp(5px,var(--level),70%)!important;max-height:70%!important;transform:none!important;filter:none!important;opacity:calc(.30 + .70 * var(--energy));background:linear-gradient(180deg,transparent,var(--accent) 24%,#fff 50%,var(--accent) 76%,transparent)!important;box-shadow:0 0 7px var(--accent);border-radius:50%;transition:height 110ms ease-out}
+.apex-shell .media-stage-page .audio-spectrum.idle .spectrum-bars i{height:8px!important;opacity:.48;animation:none!important}
+.apex-shell .media-stage-page .audio-spectrum.idle .spectrum-bars i:nth-child(4n+2){height:13px!important}
+.apex-shell .media-stage-page .audio-spectrum.idle .spectrum-bars i:nth-child(7n+3){height:18px!important}
+/* Wings use mirrored columns; Ripple traces waves; Halo wraps the art; Crown rises above it. */
+.apex-shell .media-stage-page .viz-halo .spectrum-bars{mask:linear-gradient(90deg,#000 0 27%,transparent 37% 63%,#000 73%)}
+.apex-shell .media-stage-page .viz-wings .spectrum-halo{border-color:transparent;box-shadow:none}
+.apex-shell .media-stage-page .viz-wings .spectrum-bars{mask:linear-gradient(90deg,#000 0 28%,transparent 38% 62%,#000 72%)}
+.apex-shell .media-stage-page .viz-wings .spectrum-bars i{border-radius:2px;background:linear-gradient(180deg,transparent 0,var(--accent) 35%,#fff 50%,var(--accent) 65%,transparent 100%)!important}
+.apex-shell .media-stage-page .viz-ripple .spectrum-halo{border-width:3px;box-shadow:0 0 7px var(--accent),0 0 0 12px color-mix(in srgb,var(--accent) 17%,transparent),0 0 0 27px color-mix(in srgb,var(--accent) 9%,transparent)}
+.apex-shell .media-stage-page .viz-ripple .spectrum-bars{mask:linear-gradient(90deg,#000 0 26%,transparent 36% 64%,#000 74%)}
+.apex-shell .media-stage-page .viz-ripple .spectrum-bars i{border-radius:100%;max-height:38%!important}
+.apex-shell .media-stage-page .viz-crown .spectrum-bars{align-items:flex-end;padding-bottom:11%!important;mask:linear-gradient(90deg,#000 0 30%,transparent 39% 61%,#000 70%)}
+.apex-shell .media-stage-page .viz-crown .spectrum-bars i{border-radius:5px 5px 0 0;background:linear-gradient(0deg,var(--accent),#fff 80%,transparent)!important}
+.apex-shell .media-stage-page .viz-crown .spectrum-halo{border-style:dotted}
+.apex-shell .media-stage-page .visual-style-row .shape-glyph{font-size:clamp(17px,2.8vh,26px);line-height:1;min-width:24px;color:var(--accent);text-align:center}
+.apex-shell .media-stage-page .audio-spectrum>.spectrum-idle{z-index:5;max-width:36%}
+.apex-shell .performance-hud-page .gauge-row{inset:3% 2% auto;height:min(43%,25vh);align-items:flex-start}
+.apex-shell .performance-hud-page .gauge-row>div.instrument-dial{width:min(23%,23vh);height:auto;max-height:none;aspect-ratio:1;clip-path:none!important;border:2px solid color-mix(in srgb,var(--accent) 90%,#fff);background:repeating-conic-gradient(from 200deg,#f3f8f9 0deg 1deg,transparent 1deg 12deg),conic-gradient(from 210deg,var(--accent),#f5fafb 30% 66%,var(--accent) 82%,transparent 85%);box-shadow:0 0 14px color-mix(in srgb,var(--accent) 60%,transparent),0 7px 16px #000b}
+.apex-shell .performance-hud-page .gauge-row>div.instrument-dial:before{inset:5%;background:radial-gradient(circle,#05090df5 0 48%,#0a1116f3 68%,#04070cf4 83%)}
+.apex-shell .performance-hud-page .gauge-row strong{font-size:clamp(20px,4.2vh,44px)}
+.apex-shell .performance-hud-page .instrument-dial .dial-ticks span{font-size:clamp(7px,1.1vh,11px)}
+@media(max-width:550px){.apex-shell .performance-hud-page .gauge-row>div.instrument-dial{width:min(25%,19vh)}.apex-shell .media-stage-page .record{max-width:44%}.apex-shell .media-stage-page .visual-style-row button{flex-direction:column;gap:0}}
+@media(min-aspect-ratio:6/5){.apex-shell .media-stage-page .record{max-width:56%;height:min(65%,40vh)}.apex-shell .media-stage-page .spectrum-halo{width:min(70%,39vh)}.apex-shell .performance-hud-page .gauge-row>div.instrument-dial{width:min(28%,27vh)}}
+.reduce-motion .media-stage-page .spectrum-bars i{transition:none!important}
