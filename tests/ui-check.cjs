@@ -28,11 +28,8 @@ async function main(){
    await p.goto('http://127.0.0.1:5181');await p.evaluate(()=>document.fonts.ready);
    if(await p.locator('.launch-splash').count())throw Error('Completed setup should not replay the first-run splash');
    const navigate=async label=>{
-    if(['Apps','Settings','Weather','Performance'].includes(label))await p.getByRole('button',{name:'Open '+label.toLowerCase(),exact:true}).click();
-    else {await p.getByRole('navigation',{name:'Main navigation'}).getByRole('button',{name:'Home',exact:true}).click();
-     if(label==='Navigation')await p.getByRole('button',{name:/Search destination/}).click();
-     if(label==='Media')await p.locator('.home-now-track').click();
-    }
+    if(label==='Weather')await p.getByRole('button',{name:'Open weather',exact:true}).click();
+    else await p.getByRole('navigation',{name:'Main navigation'}).getByRole('button',{name:label,exact:true}).click();
    };
    for(const label of ['Home','Navigation','Media','Performance','Apps','Settings','Weather']){
     await navigate(label);if(label==='Weather'&&await p.locator('.weather-hero img').count())throw Error('Weather duplicates truck artwork');await p.waitForTimeout(500);
@@ -42,9 +39,9 @@ async function main(){
    }
    if(size.width===602){
     const dockLabels=await p.getByRole('navigation',{name:'Main navigation'}).getByRole('button').evaluateAll(items=>items.map(e=>e.getAttribute('aria-label')));
-    if(JSON.stringify(dockLabels)!==JSON.stringify(['Home','Split screen','Back']))throw Error('Bottom dock does not match approved three-button layout');
-    const dockPlacement=await p.locator('.command-rail').evaluate(e=>{const d=e.getBoundingClientRect(),s=e.closest('.calibrated-stage').getBoundingClientRect();return {gap:s.bottom-d.bottom,widthRatio:d.width/s.width}});
-    if(dockPlacement.gap>2||dockPlacement.widthRatio<.94)throw Error('Dock does not reach bottom and full width');
+    if(JSON.stringify(dockLabels)!==JSON.stringify(['Home','Navigation','Media','Performance','Apps','Settings','Back']))throw Error('Launcher page rail must remain distinct from the three-button floating overlay');
+    const dockPlacement=await p.locator('.command-rail').evaluate(e=>{const d=e.getBoundingClientRect(),s=e.closest('.calibrated-stage').getBoundingClientRect();return {gap:d.left-s.left,heightRatio:d.height/s.height}});
+    if(Math.abs(dockPlacement.gap)>2||dockPlacement.heightRatio<.94)throw Error('Launcher page rail does not reach the left edge');
     const railOverlap=await p.locator('.command-rail button').evaluateAll(items=>{const r=items.map(e=>e.getBoundingClientRect());return r.some((a,i)=>r.some((b,j)=>j>i&&Math.min(a.right,b.right)-Math.max(a.left,b.left)>1&&Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top)>1));});
     if(railOverlap)throw Error('Navigation rail buttons overlap');
     await navigate('Settings');
@@ -85,7 +82,7 @@ async function main(){
     if(!await p.evaluate(()=>window.__calls.some(c=>c.method==='launchApp'&&c.args.packageName==='test.app4')))throw Error('App launch failed');
     await p.evaluate(()=>localStorage.setItem('trx-apex-orbit-favorites','[]'));await p.reload();await navigate('Apps');
     if(!await p.getByRole('button',{name:'Open weather',exact:true}).count())throw Error('Built-in weather shortcut missing when no favorites are selected');
-    await p.getByRole('navigation',{name:'Main navigation'}).getByRole('button',{name:'Split screen'}).click();
+    await p.getByRole('button',{name:'Pair two apps',exact:true}).click();
     await p.getByRole('dialog',{name:'Pair two apps'}).getByRole('button',{name:'Phone',exact:true}).click();
     await p.getByRole('dialog',{name:'Pair two apps'}).getByRole('button',{name:'Maps',exact:true}).click();
     if(!await p.evaluate(()=>window.__calls.some(c=>c.method==='startAppPair'&&c.args.first==='test.app2'&&c.args.second==='test.app0')))throw Error('Two-app split request was not dispatched');
