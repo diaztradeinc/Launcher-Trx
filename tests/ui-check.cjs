@@ -23,7 +23,7 @@ async function main(){
     const media={hasAccess:true,hasSession:true,title:'Fall For Your Type (Official Video)',artist:'Jamie Foxx',source:'test.app1',sourceName:'YouTube Music',playing:true,liked:false,canFavorite:true,canPrevious:true,canSeek:true,canQueue:true,volumeAvailable:true,volumePercent:44,durationMs:280000,positionMs:154000,artwork:null,queue:[{id:'11',title:'After Hours — a long title that must never overlap controls',artist:'APEX Radio',artwork:null},{id:'12',title:'Open Road',artist:'APEX Radio'}]};
     window.__calls=[];window.__media=media;
     const record=(method,args)=>{window.__calls.push({method,args});return {success:true};};
-    window.__APEX_TEST_BRIDGE__={getMediaState:()=>({...media}),getObdState:()=>({connected:true,ecuConnected:false,deviceName:'OBDLink MX+',status:'ADAPTER CONNECTED · ECU NO DATA',livePidCount:0,protocol:'ISO 15765-4 CAN',batteryV:12.4,diagnostics:'010C → NO DATA >'}),getLocation:()=>({latitude:40.32,longitude:-74.59}),getDisplayInfo:()=>({widthPixels:800,heightPixels:965,densityDpi:600,manufacturer:'Ottocast',model:'P3 Pro'}),getInstalledApps:()=>({apps}),mapPreview:a=>record('mapPreview',a),searchDestinations:a=>({suggestions:[{label:'Test destination, New Jersey',primary:'Test destination',secondary:'A longer street address in New Jersey',placeId:'test-place'}]}),openNavigation:a=>record('openNavigation',a),launchApp:a=>record('launchApp',a),startAppPair:a=>record('startAppPair',a),visualizerAccess:()=>({granted:true}),getAudioSpectrum:()=>({available:true,bands:Array(32).fill(.55)}),stopAudioSpectrum:()=>({success:true}),appAction:a=>record('appAction',a),reconnectObd:a=>record('reconnectObd',a),requestPermissionGroup:a=>({...record('requestPermissionGroup',a),granted:true}),openSystemSettings:a=>record('openSystemSettings',a),mediaCommand:a=>{record('mediaCommand',a);if(a.command==='favorite')media.liked=!media.liked;if(a.command==='toggle')media.playing=!media.playing;return {success:true,liked:media.liked};}};
+    window.__APEX_TEST_BRIDGE__={getMediaState:()=>({...media}),getObdState:()=>({connected:true,ecuConnected:false,deviceName:'OBDLink MX+',status:'ADAPTER CONNECTED · ECU NO DATA',livePidCount:0,protocol:'ISO 15765-4 CAN',batteryV:12.4,diagnostics:'010C → NO DATA >'}),getLocation:()=>({latitude:40.32,longitude:-74.59}),getDisplayInfo:()=>({widthPixels:800,heightPixels:965,densityDpi:600,manufacturer:'Ottocast',model:'P3 Pro'}),getInstalledApps:()=>({apps}),mapPreview:a=>record('mapPreview',a),searchDestinations:a=>({suggestions:[{label:'Test destination, New Jersey',primary:'Test destination',secondary:'A longer street address in New Jersey',placeId:'test-place'}]}),openNavigation:a=>record('openNavigation',a),launchApp:a=>record('launchApp',a),startAppPair:a=>record('startAppPair',a),visualizerAccess:()=>({granted:true}),getAudioSpectrum:()=>({available:true,bands:Array.from({length:32},(_,i)=>.12+.7*Math.abs(Math.sin(i*.43)))}),stopAudioSpectrum:()=>({success:true}),appAction:a=>record('appAction',a),reconnectObd:a=>record('reconnectObd',a),requestPermissionGroup:a=>({...record('requestPermissionGroup',a),granted:true}),openSystemSettings:a=>record('openSystemSettings',a),mediaCommand:a=>{record('mediaCommand',a);if(a.command==='favorite')media.liked=!media.liked;if(a.command==='toggle')media.playing=!media.playing;return {success:true,liked:media.liked};}};
    });
    await p.goto('http://127.0.0.1:5181');await p.evaluate(()=>document.fonts.ready);
    if(await p.locator('.launch-splash').count())throw Error('Completed setup should not replay the first-run splash');
@@ -105,11 +105,17 @@ async function main(){
     await p.waitForTimeout(150);
     if(await p.getByRole('button',{name:'Play',exact:true}).count())await p.getByRole('button',{name:'Play',exact:true}).click();
     await p.locator('.audio-spectrum.live').waitFor({timeout:2500});
-    for(const [label,name] of [['Aurora','Aurora'],['Ribbon','Ribbon'],['Spectrum','Spectrum'],['Halo','Halo']]){
+    for(const [label,name] of [['Spectral Silk','Silk'],['Liquid Ribbon','Ribbon'],['Obsidian Pulse','Obsidian'],['Crimson Filament','Filament']]){
      await p.getByRole('group',{name:'Visualizer shape'}).getByRole('button',{name:label,exact:true}).click();
      if(!await p.locator('.viz-'+name.toLowerCase()).count())throw Error('Visualizer style failed '+name);
+     await p.waitForTimeout(350);
+     const ink=await p.locator('.premium-spectrum').evaluate(c=>{const d=c.getContext('2d').getImageData(0,0,c.width,c.height).data;let n=0;for(let i=3;i<d.length;i+=4)if(d[i])n++;return n;});
+     if(ink<100)throw Error('Visualizer canvas is blank');
+     await p.screenshot({animations:'disabled',path:path.join(output,'visualizer-'+name.toLowerCase()+'.png')});
     }
-
+    await p.evaluate(()=>{window.__media.title='A very long song title that should scroll smoothly without moving any playback controls or enlarging the heading';});await p.waitForTimeout(1800);
+    if(!await p.locator('.premium-title .title-overflow').count())throw Error('Long title did not enable marquee');
+    if(await p.locator('.spectrum-bars,.spectrum-halo').count())throw Error('Legacy visualizer remains');
    }
    await p.close();
   }
