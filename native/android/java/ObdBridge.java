@@ -148,14 +148,9 @@ public final class ObdBridge {
                 attempt=mode==0?target.createRfcommSocketToServiceRecord(SPP)
                     :target.createInsecureRfcommSocketToServiceRecord(SPP);
                 socket=attempt;
-                BluetoothSocket pending=attempt;
-                java.util.concurrent.atomic.AtomicBoolean finished=new java.util.concurrent.atomic.AtomicBoolean(false);
-                Thread watchdog=new Thread(()->{
-                    try{Thread.sleep(12000);}catch(InterruptedException ignored){return;}
-                    if(!finished.get())try{pending.close();}catch(Exception ignored){}
-                },"trx-obd-"+label+"-timeout");
-                watchdog.setDaemon(true);watchdog.start();
-                try {attempt.connect();} finally {finished.set(true);watchdog.interrupt();}
+                // Android already times out RFCOMM connect. A competing 12-second
+                // timer closed the socket as the stack was completing negotiation.
+                attempt.connect();
                 if(!running)throw new java.io.IOException("Connection stopped");
                 connectionMode=label.toUpperCase(Locale.US)+" SPP";
                 record("RFCOMM",label+" connected");
@@ -166,6 +161,8 @@ public final class ObdBridge {
                 record("RFCOMM "+label,error.getClass().getSimpleName()+": "+error.getMessage());
                 if(mode==0)secureFailure=error;
                 else throw new java.io.IOException("Secure: "+brief(secureFailure)+"; insecure: "+brief(error),error);
+                if(!running)throw new java.io.IOException("Connection stopped",error);
+                sleep(350); // Allow the stack to release the failed secure socket.
             }
         }
         throw new java.io.IOException("RFCOMM connection unavailable");

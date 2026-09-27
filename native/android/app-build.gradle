@@ -11,8 +11,8 @@ android {
         applicationId "com.diaztradeinc.trxlauncher"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 54200
-        versionName "5.42.0"
+        versionCode 54300
+        versionName "5.43.0"
         manifestPlaceholders = [MAPS_API_KEY: mapsApiKey]
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
