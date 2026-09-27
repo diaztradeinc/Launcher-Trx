@@ -28,11 +28,11 @@ async function main(){
    await p.goto('http://127.0.0.1:5181');await p.evaluate(()=>document.fonts.ready);
    if(await p.locator('.launch-splash').count())throw Error('Completed setup should not replay the first-run splash');
    const navigate=async label=>{
-    if(['Apps','Settings','Weather'].includes(label))await p.getByRole('button',{name:'Open '+label.toLowerCase(),exact:true}).click();
+    if(['Apps','Settings','Weather','Performance'].includes(label))await p.getByRole('button',{name:'Open '+label.toLowerCase(),exact:true}).click();
     else {await p.getByRole('navigation',{name:'Main navigation'}).getByRole('button',{name:'Home',exact:true}).click();
      if(label==='Navigation')await p.getByRole('button',{name:/Search destination/}).click();
      if(label==='Media')await p.locator('.home-now-track').click();
-     if(label==='Performance')await p.locator('.cockpit-home .vehicle-status').click();}
+    }
    };
    for(const label of ['Home','Navigation','Media','Performance','Apps','Settings','Weather']){
     await navigate(label);if(label==='Weather'&&await p.locator('.weather-hero img').count())throw Error('Weather duplicates truck artwork');await p.waitForTimeout(500);

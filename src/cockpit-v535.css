@@ -2,8 +2,8 @@
 .apex-shell{--dock:clamp(50px,7vh,66px)}
 .apex-shell .calibrated-stage{grid-template-columns:minmax(0,1fr);grid-template-rows:var(--header) minmax(0,1fr) var(--dock)}
 .apex-shell .status-bar{grid-column:1;grid-row:1;min-width:0}
-.apex-shell .status-right button[aria-label="Open apps"],.apex-shell .status-right button[aria-label="Open settings"]{width:clamp(32px,5vh,42px);min-width:32px;min-height:32px;background:transparent!important;border:0!important;padding:3px}
-.apex-shell .status-right button[aria-label="Open apps"] svg,.apex-shell .status-right button[aria-label="Open settings"] svg{width:19px;height:19px;color:#e7eff0}
+.apex-shell .status-right button[aria-label="Open apps"],.apex-shell .status-right button[aria-label="Open settings"],.apex-shell .status-right button[aria-label="Open performance"]{width:clamp(32px,5vh,42px);min-width:32px;min-height:32px;background:transparent!important;border:0!important;padding:3px}
+.apex-shell .status-right button[aria-label="Open apps"] svg,.apex-shell .status-right button[aria-label="Open settings"] svg,.apex-shell .status-right button[aria-label="Open performance"] svg{width:19px;height:19px;color:#e7eff0}
 .apex-shell .apex-canvas{grid-column:1;grid-row:2}
 .apex-shell .command-rail{grid-column:1;grid-row:3;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:1fr;gap:6px;align-content:center;justify-content:stretch;padding:4px clamp(5px,1.5vw,13px);border:1px solid #6a797c;border-radius:15px 15px 0 0;background:var(--finish-grain),linear-gradient(#19262b,#05090d);z-index:3}
 .apex-shell .command-rail button,.apex-shell .command-rail button:last-child{max-height:none;min-height:0;height:100%;width:100%;margin:0;aspect-ratio:auto;border-radius:11px!important;background:linear-gradient(160deg,#1c2b30,#0c1417)!important;border:1px solid #5b7279!important;display:flex;flex-direction:row;gap:clamp(4px,1vw,10px);align-items:center;justify-content:center;padding:2px 6px;box-shadow:inset 0 1px #ffffff26}
@@ -39,3 +39,4 @@
 .apex-shell .media-stage-page .queue-list{min-height:0;overflow-y:auto;overscroll-behavior:contain;scroll-behavior:smooth;-webkit-overflow-scrolling:touch}
 .apex-shell .media-stage-page .queue-list>button{flex-shrink:0}
 @media(max-width:480px){.apex-shell .hero-motto strong{font-size:clamp(15px,4vw,25px)}.apex-shell .command-rail button span{font-size:11px}}
+@media(max-width:480px){.apex-shell .status-right{gap:2px}.apex-shell .status-right button[aria-label="Open apps"],.apex-shell .status-right button[aria-label="Open settings"],.apex-shell .status-right button[aria-label="Open performance"]{min-width:29px;width:29px}.apex-shell .status-right>span{font-size:10px}}
