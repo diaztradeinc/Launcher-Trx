@@ -109,9 +109,13 @@ public class FloatingRailService extends Service {
             dispatchSystemBack();
         });
         }else{
-            TextView handle=button("⌃","",dock);
-            handle.setContentDescription("Expand Home, Split screen and Back controls");
-            handle.setOnClickListener(v -> setExpanded(true));
+            TextView handle=button("←","",dock);
+            handle.setContentDescription("Back. Hold to open Home and Split screen controls");
+            handle.setOnClickListener(v -> dispatchSystemBack());
+            handle.setOnLongClickListener(v -> {setExpanded(true);return true;});
+            handle.setBackground(null);
+            handle.setCompoundDrawables(null,null,null,null);
+            handle.setBackground(new android.graphics.drawable.InsetDrawable(new RailIconDrawable("←",Color.WHITE),dp(6)));
         }
         rail = dock;
         WindowManager.LayoutParams lp = new WindowManager.LayoutParams(expanded?WindowManager.LayoutParams.MATCH_PARENT:dp(48),dp(52),

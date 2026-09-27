@@ -286,14 +286,12 @@ public class TrxNativePlugin extends Plugin {
         PackageManager pm=getContext().getPackageManager();
         Intent left=pm.getLaunchIntentForPackage(first),right=pm.getLaunchIntentForPackage(second);
         if(left==null||right==null){call.reject("Both apps must be launchable");return;}
-        try {
-            left.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_MULTIPLE_TASK);
-            right.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_MULTIPLE_TASK | Intent.FLAG_ACTIVITY_LAUNCH_ADJACENT);
-            getActivity().startActivities(new Intent[]{left,right});
-            JSObject result=new JSObject();result.put("success",true);
-            result.put("message","Requested the two selected apps side by side. Ottocast may open one full screen; if so use Recents → Split screen to pick its partner.");
-            call.resolve(result);
-        }catch(Throwable error){call.reject("Unable to request two-app split",error.getMessage());}
+        getActivity().runOnUiThread(() -> TrxBackService.startPair(first,second,
+            getActivity().isInMultiWindowMode(),(message,error) -> {
+                if(error){call.reject(message);return;}
+                JSObject result=new JSObject();result.put("success",true);
+                result.put("message",message);call.resolve(result);
+            }));
     }
 
     @PluginMethod public void floatingRail(PluginCall call) {
