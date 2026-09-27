@@ -12,6 +12,8 @@ import android.graphics.PixelFormat;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Build;
 import android.os.IBinder;
+import android.os.Handler;
+import android.os.Looper;
 import android.provider.Settings;
 import android.view.Gravity;
 import android.view.View;
@@ -26,6 +28,18 @@ public class FloatingRailService extends Service {
     private static volatile boolean launcherVisible;
     private WindowManager manager;
     private View rail;
+    private final Handler handler=new Handler(Looper.getMainLooper());
+    private boolean expanded=false;
+    private final Runnable retract=() -> setExpanded(false);
+
+    private void setExpanded(boolean value){
+        handler.removeCallbacks(retract);
+        expanded=value;
+        if(manager!=null&&rail!=null){manager.removeView(rail);rail=null;}
+        showRail();
+        rail.setVisibility(launcherVisible?View.GONE:View.VISIBLE);
+        if(value)handler.postDelayed(retract,5000);
+    }
     private int accentColor = 0xfff04450;
     private int surfaceColor = 0xff1b2426;
     private int buttonHeightDp = 44;
@@ -81,24 +95,29 @@ public class FloatingRailService extends Service {
         background.setCornerRadius(dp(16));
         background.setStroke(dp(1),0xff6a747b);
         dock.setBackground(background);
+        if(expanded){
         button("⌂","Home",dock).setOnClickListener(v -> open("home",false));
         TextView split=button("◫","Split screen",dock);
         split.setTextColor(accentColor);
         split.setOnClickListener(v -> open("apps",true));
         button("←","Back",dock).setOnClickListener(v -> {
-            if(!TrxBackService.pressBack()){
-                Toast.makeText(this,"Enable TRX APEX Back control in Android Accessibility settings",Toast.LENGTH_LONG).show();
-                Intent settings=new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                startActivity(settings);
-            }
+            boolean ready=TrxBackService.ready();
+            boolean handled=ready&&TrxBackService.pressBack();
+            if(!handled)Toast.makeText(this,ready?"Android could not go back from this screen":"Enable Back over apps in TRX APEX Settings first",Toast.LENGTH_LONG).show();
+            setExpanded(false);
         });
+        }else{
+            TextView handle=button("⌃","",dock);
+            handle.setContentDescription("Expand Home, Split screen and Back controls");
+            handle.setOnClickListener(v -> setExpanded(true));
+        }
         rail = dock;
-        WindowManager.LayoutParams lp = new WindowManager.LayoutParams(WindowManager.LayoutParams.MATCH_PARENT,dp(52),
+        WindowManager.LayoutParams lp = new WindowManager.LayoutParams(expanded?WindowManager.LayoutParams.MATCH_PARENT:dp(48),dp(52),
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE | WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
             PixelFormat.TRANSLUCENT);
-        lp.gravity=Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL;
-        lp.y=0;
+        lp.gravity=Gravity.BOTTOM | (expanded?Gravity.CENTER_HORIZONTAL:Gravity.RIGHT);
+        lp.y=expanded?0:dp(96);
         manager.addView(rail,lp);
     }
 
@@ -116,6 +135,7 @@ public class FloatingRailService extends Service {
     }
 
     private void open(String page,boolean split) {
+        setExpanded(false);
         Intent intent=new Intent(this,MainActivity.class);
         intent.putExtra("apexPage",page);
         if(split)intent.putExtra("apexSplitFirst",TrxBackService.foregroundPackage());
@@ -125,6 +145,7 @@ public class FloatingRailService extends Service {
 
     private int dp(float n){return (int)(n*getResources().getDisplayMetrics().density+.5f);}
     @Override public void onDestroy() {
+        handler.removeCallbacksAndMessages(null);
         if(manager!=null&&rail!=null){try{manager.removeView(rail);}catch(RuntimeException ignored){}rail=null;}
         if(instance==this)instance=null;
         super.onDestroy();

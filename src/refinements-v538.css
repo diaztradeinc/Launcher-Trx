@@ -1,0 +1,14 @@
+/* Keep weather data in explicit columns, never overlapping the condition icon. */
+.weather-page .weather-hero-copy{left:5%;right:30%;bottom:15%;max-width:none;display:grid;grid-template-columns:minmax(40px,.6fr) minmax(0,1fr);gap:6px 12px;align-items:center;justify-items:start}
+.weather-page .weather-hero-copy .weather-hero-icon{position:static;width:clamp(38px,7vw,100px);height:clamp(38px,7vw,100px);grid-column:1;grid-row:1;transform:none}
+.weather-page .weather-hero-copy strong{grid-column:2;grid-row:1;font-size:clamp(42px,9vw,120px);line-height:1;white-space:nowrap}
+.weather-page .weather-hero-copy h1,.weather-page .weather-hero-copy p{grid-column:1/-1;max-width:100%;overflow-wrap:anywhere}
+.weather-page .weather-hero-stats{left:74%;right:3%;min-width:0;bottom:15%}
+.weather-page .weather-hero-stats b{font-size:clamp(16px,3vw,32px)}
+.apps-page:not(.expanded){grid-template-rows:50px minmax(165px,1fr) 160px}
+.apps-page:not(.expanded) .apps-grid{display:grid;grid-template-columns:none;grid-auto-flow:column;grid-auto-columns:clamp(82px,17%,140px);grid-template-rows:96px;overflow-x:auto;overflow-y:hidden;touch-action:pan-x}
+.apps-page:not(.expanded) .apps-grid .app-tile{touch-action:pan-x}
+.apps-page.expanded{grid-template-rows:50px minmax(0,1fr)}
+.apps-page.expanded .apps-library{height:100%;min-height:0}
+.apps-page.expanded .apps-grid{flex:1;overflow-y:auto;align-content:start;scroll-behavior:smooth}
+@media(max-height:620px){.apps-page:not(.expanded){grid-template-rows:48px minmax(135px,1fr) 146px}.apps-page:not(.expanded) .apps-grid{grid-template-rows:82px}}
