@@ -27,17 +27,27 @@ async function main(){
    });
    await p.goto('http://127.0.0.1:5181');await p.evaluate(()=>document.fonts.ready);
    if(await p.locator('.launch-splash').count())throw Error('Completed setup should not replay the first-run splash');
+   const navigate=async label=>{
+    if(['Apps','Settings','Weather'].includes(label))await p.getByRole('button',{name:'Open '+label.toLowerCase(),exact:true}).click();
+    else {await p.getByRole('navigation',{name:'Main navigation'}).getByRole('button',{name:'Home',exact:true}).click();
+     if(label==='Navigation')await p.getByRole('button',{name:/Search destination/}).click();
+     if(label==='Media')await p.locator('.home-now-track').click();
+     if(label==='Performance')await p.locator('.cockpit-home .vehicle-status').click();}
+   };
    for(const label of ['Home','Navigation','Media','Performance','Apps','Settings','Weather']){
-    if(label==='Weather'){await p.getByRole('button',{name:'Open weather',exact:true}).click();if(await p.locator('.weather-hero img').count())throw Error('Weather duplicates truck artwork');}else
-    await p.getByRole('navigation').getByRole('button',{name:label,exact:true}).click();await p.waitForTimeout(500);
+    await navigate(label);if(label==='Weather'&&await p.locator('.weather-hero img').count())throw Error('Weather duplicates truck artwork');await p.waitForTimeout(500);
     const geometry=await p.evaluate(()=>{const rect=e=>{const r=e.getBoundingClientRect();return {x:r.x,y:r.y,width:r.width,height:r.height,right:r.right,bottom:r.bottom};};const page=document.querySelector('.page');const children=[...page.children].filter(e=>!e.classList.contains('modal-scrim'));const outside=children.filter(e=>{const r=rect(e),p=rect(page);return r.x<p.x-1||r.y<p.y-1||r.right>p.right+1||r.bottom>p.bottom+1;}).map(e=>e.className);const overlaps=[];for(let i=0;i<children.length;i++)for(let j=i+1;j<children.length;j++){const a=rect(children[i]),b=rect(children[j]);if(Math.min(a.right,b.right)-Math.max(a.x,b.x)>1&&Math.min(a.bottom,b.bottom)-Math.max(a.y,b.y)>1)overlaps.push([children[i].className,children[j].className]);}return {outside,overlaps};});
     results.push({viewport:size,page:label,...geometry});
     if(size.width===602)await p.screenshot({animations:'disabled',path:path.join(output,label.toLowerCase()+'.png')});
    }
    if(size.width===602){
+    const dockLabels=await p.getByRole('navigation',{name:'Main navigation'}).getByRole('button').evaluateAll(items=>items.map(e=>e.getAttribute('aria-label')));
+    if(JSON.stringify(dockLabels)!==JSON.stringify(['Home','Split screen','Back']))throw Error('Bottom dock does not match approved three-button layout');
+    const dockPlacement=await p.locator('.command-rail').evaluate(e=>{const d=e.getBoundingClientRect(),s=e.closest('.calibrated-stage').getBoundingClientRect();return {gap:s.bottom-d.bottom,widthRatio:d.width/s.width}});
+    if(dockPlacement.gap>2||dockPlacement.widthRatio<.94)throw Error('Dock does not reach bottom and full width');
     const railOverlap=await p.locator('.command-rail button').evaluateAll(items=>{const r=items.map(e=>e.getBoundingClientRect());return r.some((a,i)=>r.some((b,j)=>j>i&&Math.min(a.right,b.right)-Math.max(a.left,b.left)>1&&Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top)>1));});
     if(railOverlap)throw Error('Navigation rail buttons overlap');
-    await p.getByRole('navigation').getByRole('button',{name:'Settings',exact:true}).click();
+    await navigate('Settings');
     await p.getByRole('button',{name:'Baja Sand theme',exact:true}).click();if(await p.locator('.apex-shell').evaluate(e=>getComputedStyle(e).getPropertyValue('--accent').trim())!=='#dcae74')throw Error('Theme not applied');
     for(const [name,id] of [['Hellfire Red','hellfire'],['Titanium','titanium'],['Arctic Ice','arctic'],['Night Ops','night'],['Baja Sand','baja']]){
      await p.getByRole('button',{name:name+' theme',exact:true}).click();
@@ -50,38 +60,40 @@ async function main(){
     await p.getByRole('button',{name:'Carbon UI finish',exact:true}).click();
     await p.getByRole('slider',{name:'Icon size',exact:true}).fill('125');
     await p.getByRole('button',{name:'Calibrate display',exact:true}).click();await p.getByRole('slider',{name:'Safe edge',exact:true}).fill('12');await p.getByRole('button',{name:'Reset geometry',exact:true}).click();await p.getByRole('button',{name:'Close dialog',exact:true}).click();
-    await p.getByRole('navigation').getByRole('button',{name:'Media',exact:true}).click();await p.getByRole('button',{name:'Like track',exact:true}).click();await p.getByRole('button',{name:'Pause',exact:true}).click();if(await p.getByRole('button',{name:'Play',exact:true}).count())await p.getByRole('button',{name:'Play',exact:true}).click();const canNext=await p.getByRole('button',{name:'Next track',exact:true}).isEnabled();if(canNext)await p.getByRole('button',{name:'Next track',exact:true}).click();await p.getByRole('slider',{name:'Media volume',exact:true}).fill('70');
+    await navigate('Media');await p.getByRole('button',{name:'Like track',exact:true}).click();await p.getByRole('button',{name:'Pause',exact:true}).click();if(await p.getByRole('button',{name:'Play',exact:true}).count())await p.getByRole('button',{name:'Play',exact:true}).click();const canNext=await p.getByRole('button',{name:'Next track',exact:true}).isEnabled();if(canNext)await p.getByRole('button',{name:'Next track',exact:true}).click();await p.getByRole('slider',{name:'Media volume',exact:true}).fill('70');
+    await p.getByRole('button',{name:/Play After Hours/}).click();
+    if(!await p.evaluate(()=>window.__calls.some(c=>c.method==='mediaCommand'&&c.args.command==='queue'&&c.args.queueId==='11')))throw Error('Queue item did not request direct playback');
     if(await p.locator('.media-source-rail').count())throw Error('Legacy media source column still present');
     await p.getByRole('button',{name:/Media source:.*Choose source/}).click();
     await p.getByRole('dialog',{name:'Media sources'}).getByRole('button',{name:/Spotify/}).click();
     if(!await p.evaluate(()=>window.__calls.some(c=>c.method==='launchApp'&&c.args.packageName==='test.app4')))throw Error('Media picker did not launch Spotify');
     if(!await p.evaluate(()=>JSON.parse(localStorage.getItem('trx-apex-media-source')||'null')?.packageName==='test.app4'))throw Error('Media source selection did not persist');
-    await p.getByRole('navigation').getByRole('button',{name:'Navigation',exact:true}).click();await p.getByRole('textbox',{name:'Destination',exact:true}).fill('test destination');await p.getByRole('button',{name:/Test destination A longer/}).click();await p.getByRole('button',{name:'Start route',exact:true}).click();
+    await navigate('Navigation');await p.getByRole('textbox',{name:'Destination',exact:true}).fill('test destination');await p.getByRole('button',{name:/Test destination A longer/}).click();await p.getByRole('button',{name:'Start route',exact:true}).click();
     const calls=await p.evaluate(()=>window.__calls);for(const cmd of ['favorite','toggle','volume',...(canNext?['next']:[])])if(!calls.some(c=>c.method==='mediaCommand'&&c.args.command===cmd))throw Error('Missing '+cmd);if(!calls.some(c=>c.method==='openNavigation'&&c.args.placeId==='test-place'&&c.args.theme==='baja'&&c.args.surface==='carbon'))throw Error('Route/theme bridge mismatch');
     await p.reload();if(!await p.locator('.theme-baja.surface-carbon').count())throw Error('Theme or UI finish persistence failed');
-    await p.getByRole('navigation').getByRole('button',{name:'Media',exact:true}).click();
+    await navigate('Media');
     await p.evaluate(()=>{window.__media.canFavorite=false;});await p.waitForTimeout(1700);
     if(!await p.getByRole('button',{name:/Like track|Unlike track/}).isDisabled())throw Error('Unsupported Like must disable');
-    await p.getByRole('navigation').getByRole('button',{name:'Performance',exact:true}).click();
+    await navigate('Performance');
     await p.getByRole('button',{name:/Adapter connected/}).click();await p.getByRole('button',{name:'Reconnect',exact:true}).click();await p.getByRole('button',{name:'Close dialog',exact:true}).click();
     if(!await p.evaluate(()=>window.__calls.some(c=>c.method==='reconnectObd')))throw Error('Reconnect not dispatched');
     await p.evaluate(()=>{localStorage.setItem('trx-apex-orbit-favorites',JSON.stringify(['test.app0','test.app1','test.app2','test.app3','test.app4','test.app5']));});await p.reload();
-    await p.getByRole('navigation').getByRole('button',{name:'Apps',exact:true}).click();
+    await navigate('Apps');
     const collisions=await p.locator('.app-orbit .app-tile').evaluateAll(items=>{const r=items.map(e=>e.getBoundingClientRect());return r.some((a,i)=>r.some((b,j)=>j>i&&Math.min(a.right,b.right)-Math.max(a.left,b.left)>1&&Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top)>1));});
     if(collisions)throw Error('Six favorites overlap at maximum icon size');
     await p.getByRole('textbox',{name:'Search apps',exact:true}).fill('Spotify');await p.locator('.apps-grid').getByRole('button',{name:'Spotify',exact:true}).click();
     if(!await p.evaluate(()=>window.__calls.some(c=>c.method==='launchApp'&&c.args.packageName==='test.app4')))throw Error('App launch failed');
-    await p.evaluate(()=>localStorage.setItem('trx-apex-orbit-favorites','[]'));await p.reload();await p.getByRole('navigation').getByRole('button',{name:'Apps',exact:true}).click();
+    await p.evaluate(()=>localStorage.setItem('trx-apex-orbit-favorites','[]'));await p.reload();await navigate('Apps');
     if(!await p.getByRole('button',{name:'Open weather',exact:true}).count())throw Error('Built-in weather shortcut missing when no favorites are selected');
-    await p.getByRole('button',{name:'Pair two apps',exact:true}).click();
+    await p.getByRole('navigation',{name:'Main navigation'}).getByRole('button',{name:'Split screen'}).click();
     await p.getByRole('dialog',{name:'Pair two apps'}).getByRole('button',{name:'Phone',exact:true}).click();
     await p.getByRole('dialog',{name:'Pair two apps'}).getByRole('button',{name:'Maps',exact:true}).click();
     if(!await p.evaluate(()=>window.__calls.some(c=>c.method==='startAppPair'&&c.args.first==='test.app2'&&c.args.second==='test.app0')))throw Error('Two-app split request was not dispatched');
-    await p.getByRole('navigation').getByRole('button',{name:'Media',exact:true}).click();
+    await navigate('Media');
     await p.waitForTimeout(150);
     if(await p.getByRole('button',{name:'Play',exact:true}).count())await p.getByRole('button',{name:'Play',exact:true}).click();
     await p.locator('.audio-spectrum.live').waitFor({timeout:2500});
-    for(const [label,name] of [['Crown','Crown'],['Ripple','Ripple'],['Wings','Wings'],['Halo','Halo']]){
+    for(const [label,name] of [['Aurora','Aurora'],['Ribbon','Ribbon'],['Spectrum','Spectrum'],['Halo','Halo']]){
      await p.getByRole('group',{name:'Visualizer shape'}).getByRole('button',{name:label,exact:true}).click();
      if(!await p.locator('.viz-'+name.toLowerCase()).count())throw Error('Visualizer style failed '+name);
     }

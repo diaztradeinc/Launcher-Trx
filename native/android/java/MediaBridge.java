@@ -271,7 +271,11 @@ public class MediaBridge extends NotificationListenerService {
             long id=Long.parseLong(requestedId);boolean found=false;
             for(long candidate:queueIds)if(candidate==id)found=true;
             if(!found)return false;
-            controller.getTransportControls().skipToQueueItem(id);return true;
+            controller.getTransportControls().skipToQueueItem(id);
+            // Some players select the item without starting playback. Ask for play
+            // only when the session explicitly supports it and was paused.
+            if(!playing&&supports(PlaybackState.ACTION_PLAY))controller.getTransportControls().play();
+            return true;
         }catch(RuntimeException e){return false;}
     }
     private static synchronized void updateQueue(MediaController active){

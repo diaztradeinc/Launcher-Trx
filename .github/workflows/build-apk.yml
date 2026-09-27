@@ -44,7 +44,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: TRX-APEX-v5.34-display-QA
+          name: TRX-APEX-v5.35-display-QA
           path: qa-output/
           if-no-files-found: ignore
 
@@ -99,6 +99,6 @@ jobs:
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: TRX-APEX-v5.34-BOTTOM-DOCK-ART-CANDIDATE-SIGNED-APK
+          name: TRX-APEX-v5.35-THREE-BUTTON-DOCK-MEDIA-CANDIDATE-SIGNED-APK
           path: android/app/build/outputs/apk/debug/*.apk
           retention-days: 30

@@ -324,8 +324,11 @@ public class TrxNativePlugin extends Plugin {
     @PluginMethod public void consumeRailDestination(PluginCall call) {
         Intent intent=getActivity().getIntent();
         String page=intent.getStringExtra("apexPage");
+        String splitFirst=intent.getStringExtra("apexSplitFirst");
         intent.removeExtra("apexPage");
-        JSObject result=new JSObject();result.put("page",page==null?"":page);call.resolve(result);
+        intent.removeExtra("apexSplitFirst");
+        JSObject result=new JSObject();result.put("page",page==null?"":page);
+        result.put("splitFirst",splitFirst==null?"":splitFirst);call.resolve(result);
     }
 
     @PluginMethod public void appAction(PluginCall call) {

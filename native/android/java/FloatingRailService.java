@@ -13,9 +13,6 @@ import android.graphics.drawable.GradientDrawable;
 import android.os.Build;
 import android.os.IBinder;
 import android.provider.Settings;
-import android.text.SpannableString;
-import android.text.Spanned;
-import android.text.style.RelativeSizeSpan;
 import android.view.Gravity;
 import android.view.View;
 import android.view.WindowManager;
@@ -29,10 +26,9 @@ public class FloatingRailService extends Service {
     private static volatile boolean launcherVisible;
     private WindowManager manager;
     private View rail;
-    private boolean expanded = true;
     private int accentColor = 0xfff04450;
     private int surfaceColor = 0xff1b2426;
-    private int buttonHeightDp = 42;
+    private int buttonHeightDp = 44;
 
     @Override public void onCreate() {
         super.onCreate();
@@ -80,77 +76,49 @@ public class FloatingRailService extends Service {
         LinearLayout dock = new LinearLayout(this);
         dock.setOrientation(LinearLayout.HORIZONTAL);
         dock.setGravity(Gravity.CENTER_VERTICAL);
-        dock.setPadding(dp(4),dp(4),dp(4),dp(4));
+        dock.setPadding(dp(8),dp(4),dp(8),dp(4));
         GradientDrawable background = new GradientDrawable(GradientDrawable.Orientation.TL_BR,new int[]{surfaceColor,0xf804080a});
-        background.setCornerRadius(dp(15));
+        background.setCornerRadius(dp(16));
         background.setStroke(dp(1),0xff6a747b);
         dock.setBackground(background);
-        TextView handle = button("⌄","Expand or collapse rail",dock);
-        handle.setTextSize(22);
-        LinearLayout.LayoutParams handleParams=(LinearLayout.LayoutParams)handle.getLayoutParams();
-        handleParams.width=dp(27);handle.setLayoutParams(handleParams);
-        LinearLayout destinations = new LinearLayout(this);
-        destinations.setOrientation(LinearLayout.HORIZONTAL);
-        destinations.setGravity(Gravity.CENTER_VERTICAL);
-        dock.addView(destinations,new LinearLayout.LayoutParams(0,dp(buttonHeightDp),1));
-        button("⌂","Home",destinations).setOnClickListener(v -> open("home"));
-        button("➤","Navigation",destinations).setOnClickListener(v -> open("navigation"));
-        button("♫","Media",destinations).setOnClickListener(v -> open("media"));
-        button("◉","Performance",destinations).setOnClickListener(v -> open("performance"));
-        button("▦","Apps",destinations).setOnClickListener(v -> open("apps"));
-        button("⚙","Settings",destinations).setOnClickListener(v -> open("settings"));
-        button("←","Back in current app",destinations).setOnClickListener(v -> {
+        button("⌂","Home",dock).setOnClickListener(v -> open("home",false));
+        TextView split=button("◫","Split screen",dock);
+        split.setTextColor(accentColor);
+        split.setOnClickListener(v -> open("apps",true));
+        button("←","Back",dock).setOnClickListener(v -> {
             if(!TrxBackService.pressBack()){
                 Toast.makeText(this,"Enable TRX APEX Back control in Android Accessibility settings",Toast.LENGTH_LONG).show();
                 Intent settings=new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                 startActivity(settings);
             }
         });
-        handle.setOnClickListener(v -> {
-            expanded=!expanded;
-            destinations.setVisibility(expanded?View.VISIBLE:View.GONE);
-            handle.setText(expanded?"⌄":"⌃");
-            WindowManager.LayoutParams layout=(WindowManager.LayoutParams)rail.getLayoutParams();
-            layout.width=expanded?WindowManager.LayoutParams.MATCH_PARENT:dp(46);
-            layout.height=expanded?dp(50):dp(42);
-            layout.gravity=Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL;
-            manager.updateViewLayout(rail,layout);
-        });
-        destinations.setVisibility(expanded?View.VISIBLE:View.GONE);
         rail = dock;
-        WindowManager.LayoutParams lp = new WindowManager.LayoutParams(WindowManager.LayoutParams.MATCH_PARENT,dp(50),
+        WindowManager.LayoutParams lp = new WindowManager.LayoutParams(WindowManager.LayoutParams.MATCH_PARENT,dp(52),
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE | WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
             PixelFormat.TRANSLUCENT);
         lp.gravity=Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL;
-        lp.y=dp(12); // Clear the system gesture area and Uconnect's lower controls.
+        lp.y=0;
         manager.addView(rail,lp);
     }
 
     private TextView button(String icon,String description,LinearLayout container) {
         TextView view = new TextView(this);
-        String label="Back in current app".equals(description)?"Back":
-            "Navigation".equals(description)?"Nav":
-            "Performance".equals(description)?"Perf":
-            "Settings".equals(description)?"Setup":description;
-        String caption="Expand or collapse rail".equals(description)?icon:icon+"\n"+label;
-        SpannableString styled=new SpannableString(caption);
-        if(caption.length()>icon.length())styled.setSpan(new RelativeSizeSpan(.37f),icon.length()+1,caption.length(),Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-        view.setText(styled);view.setContentDescription(description);view.setTextColor(Color.WHITE);
-        view.setTextSize(17);view.setGravity(Gravity.CENTER);view.setLineSpacing(0,.91f);
+        view.setText(icon+"  "+description);view.setContentDescription(description);view.setTextColor(Color.WHITE);
+        view.setTextSize(14);view.setGravity(Gravity.CENTER);view.setSingleLine(true);
         GradientDrawable bg=new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,new int[]{surfaceColor,0xff060a0c});
         bg.setCornerRadius(dp(9));bg.setStroke(dp(1),0x785d7077);
         view.setBackground(bg);
         LinearLayout.LayoutParams params=new LinearLayout.LayoutParams(0,dp(buttonHeightDp),1);
-        if("Expand or collapse rail".equals(description))params=new LinearLayout.LayoutParams(dp(27),dp(buttonHeightDp));
-        else {params.leftMargin=dp(1);params.rightMargin=dp(1);}
+        params.leftMargin=dp(3);params.rightMargin=dp(3);
         container.addView(view,params);
         return view;
     }
 
-    private void open(String page) {
+    private void open(String page,boolean split) {
         Intent intent=new Intent(this,MainActivity.class);
         intent.putExtra("apexPage",page);
+        if(split)intent.putExtra("apexSplitFirst",TrxBackService.foregroundPackage());
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP);
         startActivity(intent);
     }
