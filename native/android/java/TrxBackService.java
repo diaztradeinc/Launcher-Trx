@@ -8,6 +8,8 @@ import android.content.ComponentName;
 import android.provider.Settings;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.Build;
+import android.widget.Toast;
 
 /** Opt-in global Back action. Does not inspect other apps or their content. */
 public class TrxBackService extends AccessibilityService {
@@ -30,6 +32,23 @@ public class TrxBackService extends AccessibilityService {
     static boolean ready(){return active!=null;}
     static String foregroundPackage(){return foregroundPackage;}
 
+    private boolean supportsSplitAction(){
+        if(Build.VERSION.SDK_INT<30)return true;
+        for(android.view.accessibility.AccessibilityNodeInfo.AccessibilityAction action:getSystemActions())
+            if(action.getId()==GLOBAL_ACTION_TOGGLE_SPLIT_SCREEN)return true;
+        return false;
+    }
+    private String appLabel(String pkg){
+        try{return getPackageManager().getApplicationLabel(getPackageManager().getApplicationInfo(pkg,0)).toString();}
+        catch(Exception ignored){return pkg;}
+    }
+    private void openPairInRecents(){
+        String message="In Recents, choose Split screen for "+appLabel(pairFirst)+", then select "+appLabel(pairSecond)+".";
+        boolean opened=performGlobalAction(GLOBAL_ACTION_RECENTS);
+        if(!opened)message="Open Android Recents. Choose Split screen for "+appLabel(pairFirst)+", then select "+appLabel(pairSecond)+".";
+        Toast.makeText(this,message,Toast.LENGTH_LONG).show();
+        finishPair(message,false);
+    }
     interface PairResult { void complete(String message,boolean error); }
     private final Handler handler=new Handler(Looper.getMainLooper());
     private String pairFirst,pairSecond;
@@ -41,13 +60,15 @@ public class TrxBackService extends AccessibilityService {
         TrxBackService service=active;
         if(service==null){result.complete("TRX APEX Back service must be connected to pair apps. Check Accessibility in Settings.",true);return;}
         if(service.pairResult!=null){result.complete("An app pair is already opening.",true);return;}
+        if(first.equals(second)||first.equals(service.getPackageName())||second.equals(service.getPackageName())){
+            result.complete("Choose two different external apps.",true);return;
+        }
+        if(alreadySplit){
+            result.complete("Close the current split, then choose the pair again. This keeps TRX APEX out of the selected pair.",true);return;
+        }
         service.pairFirst=first;service.pairSecond=second;service.pairResult=result;service.pairStage=0;
         service.handler.postDelayed(service.pairTimeout,10000);
-        // Leave a launcher-owned split before anchoring the new split to the first app.
-        if(alreadySplit&&!service.performGlobalAction(GLOBAL_ACTION_TOGGLE_SPLIT_SCREEN)){
-            service.finishPair("Android could not leave the current split. Close it before opening the selected pair.",true);return;
-        }
-        service.handler.postDelayed(service::launchFirst,alreadySplit?650:0);
+        service.handler.post(service::launchFirst);
     }
     private void launchFirst(){
         if(pairResult==null)return;
@@ -63,8 +84,8 @@ public class TrxBackService extends AccessibilityService {
         if(pairResult==null||pairStage!=2)return;
         // The first selected app has reported its own foreground window. Never split the launcher.
         if(!pairFirst.equals(currentWindowPackage)){finishPair("Pairing stopped because the foreground app changed.",true);return;}
-        if(!performGlobalAction(GLOBAL_ACTION_TOGGLE_SPLIT_SCREEN)){
-            finishPair("This device declined the split-screen action. Use Recents → Split screen to choose the second app.",true);return;
+        if(!supportsSplitAction()||!performGlobalAction(GLOBAL_ACTION_TOGGLE_SPLIT_SCREEN)){
+            openPairInRecents();return;
         }
         handler.postDelayed(() -> {
             if(pairResult==null||pairStage!=2)return;
@@ -72,12 +93,15 @@ public class TrxBackService extends AccessibilityService {
                 Intent intent=getPackageManager().getLaunchIntentForPackage(pairSecond);
                 if(intent==null){finishPair("The second app is no longer available.",true);return;}
                 pairStage=3;
-                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK|Intent.FLAG_ACTIVITY_LAUNCH_ADJACENT);
+                // The first app is already docked by the OS. An adjacent flag from our
+                // service has no activity anchor and can reintroduce the launcher task.
+                intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK|Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED);
                 startActivity(intent);
             }catch(RuntimeException error){finishPair("Android could not open the second app.",true);}
         },650);
     }
     private void finishPair(String message,boolean error){
+        if(pairResult!=null)getSharedPreferences("launcher",Context.MODE_PRIVATE).edit().putString("last_pair_status",message).apply();
         PairResult result=pairResult;pairResult=null;pairStage=0;pairFirst=null;pairSecond=null;
         handler.removeCallbacksAndMessages(null);
         if(result!=null)result.complete(message,error);
@@ -94,7 +118,7 @@ public class TrxBackService extends AccessibilityService {
         if(pairResult!=null&&pairStage==1&&pkg.equals(pairFirst)){
             pairStage=2;handler.postDelayed(this::splitFirst,250);
         }else if(pairResult!=null&&pairStage==3&&pkg.equals(pairSecond)){
-            finishPair("Both selected apps opened; Android controls whether they can remain side by side.",false);
+            finishPair("Opened "+appLabel(pairFirst)+" and "+appLabel(pairSecond)+". Split placement is not verified.",false);
         }
     }
     @Override public void onInterrupt(){}
