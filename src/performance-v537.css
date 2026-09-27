@@ -1,0 +1,14 @@
+/* Approved clean performance cockpit: data overlays stay separate from artwork. */
+.apex-shell .performance-hud-page .performance-hero{isolation:isolate;overflow:hidden}
+.apex-shell .performance-hud-page .performance-hero:after{background:linear-gradient(180deg,#02060b75,transparent 55%,#02060b30);pointer-events:none}
+.apex-shell .performance-editorial{position:absolute;z-index:1;top:5%;left:3%;display:grid;gap:7px;max-width:92%;text-shadow:0 2px 8px #000}
+.apex-shell .performance-editorial b{font:900 clamp(12px,2vw,25px)/1.1 Barlow,Inter,sans-serif;letter-spacing:.14em}
+.apex-shell .performance-editorial b:after{content:'';display:block;width:36px;height:2px;background:var(--accent);margin-top:6px}
+.apex-shell .performance-editorial span{font-size:clamp(8px,1vw,13px);letter-spacing:.25em;color:#fff}
+.apex-shell .performance-speed{position:absolute;z-index:1;left:50%;top:16%;transform:translateX(-50%);display:grid;justify-items:center;gap:0;color:#fff;text-shadow:0 3px 16px #000a;font-variant-numeric:tabular-nums;pointer-events:none}
+.apex-shell .performance-speed strong{font:800 clamp(43px,8.5vh,105px)/.95 Barlow,Inter,sans-serif;letter-spacing:-.04em}
+.apex-shell .performance-speed small{font-size:clamp(10px,1.8vh,20px);letter-spacing:.14em;color:#fff;margin-top:4px}
+.apex-shell .performance-hud-page .performance-modules .panel,.apex-shell .performance-hud-page .telemetry-grid>.panel{background:var(--finish-grain),linear-gradient(145deg,#0e1519,#030609);border:1px solid color-mix(in srgb,var(--accent) 45%,#536068);box-shadow:inset 0 1px #ffffff0c}
+.apex-shell .performance-hud-page .telemetry-grid span{align-self:center;text-transform:uppercase;font-weight:600;letter-spacing:.035em}
+@media(max-width:480px){.apex-shell .performance-editorial{gap:3px}.apex-shell .performance-speed{top:24%}.apex-shell .performance-speed strong{font-size:clamp(35px,7vh,62px)}}
+@media(min-aspect-ratio:6/5){.apex-shell .performance-speed{top:24%}.apex-shell .performance-editorial b{font-size:16px}.apex-shell .performance-editorial span{font-size:9px}}

@@ -72,6 +72,10 @@ async function main(){
     await p.evaluate(()=>{window.__media.canFavorite=false;});await p.waitForTimeout(1700);
     if(!await p.getByRole('button',{name:/Like track|Unlike track/}).isDisabled())throw Error('Unsupported Like must disable');
     await navigate('Performance');
+    if(await p.locator('.performance-hero .instrument-dial').count())throw Error('Legacy performance dials remain');
+    if(await p.locator('.performance-modules').getByText('BOOST · PSI',{exact:true}).count()!==1||await p.locator('.telemetry-grid').getByText('Boost',{exact:true}).count())throw Error('Boost must appear once');
+    if(await p.locator('.telemetry-grid>.panel').last().locator('span').textContent()!=='Coolant')throw Error('Coolant must occupy bottom-right tile');
+    if(await p.locator('.performance-speed strong').textContent()!=='—')throw Error('Unavailable speed must not show zero');
     await p.getByRole('button',{name:/Adapter connected/}).click();await p.getByRole('button',{name:'Reconnect',exact:true}).click();await p.getByRole('button',{name:'Close dialog',exact:true}).click();
     if(!await p.evaluate(()=>window.__calls.some(c=>c.method==='reconnectObd')))throw Error('Reconnect not dispatched');
     await p.evaluate(()=>{localStorage.setItem('trx-apex-orbit-favorites',JSON.stringify(['test.app0','test.app1','test.app2','test.app3','test.app4','test.app5']));});await p.reload();
