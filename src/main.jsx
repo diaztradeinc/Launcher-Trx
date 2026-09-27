@@ -20,6 +20,7 @@ import './refinements-v538.css';
 import './media-v539.css';
 import './display-v544.css';
 import './rail-v545.css';
+import './quick-pairs-v546.css';
 import {resolveDisplayProfile, displayVisual, displayPalette, DISPLAY_PRESETS} from './display-settings';
 import {PremiumVisualizer,TrackTitle,StylePreview,VISUAL_STYLES} from './PremiumVisualizer';
 
@@ -170,18 +171,24 @@ function SplitPicker({first,close,act,notify}){
   const [apps,setApps]=useState([]),[left,setLeft]=useState(typeof first==='object'?first:null),[right,setRight]=useState(null),[busy,setBusy]=useState(false),[caps,setCaps]=useState(null);
   const submitting=useRef(false);
   useEffect(()=>{native.apps().then(r=>{const found=r?.apps||[];setApps(found);if(typeof first==='string')setLeft(found.find(app=>app.packageName===first)||null);});native.railCapabilities().then(setCaps);},[first]);
-  async function openPair(app,manual=false){
+  async function openPair(app,manual=false,firstApp=left){
     if(submitting.current)return;
+    if(!firstApp||!app)return;
+    setLeft(firstApp);
     if(!manual&&caps?.pairMode==='manual'){setRight(app);return;}
     submitting.current=true;setBusy(true);
     try{
-      const r=await native.startAppPair(left.packageName,app.packageName,manual);
+      const r=await native.startAppPair(firstApp.packageName,app.packageName,manual);
       if(r?.manualRequired){setRight(app);return;}
       if(r?.success){notify(r.message||'Pair request sent to Android.');close();}
       else await act(Promise.resolve(r));
     }finally{submitting.current=false;setBusy(false);}
   }
-  return <div className="modal-scrim" onClick={()=>{if(!busy)close();}}><section className="modal split-picker" role="dialog" aria-modal="true" aria-label="Pair two apps" onClick={e=>e.stopPropagation()}><header><h2>{right?'Finish pairing in Android':'Pair two apps'}</h2><button aria-label="Close dialog" disabled={busy} onClick={close}><X/></button></header>{right?<div className="modal-body pair-guide"><p>This device requires the final split-screen selection in Android. APEX will open both selected apps and put {left.name} first in Recents.</p><ol><li>Tap the three dots or app icon above <b>{left.name}</b>.</li><li>Choose <b>Split screen</b>.</li><li>Select <b>{right.name}</b> for the other half.</li></ol><p>If Split screen is missing, Android does not offer it for that app in the current mode.</p><button className="primary" disabled={busy} onClick={()=>openPair(right,true)}>{busy?'Preparing apps…':'Prepare apps & open Recents'}</button><button disabled={busy} onClick={()=>setRight(null)}>Change second app</button></div>:<><p>{left?`${left.name} selected. Choose the second app.`:'Choose the first app, then the second.'} {caps?.pairMode==='manual'?'This device uses Android’s manual Split screen menu.':'Automatic pairing depends on Android support.'}</p><div className="split-options">{apps.length?apps.filter(app=>app.packageName!==left?.packageName).map(app=><button key={app.packageName} disabled={busy} onClick={()=>{if(!left)setLeft(app);else openPair(app);}}>{app.icon?<img src={app.icon} alt=""/>:<Grid2X2/>}<span>{app.name}</span></button>):<p>No launchable apps found.</p>}</div>{left&&<button disabled={busy} onClick={()=>setLeft(null)}>Change first app</button>}</>}</section></div>;
+  const quickPairs=[
+    {name:'YouTube + Maps',packages:['com.google.android.youtube','com.google.android.apps.maps'],labels:['YouTube','Maps']},
+    {name:'Maps + YouTube Music',packages:['com.google.android.apps.maps','com.google.android.apps.youtube.music'],labels:['Maps','YouTube Music']}
+  ].map(pair=>({...pair,items:pair.packages.map(pkg=>apps.find(app=>app.packageName===pkg))}));
+  return <div className="modal-scrim" onClick={()=>{if(!busy)close();}}><section className="modal split-picker" role="dialog" aria-modal="true" aria-label="Pair two apps" onClick={e=>e.stopPropagation()}><header><h2>{right?'Finish pairing in Android':'Pair two apps'}</h2><button aria-label="Close dialog" disabled={busy} onClick={close}><X/></button></header>{right?<div className="modal-body pair-guide"><p>This device requires the final split-screen selection in Android. APEX will open both selected apps and put {left.name} first in Recents.</p><ol><li>Tap the three dots or app icon above <b>{left.name}</b>.</li><li>Choose <b>Split screen</b>.</li><li>Select <b>{right.name}</b> for the other half.</li></ol><p>If Split screen is missing, Android does not offer it for that app in the current mode.</p><button className="primary" disabled={busy} onClick={()=>openPair(right,true)}>{busy?'Preparing apps…':'Prepare apps & open Recents'}</button><button disabled={busy} onClick={()=>setRight(null)}>Change second app</button></div>:<><section className="quick-pairs" aria-label="Quick app pairs"><b>QUICK PAIRS</b><div>{quickPairs.map(pair=>{const missing=pair.labels.filter((_,i)=>!pair.items[i]);return <button key={pair.name} aria-label={pair.name} disabled={busy||missing.length>0} onClick={()=>openPair(pair.items[1],false,pair.items[0])}><span className="pair-icons">{pair.items.map((app,i)=>app?.icon?<img key={i} src={app.icon} alt=""/>:<Grid2X2 key={i}/>)}</span><span><b>{pair.name}</b>{missing.length>0&&<small>Needs {missing.join(' + ')}</small>}</span></button>;})}</div></section><p>{left?`${left.name} selected. Choose the second app.`:'Choose the first app, then the second.'} {caps?.pairMode==='manual'?'This device uses Android’s manual Split screen menu.':'Automatic pairing depends on Android support.'}</p><div className="split-options">{apps.length?apps.filter(app=>app.packageName!==left?.packageName).map(app=><button key={app.packageName} disabled={busy} onClick={()=>{if(!left)setLeft(app);else openPair(app);}}>{app.icon?<img src={app.icon} alt=""/>:<Grid2X2/>}<span>{app.name}</span></button>):<p>No launchable apps found.</p>}</div>{left&&<button disabled={busy} onClick={()=>setLeft(null)}>Change first app</button>}</>}</section></div>;
 }
 function VehicleStatus({obd,action}){return <button className={'vehicle-status '+(obd?.ecuConnected?'live':'waiting')} onClick={action}><Activity/><span><b>{obd?.ecuConnected?'Vehicle data live':obd?.connected?'Adapter connected':'Vehicle link'}</b><small>{obd?.status || 'Pair OBDLink MX+ to connect'}</small></span><ChevronRight/></button>;}
 function HomePage({live,go,act,theme,day,preferences,mapHidden}){

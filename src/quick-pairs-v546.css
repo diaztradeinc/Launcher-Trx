@@ -1,0 +1,11 @@
+.quick-pairs{flex-shrink:0;padding:12px 14px 6px;border-bottom:1px solid var(--ui-line)}
+.quick-pairs>b{display:block;font-size:11px;letter-spacing:.1em;color:var(--accent);margin-bottom:8px}
+.quick-pairs>div{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.apex-shell .quick-pairs button{min-width:0;min-height:64px;padding:8px;justify-content:flex-start;background:var(--ui-deep)!important;border:1px solid var(--accent)!important;text-align:left;gap:8px}
+.quick-pairs button>span:last-child{min-width:0;display:grid;gap:3px}
+.quick-pairs button b{font-size:12px;line-height:1.3;overflow-wrap:anywhere}
+.quick-pairs button small{font-size:10px;line-height:1.3}
+.pair-icons{display:flex;flex-shrink:0;gap:3px}
+.pair-icons img,.pair-icons svg{width:24px;height:24px;object-fit:contain}
+.split-picker>.split-options{min-height:0}
+@media(max-width:420px){.pair-icons{flex-direction:column}.pair-icons img,.pair-icons svg{width:20px;height:20px}.quick-pairs{padding:8px}.quick-pairs button{gap:5px;padding:6px}}

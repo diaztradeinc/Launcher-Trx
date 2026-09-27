@@ -151,6 +151,26 @@ async function main(){
     await p.screenshot({path:path.join(output,'manual-pair-guide.png')});
     await p.getByRole('button',{name:'Prepare apps & open Recents',exact:true}).click();
     if(!await p.evaluate(()=>window.__calls.some(c=>c.method==='startAppPair'&&c.args.first==='test.app2'&&c.args.second==='test.app0'&&c.args.manual===true)))throw Error('Manual pair request lost selected apps');
+    await p.evaluate(()=>{window.__APEX_TEST_BRIDGE__.getInstalledApps=()=>({apps:[{name:'Maps',packageName:'com.google.android.apps.maps'},{name:'YouTube',packageName:'com.google.android.youtube'},{name:'YT Music',packageName:'com.google.android.apps.youtube.music'}]});});
+    for(const [label,first,second] of [['YouTube + Maps','com.google.android.youtube','com.google.android.apps.maps'],['Maps + YouTube Music','com.google.android.apps.maps','com.google.android.apps.youtube.music']]){
+     await p.getByRole('button',{name:'Pair two apps',exact:true}).click();
+     await p.getByRole('button',{name:label,exact:true}).waitFor();
+     await p.screenshot({path:path.join(output,'quick-pairs.png')});
+     await p.getByRole('button',{name:label,exact:true}).click();
+     if(!await p.getByRole('heading',{name:'Finish pairing in Android',exact:true}).count())throw Error('Quick pair skipped required manual guidance');
+     await p.evaluate(()=>{window.__calls=[];});
+     await p.getByRole('button',{name:'Prepare apps & open Recents',exact:true}).click();
+     if(!await p.evaluate(({first,second})=>window.__calls.some(c=>c.method==='startAppPair'&&c.args.first===first&&c.args.second===second&&c.args.manual===true),{first,second}))throw Error('Quick pair selected wrong apps: '+label);
+    }
+    await p.evaluate(()=>{window.__APEX_TEST_BRIDGE__.railCapabilities=()=>({back:true,pairMode:'automatic'});window.__calls=[];});
+    await p.getByRole('button',{name:'Pair two apps',exact:true}).click();
+    await p.getByRole('button',{name:'YouTube + Maps',exact:true}).click();
+    if(!await p.evaluate(()=>window.__calls.some(c=>c.method==='startAppPair'&&c.args.first==='com.google.android.youtube'&&c.args.second==='com.google.android.apps.maps'&&!c.args.manual)))throw Error('Automatic quick pair failed');
+    await p.evaluate(()=>{window.__APEX_TEST_BRIDGE__.getInstalledApps=()=>({apps:[{name:'Maps',packageName:'com.google.android.apps.maps'}]});});
+    await p.getByRole('button',{name:'Pair two apps',exact:true}).click();
+    if(!await p.getByRole('button',{name:'YouTube + Maps',exact:true}).isDisabled()||!await p.getByRole('button',{name:'Maps + YouTube Music',exact:true}).isDisabled())throw Error('Missing apps must disable quick pair');
+    await p.getByRole('button',{name:'Close dialog',exact:true}).click();
+
 
     await navigate('Media');
     await p.waitForTimeout(150);
