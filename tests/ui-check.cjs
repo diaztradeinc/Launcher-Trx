@@ -49,6 +49,14 @@ async function main(){
     if(Math.abs(dockPlacement.gap)>2||dockPlacement.heightRatio<.94)throw Error('Launcher page rail does not reach the left edge');
     const railOverlap=await p.locator('.command-rail button').evaluateAll(items=>{const r=items.map(e=>e.getBoundingClientRect());return r.some((a,i)=>r.some((b,j)=>j>i&&Math.min(a.right,b.right)-Math.max(a.left,b.left)>1&&Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top)>1));});
     if(railOverlap)throw Error('Navigation rail buttons overlap');
+    await navigate('Home');
+    const railBefore=await p.getByRole('navigation',{name:'Main navigation'}).getByRole('button',{name:'Home',exact:true}).boundingBox();
+    const stripe=await p.locator('.command-rail button.active').evaluate(e=>{const a=getComputedStyle(e),b=getComputedStyle(e,'::before');return {shadow:a.boxShadow,background:a.backgroundImage,border:a.borderLeftWidth,width:b.width,display:b.display,animation:b.animationName};});
+    if(stripe.shadow!=='none'||stripe.background!=='none'||stripe.border!=='0px'||stripe.width!=='4px'||stripe.display==='none'||stripe.animation!=='none')throw Error('Selected rail must have only one solid stripe');
+    await navigate('Media');
+    const railAfter=await p.getByRole('navigation',{name:'Main navigation'}).getByRole('button',{name:'Home',exact:true}).boundingBox();
+    if(railBefore.width!==railAfter.width||railBefore.height!==railAfter.height)throw Error('Rail selection changes button size');
+
     await navigate('Settings');
     await p.getByRole('button',{name:'Baja Sand theme',exact:true}).click();if(await p.locator('.apex-shell').evaluate(e=>getComputedStyle(e).getPropertyValue('--accent').trim())!=='#dcae74')throw Error('Theme not applied');
     for(const [name,id] of [['Hellfire Red','hellfire'],['Titanium','titanium'],['Arctic Ice','arctic'],['Night Ops','night'],['Baja Sand','baja']]){
@@ -134,6 +142,16 @@ async function main(){
     await p.getByRole('dialog',{name:'Pair two apps'}).getByRole('button',{name:'Phone',exact:true}).click();
     await p.getByRole('dialog',{name:'Pair two apps'}).getByRole('button',{name:'Maps',exact:true}).click();
     if(!await p.evaluate(()=>window.__calls.some(c=>c.method==='startAppPair'&&c.args.first==='test.app2'&&c.args.second==='test.app0')))throw Error('Two-app split request was not dispatched');
+    await p.evaluate(()=>{window.__APEX_TEST_BRIDGE__.railCapabilities=()=>({back:true,pairMode:'manual'});window.__calls=[];});
+    await p.getByRole('button',{name:'Pair two apps',exact:true}).click();
+    await p.getByRole('dialog',{name:'Pair two apps'}).getByRole('button',{name:'Phone',exact:true}).click();
+    await p.getByRole('dialog',{name:'Pair two apps'}).getByRole('button',{name:'Maps',exact:true}).click();
+    if(await p.evaluate(()=>window.__calls.some(c=>c.method==='startAppPair')))throw Error('Manual mode must show instructions before leaving the launcher');
+    if(!await p.getByRole('heading',{name:'Finish pairing in Android',exact:true}).count())throw Error('Manual split guidance missing');
+    await p.screenshot({path:path.join(output,'manual-pair-guide.png')});
+    await p.getByRole('button',{name:'Prepare apps & open Recents',exact:true}).click();
+    if(!await p.evaluate(()=>window.__calls.some(c=>c.method==='startAppPair'&&c.args.first==='test.app2'&&c.args.second==='test.app0'&&c.args.manual===true)))throw Error('Manual pair request lost selected apps');
+
     await navigate('Media');
     await p.waitForTimeout(150);
     if(await p.getByRole('button',{name:'Play',exact:true}).count())await p.getByRole('button',{name:'Play',exact:true}).click();

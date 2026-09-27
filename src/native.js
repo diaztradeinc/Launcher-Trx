@@ -24,7 +24,7 @@ export const native = {
   spectrum: () => safe('getAudioSpectrum', {}, {available:false,reason:'Audio visualizer requires Android'}),
   visualizerAccess: () => safe('visualizerAccess', {}, {granted:false}),
   stopSpectrum: () => safe('stopAudioSpectrum', {}, {success:true}),
-  startAppPair: (first,second) => safe('startAppPair', {first,second}, unavailable),
+  startAppPair: (first,second,manual=false) => safe('startAppPair', {first,second,manual}, unavailable),
   floatingRail: (enabled, accentColor, surface) => safe('floatingRail', {enabled,accentColor,surface}, unavailable),
   railCapabilities: () => safe('railCapabilities', {}, {overlay:false,back:false}),
   railDestination: () => safe('consumeRailDestination', {}, {page:''}),

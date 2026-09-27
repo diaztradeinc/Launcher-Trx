@@ -286,7 +286,12 @@ public class TrxNativePlugin extends Plugin {
         PackageManager pm=getContext().getPackageManager();
         Intent left=pm.getLaunchIntentForPackage(first),right=pm.getLaunchIntentForPackage(second);
         if(left==null||right==null){call.reject("Both apps must be launchable");return;}
-        getActivity().runOnUiThread(() -> TrxBackService.startPair(first,second,
+        boolean manual=Boolean.TRUE.equals(call.getBoolean("manual",false));
+        if(TrxBackService.ready()&&!TrxBackService.automaticPairAvailable()&&!manual){
+            JSObject result=new JSObject();result.put("manualRequired",true);result.put("success",false);
+            result.put("message","Use Android’s Split screen menu to finish this pair.");call.resolve(result);return;
+        }
+        getActivity().runOnUiThread(() -> TrxBackService.startPair(first,second,manual,
             getActivity().isInMultiWindowMode(),(message,error) -> {
                 if(error){call.reject(message);return;}
                 JSObject result=new JSObject();result.put("success",true);
@@ -316,6 +321,7 @@ public class TrxNativePlugin extends Plugin {
         result.put("overlay",Settings.canDrawOverlays(getContext()));
         result.put("back",TrxBackService.ready());
         result.put("backStatus",TrxBackService.status(getContext()));
+        result.put("pairMode",!TrxBackService.ready()?"unavailable":TrxBackService.automaticPairAvailable()?"automatic":"manual");
         result.put("enabled",getContext().getSharedPreferences("launcher",Context.MODE_PRIVATE).getBoolean("floating_rail_enabled",true));
         call.resolve(result);
     }
