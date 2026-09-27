@@ -317,6 +317,7 @@ public class TrxNativePlugin extends Plugin {
         JSObject result=new JSObject();
         result.put("overlay",Settings.canDrawOverlays(getContext()));
         result.put("back",TrxBackService.ready());
+        result.put("backStatus",TrxBackService.status(getContext()));
         result.put("enabled",getContext().getSharedPreferences("launcher",Context.MODE_PRIVATE).getBoolean("floating_rail_enabled",true));
         call.resolve(result);
     }

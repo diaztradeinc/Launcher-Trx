@@ -8,6 +8,8 @@ import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Color;
+import android.content.res.ColorStateList;
+import android.graphics.drawable.RippleDrawable;
 import android.graphics.PixelFormat;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Build;
@@ -30,6 +32,7 @@ public class FloatingRailService extends Service {
     private View rail;
     private final Handler handler=new Handler(Looper.getMainLooper());
     private boolean expanded=false;
+    private boolean backPending=false;
     private final Runnable retract=() -> setExpanded(false);
 
     private void setExpanded(boolean value){
@@ -74,6 +77,7 @@ public class FloatingRailService extends Service {
             manager.removeView(rail);rail=null;
         }
         accentColor=newAccent;surfaceColor=newSurface;
+        if(backPending)return START_STICKY;
         if (rail == null) showRail();
         rail.setVisibility(launcherVisible?View.GONE:View.VISIBLE);
         return START_STICKY;
@@ -90,10 +94,11 @@ public class FloatingRailService extends Service {
         LinearLayout dock = new LinearLayout(this);
         dock.setOrientation(LinearLayout.HORIZONTAL);
         dock.setGravity(Gravity.CENTER_VERTICAL);
-        dock.setPadding(dp(8),dp(4),dp(8),dp(4));
+        dock.setPadding(dp(expanded?8:3),dp(4),dp(expanded?8:3),dp(4));
         GradientDrawable background = new GradientDrawable(GradientDrawable.Orientation.TL_BR,new int[]{surfaceColor,0xf804080a});
         background.setCornerRadius(dp(16));
-        background.setStroke(dp(1),0xff6a747b);
+        background.setStroke(dp(1),expanded?0xff536168:accentColor);
+        dock.setElevation(dp(8));
         dock.setBackground(background);
         if(expanded){
         button("⌂","Home",dock).setOnClickListener(v -> open("home",false));
@@ -101,10 +106,7 @@ public class FloatingRailService extends Service {
         split.setTextColor(accentColor);
         split.setOnClickListener(v -> open("apps",true));
         button("←","Back",dock).setOnClickListener(v -> {
-            boolean ready=TrxBackService.ready();
-            boolean handled=ready&&TrxBackService.pressBack();
-            if(!handled)Toast.makeText(this,ready?"Android could not go back from this screen":"Enable Back over apps in TRX APEX Settings first",Toast.LENGTH_LONG).show();
-            setExpanded(false);
+            dispatchSystemBack();
         });
         }else{
             TextView handle=button("⌃","",dock);
@@ -123,15 +125,32 @@ public class FloatingRailService extends Service {
 
     private TextView button(String icon,String description,LinearLayout container) {
         TextView view = new TextView(this);
-        view.setText(icon+"  "+description);view.setContentDescription(description);view.setTextColor(Color.WHITE);
-        view.setTextSize(14);view.setGravity(Gravity.CENTER);view.setSingleLine(true);
+        view.setText(description);
+        RailIconDrawable glyph=new RailIconDrawable(icon,accentColor);glyph.setBounds(0,0,dp(22),dp(22));
+        view.setCompoundDrawables(null,glyph,null,null);view.setCompoundDrawablePadding(dp(2));view.setContentDescription(description);view.setTextColor(Color.WHITE);
+        view.setTextSize(11);view.setGravity(Gravity.CENTER);view.setSingleLine(true);
         GradientDrawable bg=new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,new int[]{surfaceColor,0xff060a0c});
         bg.setCornerRadius(dp(9));bg.setStroke(dp(1),0x785d7077);
-        view.setBackground(bg);
+        view.setBackground(new RippleDrawable(ColorStateList.valueOf((accentColor & 0x00ffffff)|0x44000000),bg,null));
         LinearLayout.LayoutParams params=new LinearLayout.LayoutParams(0,dp(buttonHeightDp),1);
         params.leftMargin=dp(3);params.rightMargin=dp(3);
         container.addView(view,params);
         return view;
+    }
+
+    private void dispatchSystemBack(){
+        if(backPending)return;
+        backPending=true;
+        handler.removeCallbacks(retract);
+        // Detach the touched overlay before asking Android to target the app beneath it.
+        if(manager!=null&&rail!=null){manager.removeViewImmediate(rail);rail=null;}
+        expanded=false;
+        handler.postDelayed(() -> {
+            boolean handled=TrxBackService.pressBack();
+            if(!handled)Toast.makeText(this,TrxBackService.status(this),Toast.LENGTH_LONG).show();
+            // Never retry automatically: one tap must produce at most one system Back.
+            handler.postDelayed(() -> {backPending=false;if(rail==null&&Settings.canDrawOverlays(this)){showRail();rail.setVisibility(launcherVisible?View.GONE:View.VISIBLE);}},220);
+        },120);
     }
 
     private void open(String page,boolean split) {
