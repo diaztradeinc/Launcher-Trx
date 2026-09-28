@@ -13,13 +13,11 @@ import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
 import com.google.android.gms.maps3d.GoogleMap3D
-import com.google.android.gms.maps3d.Map3DInitConfig
 import com.google.android.gms.maps3d.Map3DView
 import com.google.android.gms.maps3d.OnMap3DViewReadyCallback
 import com.google.android.gms.maps3d.model.AltitudeMode
 import com.google.android.gms.maps3d.model.Camera
 import com.google.android.gms.maps3d.model.LatLngAltitude
-import com.google.android.gms.maps3d.model.Map3DMode
 import com.google.android.gms.maps3d.model.Model
 import com.google.android.gms.maps3d.model.ModelOptions
 import com.google.android.gms.maps3d.model.Orientation
@@ -79,7 +77,7 @@ class Google3DPreviewActivity : Activity(), OnMap3DViewReadyCallback {
         controls.forEach { it.isEnabled=false;row.addView(it,LinearLayout.LayoutParams(0,dp(54),1f)) }
         root.addView(row)
         try {
-            val config=Map3DInitConfig.create(mapMode=Map3DMode.HYBRID,centerLat=initialLatitude,centerLng=initialLongitude)
+            val config=Google3DConfig.create(initialLatitude,initialLongitude)
             val candidate=Map3DView(this,config)
             candidate.onCreate(state)
             view=candidate
@@ -91,7 +89,7 @@ class Google3DPreviewActivity : Activity(), OnMap3DViewReadyCallback {
                 }
             },30000)
         } catch(e:Exception) { recordError(e);showError(e.javaClass.simpleName) }
-          catch(e:LinkageError) { recordError(e);showError(e.javaClass.simpleName) }
+          catch(e:LinkageError) { recordError(e);showError(e.javaClass.simpleName,false) }
     }
 
     override fun onMap3DViewReady(googleMap3D: GoogleMap3D) {
@@ -152,10 +150,11 @@ class Google3DPreviewActivity : Activity(), OnMap3DViewReadyCallback {
     private fun recordError(error:Throwable) {
         android.util.Log.e("Apex3D",error.stackTraceToString().replace(Regex("AIza[\\w-]+"),"[REDACTED_GOOGLE_KEY]"))
     }
-    private fun showError(reason:String) {
+    private fun showError(reason:String,cloudHint:Boolean=true) {
         if(isDestroyed || isFinishing)return
         failed=true
-        status.text="Google 3D unavailable ($reason). Enable Maps 3D SDK for Android for the same key, or return to the working map."
+        status.text=if(cloudHint) "Google 3D unavailable ($reason). Check connection and Maps 3D SDK access, or return to the working map."
+            else "Google 3D unavailable ($reason). This build has a renderer compatibility error. Return to the working map."
         controls.forEach { it.isEnabled=false }
     }
     private fun dp(value:Int)=(value*resources.displayMetrics.density).toInt()
