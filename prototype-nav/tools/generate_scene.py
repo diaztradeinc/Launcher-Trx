@@ -54,10 +54,10 @@ for i in range(100):
     s=rng.uniform(-70,680);x,z=route(s);side=rng.choice([-1,1]);x+=side*rng.uniform(22,110)
     cone('World',green,x,0,z,rng.uniform(.6,1.6),rng.uniform(.8,2.5))
 # Continuous ridgelines with a low road corridor, rather than isolated pyramid hills.
-peaks=[(rng.uniform(-700,700),rng.uniform(-950,300),rng.uniform(50,130),rng.uniform(65,130)) for _ in range(44)]
+peaks=[(rng.uniform(-700,700),rng.uniform(-950,300),rng.uniform(18,55),rng.uniform(65,130)) for _ in range(44)]
 def height(x,z):
     clearance=min(abs(x),abs(x-route(-z)[0]))
-    fade=max(0,min(1,(clearance-20)/100))
+    fade=max(0,min(1,(clearance-65)/135))
     return -.12+fade*sum(h*math.exp(-((x-px)**2+(z-pz)**2)/(2*r*r)) for px,pz,h,r in peaks)
 for x in range(-700,700,28):
     for z in range(-850,300,28):
