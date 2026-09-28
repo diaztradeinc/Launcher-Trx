@@ -1,6 +1,6 @@
 # Google navigation and a geographic 3D cockpit
 
-Status, 2026-09-28: v0.4.0 implements the isolated geographic 3D preview. The user reports the standard map now loads. The live headless guidance → 3D bridge remains pending; the new renderer is not yet Ottocast-verified.
+Status, 2026-09-28: v0.5.0 implements a device-test live Google Navigation → Google 3D bridge. The user reports the standard map and v0.4 preview look good. Live motion, route alignment and camera elevation still require device testing. See README for architecture, controls and limitations.
 
 ## Current failure
 

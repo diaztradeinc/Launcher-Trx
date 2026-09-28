@@ -6,8 +6,8 @@ android {
         applicationId = "com.diaztradeinc.trxnavprototype"
         minSdk = 26
         targetSdk = 35
-        versionCode = 6
-        versionName = "0.4.0"
+        versionCode = 7
+        versionName = "0.5.0"
         manifestPlaceholders["MAPS_API_KEY"] = (System.getenv("MAPS_API_KEY") ?: "").trim()
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64") }
@@ -38,6 +38,8 @@ dependencies {
     implementation("com.google.android.filament:filament-android:1.56.0")
     implementation("com.google.android.filament:gltfio-android:1.56.0")
     implementation("com.google.android.filament:filament-utils-android:1.56.0")
+    implementation("androidx.core:core-location-altitude:1.0.0")
+    testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test:runner:1.6.2")
     androidTestImplementation("androidx.test:rules:1.6.1")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")

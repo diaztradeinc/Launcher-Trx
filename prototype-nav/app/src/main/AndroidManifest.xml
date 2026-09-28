@@ -7,6 +7,8 @@
     <application android:label="TRX APEX Nav Lab" android:theme="@style/AppTheme" android:allowBackup="false" android:supportsRtl="true">
         <meta-data android:name="com.google.android.geo.API_KEY" android:value="${MAPS_API_KEY}" />
         <meta-data android:name="com.google.android.geo.maps3d.API_KEY" android:value="${MAPS_API_KEY}" />
+        <service android:name="com.apex.navlab.LiveNavFeedService" android:exported="false" />
+        <activity android:name="com.apex.navlab.Google3DLiveActivity" android:exported="false" android:screenOrientation="portrait" />
         <activity android:name="com.apex.navlab.Google3DPreviewActivity" android:exported="false" android:screenOrientation="portrait" />
         <activity android:name="com.apex.navlab.MainActivity" android:exported="false" />
         <activity android:name="com.apex.navlab.GoogleNavigationActivity" android:exported="true" android:screenOrientation="portrait">

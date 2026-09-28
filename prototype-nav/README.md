@@ -1,8 +1,8 @@
-# TRX APEX Navigation Lab 0.4.0
+# TRX APEX Navigation Lab 0.5.0
 
 An isolated native Android/Filament prototype. App ID `com.diaztradeinc.trxnavprototype`; this does not replace the TRX APEX launcher or register as a home app.
 
-**Current entry point:** Google Navigation trial. The user reports that the standard map now loads. This does not yet verify live route guidance or the new 3D renderer. See the authorization finding below.
+**Current entry point:** Google Navigation trial. The user reports that the standard map now loads. The user also reports the v0.4 geographic preview looks good. The new v0.5 live bridge still needs device validation. Historical authorization findings are below.
 
 **Separate Filament simulation (Setup → Open 3D simulation):** Not for driving. This scene uses no GPS, Google Navigation data or road database. All its roads and scenery are synthetic. The original low-poly pickup is a visual proxy, not a licensed RAM/TRX model. UI fidelity and vehicle detailing are prototype quality, not the photorealistic concept image.
 
@@ -73,3 +73,37 @@ CI now checks real 3D map readiness and a map-tap/model-placement callback, expo
 The user offered phone/Ottocast testing to save iteration time. A commit explicitly marked `[device-test]` (or manual workflow input `device_test`) runs credential preflight, compilation and permanent signature verification, then publishes a **SIGNED-DEVICE-TEST-APK**. It skips emulator validation and must not be described as runtime-verified. Ordinary pushes retain the full runtime gates.
 
 Maps 3D 0.2.2 Kotlin `create` default-argument initialization failed with `NoSuchMethodError`; the preview now uses a Java factory with explicit parameters. SDK validation also requires minimum camera altitude >= 0.0, now corrected. Device readiness/model rendering remains pending. Tap a failure message in the preview to see redacted error details.
+
+## v0.5.0 — live Google guidance in Google 3D (device test)
+
+Find a destination, start guidance, then tap **Live 3D** in the map toolbar.
+The existing Google Navigator remains the route/voice authority. A bound, non-exported
+service supplies the actual maneuver text, generated maneuver/lane images and ETA.
+The geographic renderer places the truck from road-snapped fixes and draws Google
+route coordinates in blue. Routes refresh on reroute and periodically as the trip progresses.
+Back to map preserves guidance; End stops/clears it and restores destination search.
+The isolated tap-to-place preview and synthetic simulation remain available.
+
+Movement interpolates measured positions for 450 ms with no extrapolation; old fixes
+and large animated jumps are rejected. After eight seconds without fresh GPS/feed,
+instructions are hidden and movement stops. Listeners and the feed are detached while
+the 3D activity is paused. No location history is stored.
+
+AndroidX converts available GNSS altitude to mean sea level on a worker thread,
+including older Ottocast Android versions. Close follow uses a conservative 110 m
+camera range only with reported vertical accuracy <=15 m; otherwise it widens to
+500 m. Without usable elevation, the camera stops following instead of assuming
+zero ground height. Truck/route are relative to Google's mesh; road deck selection,
+bridges, tunnels and photogrammetry/GNSS height differences remain unverified.
+This does not create lane-level 3D roads or synthetic highway signs.
+
+Device checks (passenger or stationary controls):
+1. Start a real route; Live 3D should show current maneuver, blue route, truck and ETA.
+2. Check truck heading, Above/Chase, Explore/Recenter and hills/bridges.
+3. Back to map must retain the route; Live 3D must resume it.
+4. End must restore destination search. Test background/resume and GPS loss/recovery.
+5. If 3D fails, Back to map retains normal guidance. Error status contains redacted details.
+
+`[device-test]` builds run motion unit tests, compile instrumentation and verify the
+permanent signing certificate; emulator runtime tests are skipped at the user's
+request. Signed device-test output is not labelled runtime-verified.

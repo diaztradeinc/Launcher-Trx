@@ -57,7 +57,7 @@ class GoogleNavigationActivity : AppCompatActivity() {
         val header = row()
         header.addView(label("TRX",22,true), LinearLayout.LayoutParams(0,dp(48),1f))
         header.addView(label("APEX",22,true).apply { setTextColor(red) },LinearLayout.LayoutParams(0,dp(48),1f))
-        header.addView(label("NAV LAB 0.4.0",11),LinearLayout.LayoutParams(0,dp(48),1f))
+        header.addView(label("NAV LAB 0.5.0",11),LinearLayout.LayoutParams(0,dp(48),1f))
         frame.addView(header)
         val body=row();frame.addView(body,LinearLayout.LayoutParams(-1,0,1f))
         val dock=LinearLayout(this).apply { orientation=1 }
@@ -77,6 +77,7 @@ class GoogleNavigationActivity : AppCompatActivity() {
         catch(e:Exception) { startupError="Map could not start: ${e.javaClass.simpleName}";status.text=startupError;navView=null }
         val tools=HorizontalScrollView(this).apply { isHorizontalScrollBarEnabled=false }
         val controls=row();tools.addView(controls)
+        controls.addView(button("Live 3D") {openLive3D()})
         controls.addView(button("Recenter") {recenter()})
         controls.addView(button("Layers") {satellite=!satellite;map?.mapType=if(satellite)GoogleMap.MAP_TYPE_HYBRID else GoogleMap.MAP_TYPE_NORMAL})
         controls.addView(button("Saved") {showSaved()})
@@ -102,7 +103,10 @@ class GoogleNavigationActivity : AppCompatActivity() {
                     setStylingOptions(StylingOptions().primaryNightModeThemeColor(0xff11161c.toInt()).secondaryNightModeThemeColor(0xff39131a.toInt()).headerLargeManeuverIconColor(red).headerGuidanceRecommendedLaneColor(red))
                     getMapAsync { m->map=m;m.setBuildingsEnabled(true);m.isTrafficEnabled=true;recenter() }
                 }
-                applyVoice();status.text="Google Navigation ready · enter a destination"
+                applyVoice();active=n.isGuidanceRunning
+                searchRow.visibility=if(active)View.GONE else View.VISIBLE
+                status.visibility=if(active)View.GONE else View.VISIBLE
+                status.text="Google Navigation ready · enter a destination"
             }
             override fun onError(code:Int) {initializing=false;startupError=when(code) {
                 NavigationApi.ErrorCode.NOT_AUTHORIZED->"Google authorization failed (1). Setup → Google connection details identifies this build. Check the matching Google Cloud key, Android restrictions, enabled SDKs and billing; tap here after correcting them."
@@ -151,6 +155,15 @@ class GoogleNavigationActivity : AppCompatActivity() {
             else status.text="Route unavailable: $result"
         } }
     }
+    private fun openLive3D() {
+        if(navigator?.isGuidanceRunning!=true) {
+            Toast.makeText(this,"Choose a destination and start guidance first",Toast.LENGTH_LONG).show();return
+        }
+        val center=map?.cameraPosition?.target
+        startActivity(Intent(this,Google3DLiveActivity::class.java)
+            .putExtra("latitude",center?.latitude ?: 40.333)
+            .putExtra("longitude",center?.longitude ?: -74.593))
+    }
     private fun endRoute() {generation++;navigator?.stopGuidance();navigator?.clearDestinations();active=false;searchRow.visibility=View.VISIBLE;status.visibility=View.VISIBLE;status.text=startupError ?: if(navigator!=null) "Route ended · choose a destination" else "Google Navigation is still connecting"}
     private fun recenter(){map?.followMyLocation(GoogleMap.CameraPerspective.TILTED)}
     private fun applyVoice(){navigator?.setAudioGuidanceSettings(AudioGuidanceSettings.builder().setGuidanceMode(if(voice)AudioGuidanceSettings.GuidanceMode.VOICE_ALERTS_AND_GUIDANCE else AudioGuidanceSettings.GuidanceMode.SILENT).build())}
@@ -189,7 +202,15 @@ class GoogleNavigationActivity : AppCompatActivity() {
     private fun button(s:String,action:()->Unit)=label(s,12).apply {gravity=Gravity.CENTER;minWidth=dp(58);minimumHeight=dp(48);background=GradientDrawable().apply {setColor(0xff141a22.toInt());setStroke(dp(1),0xff353b44.toInt());cornerRadius=dp(7).toFloat()};setOnClickListener {action()}}
     override fun onRequestPermissionsResult(r:Int,p:Array<out String>,g:IntArray){super.onRequestPermissionsResult(r,p,g);if(r==73 && g.firstOrNull()==PackageManager.PERMISSION_GRANTED)initialize()}
     override fun onStart(){super.onStart();navView?.onStart()}
-    override fun onResume(){super.onResume();navView?.onResume()}
+    override fun onResume(){
+        super.onResume();navView?.onResume()
+        navigator?.let {
+            active=it.isGuidanceRunning
+            searchRow.visibility=if(active)View.GONE else View.VISIBLE
+            status.visibility=if(active)View.GONE else View.VISIBLE
+            if(!active)status.text=startupError ?: "Google Navigation ready · enter a destination"
+        }
+    }
     override fun onPause(){navView?.onPause();super.onPause()}
     override fun onStop(){navView?.onStop();super.onStop()}
     override fun onSaveInstanceState(out:Bundle){navView?.onSaveInstanceState(out);super.onSaveInstanceState(out)}
