@@ -74,7 +74,6 @@ public class NavigationActivity extends AppCompatActivity {
     private RoadSnappedLocationProvider roadSnappedLocationProvider;
     private boolean locationListenerRegistered;
     private boolean guidanceActive;
-    private boolean pendingGuidanceZoom;
     private Location lastRoadLocation;
     private final RoadSnappedLocationProvider.LocationListener roadLocationListener = new RoadSnappedLocationProvider.LocationListener() {
         @Override public void onLocationChanged(@NonNull Location location) { updateTrxMarker(location); }
@@ -295,7 +294,7 @@ public class NavigationActivity extends AppCompatActivity {
                 if(routeStatus==Navigator.RouteStatus.OK){
                     AudioGuidanceSettings audio=AudioGuidanceSettings.builder().setGuidanceMode(audioEnabled ? AudioGuidanceSettings.GuidanceMode.VOICE_ALERTS_AND_GUIDANCE : AudioGuidanceSettings.GuidanceMode.SILENT).build();
                     navigator.setAudioGuidanceSettings(audio);navigator.startGuidance();status.setVisibility(android.view.View.GONE);destination.clearFocus();
-                    guidanceActive=true;pendingGuidanceZoom=true;searchBar.setVisibility(View.GONE);driveControls.setVisibility(View.GONE);railToggle.setVisibility(View.VISIBLE);positionRailToggle();
+                    guidanceActive=true;searchBar.setVisibility(View.GONE);driveControls.setVisibility(View.GONE);railToggle.setVisibility(View.VISIBLE);positionRailToggle();
                     if (googleMap != null) googleMap.setPadding(0, 0, 0, dp(88));
                     focusGuidanceCamera();
                     InputMethodManager keyboard=(InputMethodManager)getSystemService(Context.INPUT_METHOD_SERVICE);
@@ -377,7 +376,6 @@ public class NavigationActivity extends AppCompatActivity {
         if (googleMap == null || location == null || !guidanceActive) return;
         lastRoadLocation = location;
         if (location.hasAccuracy() && location.getAccuracy() > 30f) {if (trxMarker != null) trxMarker.setVisible(false);return;}
-        if (pendingGuidanceZoom) { pendingGuidanceZoom=false;focusGuidanceCamera(); }
         LatLng position = new LatLng(location.getLatitude(), location.getLongitude());
         if (trxMarker == null) {
             trxMarker = googleMap.addMarker(new MarkerOptions()
@@ -395,19 +393,9 @@ public class NavigationActivity extends AppCompatActivity {
     }
 
     private void focusGuidanceCamera() {
-        navigationView.getMapAsync(map -> {
-            map.followMyLocation(CameraPerspective.TILTED);
-            Location location=lastRoadLocation;
-            if (location == null && ContextCompat.checkSelfPermission(this,Manifest.permission.ACCESS_FINE_LOCATION)==PackageManager.PERMISSION_GRANTED) {
-                android.location.LocationManager manager=(android.location.LocationManager)getSystemService(Context.LOCATION_SERVICE);
-                try { if (manager!=null) location=manager.getLastKnownLocation(android.location.LocationManager.GPS_PROVIDER); }
-                catch (SecurityException ignored) {}
-            }
-            if (location == null) return;
-            LatLng target=new LatLng(location.getLatitude(),location.getLongitude());
-            float bearing=location.hasBearing()?location.getBearing():map.getCameraPosition().bearing;
-            map.animateCamera(CameraUpdateFactory.newCameraPosition(new CameraPosition.Builder().target(target).zoom(17f).tilt(50f).bearing(bearing).build()),650,null);
-        });
+        // Pinned animateCamera() exits the SDK's follow mode. Let Navigation SDK
+        // 7.9 dynamically set tilt and zoom for the road ahead during guidance.
+        navigationView.getMapAsync(map -> map.followMyLocation(CameraPerspective.TILTED));
     }
 
     private Bitmap createTrxMarkerBitmap() {

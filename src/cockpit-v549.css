@@ -1,0 +1,86 @@
+/* Portrait Ottocast cockpit, measured 602 × 726 CSS px in its Android app window. */
+.apex-shell.rendering-uconnect{--rail:clamp(56px,10vw,66px);--header:clamp(43px,6vh,49px);--gap:6px}
+.apex-shell.rendering-uconnect .page{padding:7px;gap:6px}
+.apex-shell.rendering-uconnect .command-rail button{min-height:0;padding:4px 1px;gap:3px}
+.apex-shell .command-rail button:last-child{flex:1 1 0;min-height:0;margin:0;border-bottom:0!important}
+.apex-shell.rendering-uconnect .command-rail button span{font-size:clamp(9px,1.4vh,12px);line-height:1.15;overflow-wrap:anywhere}
+.apex-shell.rendering-uconnect .command-rail button svg{width:clamp(21px,3.6vh,28px);height:clamp(21px,3.6vh,28px)}
+.apex-shell.rendering-uconnect .status-bar{padding-inline:10px}
+.apex-shell.rendering-uconnect .wordmark b{font-size:clamp(20px,3.3vh,28px)}
+.apex-shell.rendering-uconnect .wordmark em{font-size:clamp(17px,2.8vh,24px)}
+.apex-shell.rendering-uconnect .status-right{gap:5px;font-size:clamp(10px,1.55vh,13px)}
+
+/* Four contiguous Home regions: hero, route/weather, playback, live status. */
+.apex-shell.rendering-uconnect .cockpit-home{grid-template-rows:minmax(145px,1.12fr) minmax(168px,.96fr) minmax(66px,.37fr) minmax(48px,.25fr)}
+.apex-shell.rendering-uconnect .cockpit-home .hero-panel{margin:-7px -7px 0;position:relative}
+.apex-shell.rendering-uconnect .home-information{min-height:0;grid-template-columns:minmax(0,1.52fr) minmax(0,1fr);gap:6px}
+.apex-shell.rendering-uconnect .home-map,.apex-shell.rendering-uconnect .weather-card{min-height:0}
+.apex-shell.rendering-uconnect .home-now{min-height:0;padding:4px 7px}
+.apex-shell.rendering-uconnect .home-now-track img{height:clamp(42px,7vh,56px);width:clamp(42px,7vh,56px)}
+.apex-shell.rendering-uconnect .home-now-track b{font-size:clamp(13px,2vh,18px)}
+.apex-shell.rendering-uconnect .home-now-controls button{min-width:32px}
+.apex-shell.rendering-uconnect .home-now-controls .primary{min-height:40px;width:40px}
+.home-status{min-width:0;min-height:0;display:flex;align-items:center;gap:7px;padding:3px 7px}
+.home-status>button{background:#10191d!important;border:1px solid #66747b88;box-shadow:none;min-height:40px;padding:3px 6px;flex-shrink:0;font-size:11px}
+.home-vehicle-link{flex:1 1 auto!important;min-width:0;justify-content:flex-start;text-align:left}
+.home-vehicle-link>svg{color:var(--accent);width:18px;height:18px}
+.home-vehicle-link>span{min-width:0;display:grid;gap:1px}
+.home-vehicle-link small{overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:10px}
+.home-live-metrics{display:flex;gap:9px;flex:0 0 auto}
+.home-live-metrics>span{display:grid;gap:1px;text-align:center;font-size:11px;white-space:nowrap}
+.home-live-metrics small{font-size:9px}
+.home-context-action>svg{width:15px;height:15px;color:var(--accent)}
+
+/* Weather has no rail destination; it always has an explicit exit. */
+.apex-shell.rendering-uconnect .weather-page{grid-template-rows:minmax(228px,1.75fr) minmax(116px,.68fr) minmax(120px,.68fr)}
+.apex-shell .weather-hero-header{position:absolute;top:0;left:0;right:0;z-index:6;display:flex;align-items:center;justify-content:space-between;gap:4px;padding:7px 9px;background:linear-gradient(#070e16e8,transparent)}
+.apex-shell .weather-hero-header>span{font-size:clamp(10px,1.5vh,13px);font-weight:700;letter-spacing:.07em;min-width:0;max-width:54%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.weather-header-actions{display:flex;gap:5px;align-items:center}
+.apex-shell .weather-header-actions button{min-height:40px;height:40px;padding:5px 8px;background:#080e15e9;border:1px solid #a4b2b9a3;font-size:11px;white-space:nowrap}
+.apex-shell .weather-header-actions button:last-child{border-color:var(--accent);color:#fff}
+.apex-shell .weather-header-actions svg{width:16px;height:16px}
+.apex-shell.rendering-uconnect .weather-hero-copy{left:5%;right:37%;bottom:13%;max-width:none;display:grid;grid-template-columns:46px minmax(0,1fr);gap:3px 8px}
+.apex-shell.rendering-uconnect .weather-hero-copy .weather-hero-icon{position:static;grid-column:1;grid-row:1;width:43px;height:43px;filter:drop-shadow(0 2px 4px #0008)}
+.apex-shell.rendering-uconnect .weather-hero-copy strong{grid-column:2;grid-row:1;font-size:clamp(40px,9vh,69px);line-height:1}
+.apex-shell.rendering-uconnect .weather-hero-copy h1,.apex-shell.rendering-uconnect .weather-hero-copy p{grid-column:1/-1;white-space:normal}
+.apex-shell.rendering-uconnect .weather-hero-stats{left:66%;right:3%;bottom:13%;width:auto;min-width:0;padding-left:8px;border-left:1px solid #ffffff90}
+.apex-shell.rendering-uconnect .weather-hero-stats b{font-size:clamp(13px,2.2vh,19px)}
+.apex-shell.rendering-uconnect .weather-sky-orb{opacity:.34;left:6%;top:26%;filter:blur(7px);pointer-events:none}
+.apex-shell.rendering-uconnect .forecast-strip>div{flex-basis:54px;min-width:54px}
+
+/* The supported OBD-II values are the only populated performance tiles. */
+.apex-shell.rendering-uconnect .performance-hud-page{grid-template-rows:clamp(40px,6vh,48px) minmax(170px,1.14fr) minmax(68px,.31fr) minmax(158px,.65fr) clamp(44px,7vh,54px);gap:6px}
+.apex-shell.rendering-uconnect .performance-hero .performance-speed{top:8%;padding:5px 19px;border:1px solid #c2c9cc55;border-radius:11px;background:#070c12b7;backdrop-filter:blur(5px)}
+.apex-shell.rendering-uconnect .performance-hero .performance-speed strong{font-size:clamp(43px,8vh,65px)}
+.apex-shell.rendering-uconnect .performance-editorial{top:auto;bottom:5%;left:4%}
+.apex-shell.rendering-uconnect .performance-editorial b{font-size:clamp(11px,1.6vh,16px)}
+.apex-shell.rendering-uconnect .performance-editorial span{letter-spacing:.1em}
+.apex-shell.rendering-uconnect .performance-modules .panel{display:grid;grid-template-columns:1fr auto;grid-template-rows:1fr 3px;align-items:center;padding:8px 10px;gap:2px 5px}
+.apex-shell.rendering-uconnect .performance-modules .panel strong{font-size:clamp(17px,3vh,28px)}
+.apex-shell.rendering-uconnect .performance-modules .panel i{grid-column:1/-1;min-height:3px}
+.apex-shell.rendering-uconnect .telemetry-grid>div{padding:5px 7px}
+
+/* Fixed geometry: favorites is one row, full app drawer alone scrolls. */
+.apex-shell.rendering-uconnect .apps-page:not(.expanded){grid-template-rows:50px minmax(230px,1fr) minmax(128px,.34fr)}
+.apex-shell.rendering-uconnect .apps-page:not(.expanded) .apps-library{min-height:0;padding:6px}
+.apex-shell.rendering-uconnect .apps-page:not(.expanded) .apps-grid{grid-template-rows:clamp(71px,11vh,88px);grid-auto-columns:clamp(75px,17%,100px)}
+.apex-shell.rendering-uconnect .apps-page.expanded{grid-template-rows:50px minmax(0,1fr)}
+.apex-shell.rendering-uconnect .apps-page.expanded .apps-grid{grid-template-columns:repeat(4,minmax(0,1fr));overflow-y:auto;overscroll-behavior:contain}
+
+/* Dialogs and settings use their own scrolling region, never the page rail. */
+.apex-shell.rendering-uconnect .settings-page{overflow-y:auto;overscroll-behavior:contain;display:flex;flex-direction:column;min-height:0;gap:7px}
+.apex-shell.rendering-uconnect .settings-page>*{flex:none;min-width:0}
+.apex-shell.rendering-uconnect .settings-page .studio-hero{height:clamp(76px,13vh,105px)}
+.apex-shell.rendering-uconnect .settings-page .theme-panel{min-height:102px}
+.apex-shell.rendering-uconnect .settings-page .surface-panel{min-height:70px}
+.apex-shell.rendering-uconnect .settings-page .studio-rows{height:auto;min-height:0;display:flex;flex-direction:column}
+.apex-shell.rendering-uconnect .settings-page .studio-rows>*{flex:none;height:auto!important;min-height:45px}
+.apex-shell.rendering-uconnect .settings-page .studio-rows .range-row{padding-block:5px}
+.apex-shell.rendering-uconnect .settings-page .identity-panel{min-height:140px}
+.apex-shell.rendering-uconnect .modal{max-height:min(90vh,690px);max-width:min(95vw,540px);overflow:hidden}
+.apex-shell.rendering-uconnect .modal-body{overflow-y:auto;overscroll-behavior:contain}
+.apex-shell.rendering-uconnect .modal-scrim{padding:12px 8px 22px}
+.apex-shell.rendering-uconnect .notice{bottom:max(20px,env(safe-area-inset-bottom))}
+
+@media(max-width:460px){.apex-shell.rendering-uconnect .weather-header-actions button:last-child span{display:none}.apex-shell.rendering-uconnect .weather-hero-copy{right:40%}.apex-shell.rendering-uconnect .weather-hero-stats{left:64%}.home-live-metrics{gap:4px}.home-status{gap:4px}}
+@media(prefers-reduced-motion:reduce){.apex-shell .weather-sky-orb,.apex-shell .weather-sky-lines{animation:none!important}}

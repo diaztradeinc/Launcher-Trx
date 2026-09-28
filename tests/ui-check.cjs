@@ -53,6 +53,7 @@ async function main(){
     await navigate(label);if(label==='Weather'&&await p.locator('.weather-hero img').count())throw Error('Weather duplicates truck artwork');await p.waitForTimeout(500);
     if(label==='Weather'){
      if(await p.locator('.weather-sky-orb').count())throw Error('Rain must not show a sun orb');
+     if(!await p.getByRole('button',{name:'Close weather and return Home'}).isVisible())throw Error('Weather needs an explicit close control');
      const overlap=await p.locator('.weather-hero-copy').evaluate(e=>{const a=e.querySelector('svg').getBoundingClientRect(),b=e.querySelector('strong').getBoundingClientRect();return Math.min(a.right,b.right)>Math.max(a.left,b.left)&&Math.min(a.bottom,b.bottom)>Math.max(a.top,b.top);});
      if(overlap)throw Error('Weather icon overlaps temperature');
     }
@@ -62,7 +63,7 @@ async function main(){
    }
    if(size.width===602){
     const dockLabels=await p.getByRole('navigation',{name:'Main navigation'}).getByRole('button').evaluateAll(items=>items.map(e=>e.getAttribute('aria-label')));
-    if(JSON.stringify(dockLabels)!==JSON.stringify(['Home','Navigation','Media','Performance','Apps','Settings','Back']))throw Error('Launcher page rail must remain distinct from the three-button floating overlay');
+    if(JSON.stringify(dockLabels)!==JSON.stringify(['Home','Navigation','Media','Performance','Apps','Settings']))throw Error('Launcher page rail must have the six destinations and no old Back button');
     const dockPlacement=await p.locator('.command-rail').evaluate(e=>{const d=e.getBoundingClientRect(),s=e.closest('.calibrated-stage').getBoundingClientRect();return {gap:d.left-s.left,heightRatio:d.height/s.height}});
     if(Math.abs(dockPlacement.gap)>2||dockPlacement.heightRatio<.94)throw Error('Launcher page rail does not reach the left edge');
     const railOverlap=await p.locator('.command-rail button').evaluateAll(items=>{const r=items.map(e=>e.getBoundingClientRect());return r.some((a,i)=>r.some((b,j)=>j>i&&Math.min(a.right,b.right)-Math.max(a.left,b.left)>1&&Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top)>1));});
@@ -102,6 +103,15 @@ async function main(){
     await dialog.getByRole('button',{name:'day',exact:true}).click();if(night===await palette())throw Error('Day/night has no visible effect');
     await profiles.getByRole('button',{name:'auto',exact:true}).click();
     if(!await p.locator('.profile-auto.rendering-uconnect').count())throw Error('Auto did not detect Ottocast');
+    await p.getByRole('button',{name:'Close dialog',exact:true}).click();
+    await p.screenshot({path:path.join(output,'settings-uconnect.png')});
+    await navigate('Weather');await p.screenshot({path:path.join(output,'weather-uconnect.png')});
+    await p.getByRole('button',{name:'Close weather and return Home'}).click();
+    if(!await p.locator('.home-page').count())throw Error('Weather close did not return Home');
+    await p.screenshot({path:path.join(output,'home-uconnect.png')});
+    await navigate('Performance');await p.screenshot({path:path.join(output,'performance-uconnect.png')});
+    await navigate('Media');await p.screenshot({path:path.join(output,'media-uconnect.png')});
+    await navigate('Settings');await p.getByRole('button',{name:/Screen fit/}).click();
     await dialog.getByRole('button',{name:'Artwork calibration',exact:true}).click();
     const originalBlack=await palette();
     await p.getByRole('slider',{name:'Black level',exact:true}).fill('75');
@@ -139,7 +149,7 @@ async function main(){
     await navigate('Performance');
     if(await p.locator('.performance-hero .instrument-dial').count())throw Error('Legacy performance dials remain');
     if(await p.locator('.performance-modules').getByText('BOOST · PSI',{exact:true}).count()!==1||await p.locator('.telemetry-grid').getByText('Boost',{exact:true}).count())throw Error('Boost must appear once');
-    if(await p.locator('.telemetry-grid>.panel').last().locator('span').textContent()!=='Coolant')throw Error('Coolant must occupy bottom-right tile');
+    if(await p.locator('.telemetry-grid>.panel').first().locator('span').textContent()!=='Coolant')throw Error('Coolant should lead the secondary instrument row');
     if(await p.locator('.performance-speed strong').textContent()!=='—')throw Error('Unavailable speed must not show zero');
     await p.getByRole('button',{name:/Adapter connected/}).click();await p.getByRole('button',{name:'Reconnect',exact:true}).click();await p.getByRole('button',{name:'Close dialog',exact:true}).click();
     if(!await p.evaluate(()=>window.__calls.some(c=>c.method==='reconnectObd')))throw Error('Reconnect not dispatched');

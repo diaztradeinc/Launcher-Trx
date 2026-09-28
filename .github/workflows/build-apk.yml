@@ -44,7 +44,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: TRX-APEX-v5.48-display-QA
+          name: TRX-APEX-v5.49-display-QA
           path: qa-output/
           if-no-files-found: ignore
 
@@ -99,6 +99,6 @@ jobs:
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: TRX-APEX-v5.48-UCONNECT-PERFORMANCE-CANDIDATE-SIGNED-APK
+          name: TRX-APEX-v5.49-UCONNECT-PERFORMANCE-CANDIDATE-SIGNED-APK
           path: android/app/build/outputs/apk/debug/*.apk
           retention-days: 30
