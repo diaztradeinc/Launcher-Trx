@@ -59,7 +59,8 @@ class MainActivity : Activity(), Choreographer.FrameCallback {
                 .setPositiveButton("Close") { _,_->finish() }.setCancelable(false).show();return
         }
         panel(0f,0f,602f,50f,Color.rgb(9,11,14))
-        label("TRX  APEX",16f,0f,210f,50f,25f,Color.WHITE,true)
+        label("TRX",16f,0f,94f,50f,25f,Color.WHITE,true)
+        label("APEX",109f,0f,110f,50f,25f,red,true)
         label("3D LAB  •  v0.1",380f,0f,210f,50f,13f,Color.LTGRAY)
         panel(0f,50f,78f,676f,Color.rgb(10,12,15))
         val dock=listOf("⌂\nHome","➤\nNav","♫\nMedia","◴\nPerformance","▦\nApps","⚙\nSettings")

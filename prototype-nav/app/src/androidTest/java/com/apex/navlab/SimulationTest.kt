@@ -58,7 +58,7 @@ class SimulationTest {
         click("light");Thread.sleep(700);capture("03-night")
         click("light")
         click("speed");click("pause");awaitCondition(90000){rule.activity.progress>280}
-        click("pause");capture("04-exit")
+        click("pause");Thread.sleep(1000);capture("04-exit")
         assertTrue("Reached curved route",rule.activity.progress>250)
         click("end");assertTrue(rule.activity.ended)
         click("pause");assertFalse(rule.activity.ended);assertTrue(rule.activity.progress<10)

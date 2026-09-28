@@ -89,9 +89,9 @@ class RoadRenderer(private val surface: SurfaceView) : AutoCloseable {
             c,0f,sn,0f, 0f,1f,0f,0f, -sn,0f,c,0f, x.toFloat(),0f,-s.toFloat(),1f))
         if(topDown) camera.lookAt(x,85.0,-s+5,x,0.0,-s-10,0.0,0.0,-1.0)
         else {
-            val distance=if(wide)14.0 else 9.0
-            camera.lookAt(x-sin(a)*distance,if(wide)6.0 else 4.6,-s+cos(a)*distance,
-                DemoRoute.x(s+16),1.2,-s-16,0.0,1.0,0.0)
+            val distance=if(wide)17.0 else 12.0
+            camera.lookAt(x-sin(a)*distance,if(wide)7.0 else 5.4,-s+cos(a)*distance,
+                DemoRoute.x(s+8),1.2,-s-8,0.0,1.0,0.0)
         }
         if(renderer.beginFrame(swap!!,time)){renderer.render(view);renderer.endFrame();renderedFrames++;return true}
         return false
