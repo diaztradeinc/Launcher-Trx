@@ -27,6 +27,7 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
+          cache-read-only: false
       - name: Generate original demo geometry
         run: python3 prototype-nav/tools/generate_scene.py
       - name: Prepare permanent signing key
@@ -54,12 +55,7 @@ jobs:
           profile: pixel_2
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
-          script: |
-            adb shell wm size 602x726
-            adb shell wm density 160
-            gradle -p prototype-nav connectedDebugAndroidTest --no-daemon
-            mkdir -p prototype-nav/qa
-            adb pull /sdcard/Android/data/com.diaztradeinc.trxnavprototype/files/. prototype-nav/qa/
+          script: bash prototype-nav/tools/emulator_check.sh
       - name: Save runtime results
         if: always()
         uses: actions/upload-artifact@v4

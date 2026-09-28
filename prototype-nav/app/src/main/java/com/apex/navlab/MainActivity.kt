@@ -23,6 +23,7 @@ class MainActivity : Activity(), Choreographer.FrameCallback {
     private lateinit var pauseButton: TextView
     private lateinit var mapButton: TextView
     private lateinit var voiceButton: TextView
+    private val textSizes=mutableMapOf<TextView,Float>()
     private val positioned=mutableListOf<Pair<View,FloatArray>>()
     private var speech:TextToSpeech?=null
     private var speechReady=false
@@ -99,7 +100,7 @@ class MainActivity : Activity(), Choreographer.FrameCallback {
     private fun place(v:View,x:Float,y:Float,w:Float,h:Float) { positioned.add(v to floatArrayOf(x,y,w,h));root.addView(v,FrameLayout.LayoutParams(1,1)) }
     private fun panel(x:Float,y:Float,w:Float,h:Float,color:Int) { place(View(this).apply{setBackgroundColor(color)},x,y,w,h) }
     private fun label(text:String,x:Float,y:Float,w:Float,h:Float,size:Float,color:Int,bold:Boolean=false):TextView {
-        val v=TextView(this).apply{this.text=text;setTextColor(color);gravity=Gravity.CENTER;setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX,size);setTag(android.R.id.custom,size);if(bold)typeface=Typeface.create("sans-serif-medium",Typeface.BOLD)}
+        val v=TextView(this).apply{this.text=text;setTextColor(color);gravity=Gravity.CENTER;setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX,size);textSizes[this]=size;if(bold)typeface=Typeface.create("sans-serif-medium",Typeface.BOLD)}
         place(v,x,y,w,h);return v
     }
     private fun button(text:String,x:Float,y:Float,w:Float,h:Float,color:Int,tag:String,action:()->Unit):TextView =
@@ -113,7 +114,7 @@ class MainActivity : Activity(), Choreographer.FrameCallback {
             val lp=v.layoutParams as FrameLayout.LayoutParams
             val w=(p[2]*sx).roundToInt();val h=(p[3]*sy).roundToInt();val x=(p[0]*sx).roundToInt();val y=(p[1]*sy).roundToInt()
             if(lp.width!=w || lp.height!=h || lp.leftMargin!=x || lp.topMargin!=y){lp.width=w;lp.height=h;lp.leftMargin=x;lp.topMargin=y;v.layoutParams=lp}
-            if(v is TextView)v.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX,(v.getTag(android.R.id.custom) as Float)*min(sx,sy))
+            if(v is TextView)v.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX,(textSizes[v] ?: 13f)*min(sx,sy))
         }
     }
     private fun recenter(){scene.topDown=false;scene.wide=false;mapButton.text="3D  /  MAP"}
