@@ -49,12 +49,12 @@ jobs:
       - name: Render and exercise prototype
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 29
+          api-level: 35
           arch: x86_64
-          target: default
+          target: google_apis
           profile: pixel_2
           disable-animations: true
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          emulator-options: -no-window -gpu swangle -noaudio -no-boot-anim -camera-back none
           script: bash prototype-nav/tools/emulator_check.sh
       - name: Save runtime results
         if: always()
