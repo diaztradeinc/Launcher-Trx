@@ -38,3 +38,11 @@ Renderer surface and asset lifecycle follows the Apache-2.0 Filament ModelViewer
 ## 0.2 visual pass
 
 Sculpted original pickup proxy with sloped glass, tubular sports bar, widened wheel arches, tread blocks, tailgate strokes and exhausts. Continuous sandstone ridges, shoulders, reflectors and route chevrons replace the sparse test scene. Dock icons now scale independently from labels. This remains a synthetic simulation; no exact licensed TRX model or live routing is included. Version code 2 updates the separate lab app. Phone smoothness was reported by the user for 0.1; P3 Pro performance remains unverified.
+
+
+## v0.3 — Google Navigation trial
+Launcher entry now opens a Google Navigation SDK 7.9.0 viewport inside the APEX frame. The standalone package and permanent signing certificate are unchanged. The original synthetic 3D simulation remains under Setup; it is not the live map.
+
+Features: confirmed address search (Android Geocoder, not Places autocomplete), saved destinations, real SDK routing/guidance/ETA, traffic, buildings, tilted following camera, road/satellite layers, route overview, day/night and voice preferences, end route, launcher page shortcuts. Native Google maneuver/ETA/attribution stay unobscured; custom controls occupy separate layout rows. Google standard location marker retained pending a supported custom vehicle implementation.
+
+CI injects existing MAPS_API_KEY. Google Cloud must enable Navigation SDK for Android and billing, and authorize package com.diaztradeinc.trxnavprototype with permanent SHA-1 03:04:AF:48:B6:70:72:BE:31:3F:17:C2:D8:F7:17:6D:6C:78:D3:BC. A successful APK build does not prove key authorization or road navigation. Google instrumentation checks the real activity, permission-denied recovery and settings; the simulation tests still validate only synthetic rendering.
