@@ -24,6 +24,9 @@ import android.util.Log;
 import android.view.View;
 import android.view.inputmethod.InputMethodManager;
 import android.content.Context;
+import android.content.Intent;
+import android.widget.TextClock;
+import android.util.TypedValue;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
@@ -32,6 +35,8 @@ import androidx.core.content.ContextCompat;
 
 import com.google.android.gms.maps.GoogleMap.CameraPerspective;
 import com.google.android.gms.maps.GoogleMap;
+import com.google.android.gms.maps.CameraUpdateFactory;
+import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.MapStyleOptions;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
@@ -72,17 +77,23 @@ public class NavigationActivity extends AppCompatActivity {
     private RoadSnappedLocationProvider roadSnappedLocationProvider;
     private boolean locationListenerRegistered;
     private boolean guidanceActive;
+    private Location lastRoadLocation;
     private final RoadSnappedLocationProvider.LocationListener roadLocationListener = new RoadSnappedLocationProvider.LocationListener() {
         @Override public void onLocationChanged(@NonNull Location location) { updateTrxMarker(location); }
     };
     private int accentColor = 0xfff28a32;
     private int accentStrength = 82;
+    private int surfaceBase = 0xff30383d;
+    private int surfaceDeep = 0xff242b30;
+    private int surfacePanel = 0xff343d42;
+    private int surfaceLine = 0xff68747a;
     private String startupStage = "ACTIVITY WINDOW";
 
     @Override protected void onCreate(Bundle state) {
         super.onCreate(state);
         try {
             accentColor = parseAccent(getIntent().getStringExtra("accentColor"));
+            selectSurface(getIntent().getStringExtra("surface"));
             dayMode = getIntent().getBooleanExtra("dayMode",false);
             accentStrength = Math.max(30, Math.min(100, getIntent().getIntExtra("accentStrength", 82)));
             satelliteMode = "satellite".equals(getIntent().getStringExtra("mapMode"));
@@ -102,24 +113,27 @@ public class NavigationActivity extends AppCompatActivity {
 
     private void buildUi(Bundle state) {
         navigationRoot = new FrameLayout(this);
-        navigationRoot.setBackgroundColor(0xff252b30);
+        navigationRoot.setBackgroundColor(surfaceDeep);
         navigationView = new NavigationView(this);
-        navigationRoot.addView(navigationView, new FrameLayout.LayoutParams(-1, -1));
-        setContentView(navigationRoot);
+        FrameLayout.LayoutParams mapLp = new FrameLayout.LayoutParams(-1, -1);
+        // The Ottocast bar consumes the bottom edge of the measured portrait window.
+        if (getResources().getDisplayMetrics().densityDpi >= 500) mapLp.bottomMargin = dp(22);
+        navigationRoot.addView(navigationView, mapLp);
+        installCockpitFrame();
 
         searchBar = new LinearLayout(this);
         searchBar.setOrientation(LinearLayout.HORIZONTAL);
         searchBar.setGravity(Gravity.CENTER_VERTICAL);
         searchBar.setPadding(dp(18), 0, dp(8), 0);
         GradientDrawable bg = new GradientDrawable();
-        bg.setColor(0xf2293238); bg.setCornerRadius(dp(17)); bg.setStroke(dp(1), 0xff65747b);
+        bg.setColor(surfacePanel); bg.setCornerRadius(dp(12)); bg.setStroke(dp(1), surfaceLine);
         searchBar.setBackground(bg);
         destination = new EditText(this);
         destination.setSingleLine(true); destination.setHint("Search destination"); destination.setHintTextColor(0xffbdc5c8);
         destination.setTextColor(Color.WHITE); destination.setTextSize(17); destination.setBackgroundColor(Color.TRANSPARENT);
         searchBar.addView(destination, new LinearLayout.LayoutParams(0, dp(58), 1));
-        Button go = actionButton("GO"); go.setOnClickListener(v -> routeToInput());
-        searchBar.addView(go, new LinearLayout.LayoutParams(dp(74), dp(46)));
+        Button go = actionButton("ROUTE"); go.setOnClickListener(v -> routeToInput());
+        searchBar.addView(go, new LinearLayout.LayoutParams(dp(68), dp(42)));
         FrameLayout.LayoutParams searchLp = new FrameLayout.LayoutParams(-1, dp(58));
         searchLp.leftMargin = dp(24); searchLp.rightMargin = dp(24); searchLp.topMargin = dp(26);
         navigationRoot.addView(searchBar, searchLp);
@@ -129,16 +143,16 @@ public class NavigationActivity extends AppCompatActivity {
         driveControls.setGravity(Gravity.CENTER);
         driveControls.setPadding(dp(5),dp(7),dp(5),dp(7));
         GradientDrawable railBg = new GradientDrawable();
-        railBg.setColor(0xf22b353b); railBg.setCornerRadius(dp(18)); railBg.setStroke(dp(1),0xff718087);
+        railBg.setColor(surfacePanel); railBg.setCornerRadius(dp(13)); railBg.setStroke(dp(1),surfaceLine);
         driveControls.setBackground(railBg);
         Button hideControls = new Button(this);
-        hideControls.setText("‹  HIDE"); hideControls.setTextColor(0xfff4f0e8); hideControls.setTextSize(12);
+        hideControls.setText("CLOSE ‹"); hideControls.setTextColor(0xfff4f0e8); hideControls.setTextSize(11);
         hideControls.setAllCaps(false); hideControls.setPadding(0,0,0,0);
         hideControls.setBackgroundColor(Color.TRANSPARENT);
         hideControls.setOnClickListener(v -> toggleDriveControls());
         driveControls.addView(hideControls, new LinearLayout.LayoutParams(-1, dp(44)));
         Button recenter = railButton("Recenter");
-        recenter.setOnClickListener(v -> navigationView.getMapAsync(map -> map.followMyLocation(CameraPerspective.TILTED)));
+        recenter.setOnClickListener(v -> focusGuidanceCamera());
         Button satellite = railButton("Layers");
         satellite.setOnClickListener(v -> navigationView.getMapAsync(map -> {
             satelliteMode = !satelliteMode;
@@ -154,21 +168,25 @@ public class NavigationActivity extends AppCompatActivity {
             if (navigator != null) navigator.setAudioGuidanceSettings(setting);
             audio.setText(audioEnabled ? "Voice on" : "Muted");
         });
-        Button exit = railButton("Exit"); exit.setOnClickListener(v -> finish());
+        Button exit = railButton("End route"); exit.setOnClickListener(v -> finish());
+        GradientDrawable exitBg=new GradientDrawable(GradientDrawable.Orientation.TL_BR,new int[]{0xff172027,0xff04080b});
+        exitBg.setCornerRadius(dp(10));exitBg.setStroke(dp(1),accentColor);exit.setBackground(exitBg);
         driveControls.addView(recenter); driveControls.addView(satellite); driveControls.addView(overview); driveControls.addView(audio); driveControls.addView(exit);
         driveControls.setVisibility(View.GONE);
-        FrameLayout.LayoutParams railLp = new FrameLayout.LayoutParams(dp(80), -2, Gravity.RIGHT | Gravity.CENTER_VERTICAL);
+        FrameLayout.LayoutParams railLp = new FrameLayout.LayoutParams(dp(72), -2, Gravity.RIGHT | Gravity.CENTER_VERTICAL);
         railLp.rightMargin=dp(8);navigationRoot.addView(driveControls,railLp);
 
         railToggle = new Button(this);
-        railToggle.setText("+"); railToggle.setTextColor(accentColor); railToggle.setTextSize(24); railToggle.setPadding(0,0,0,0);
-        GradientDrawable toggleBg = new GradientDrawable(); toggleBg.setColor(0xf42c373d); toggleBg.setShape(GradientDrawable.OVAL); toggleBg.setStroke(dp(1),withAlpha(accentColor,0xee));
+        railToggle.setText("TOOLS"); railToggle.setTextColor(accentColor); railToggle.setTextSize(10); railToggle.setAllCaps(false); railToggle.setPadding(0,0,0,0);
+        GradientDrawable toggleBg = new GradientDrawable(); toggleBg.setColor(surfacePanel); toggleBg.setCornerRadius(dp(12)); toggleBg.setStroke(dp(1),withAlpha(accentColor,0xee));
         railToggle.setBackground(toggleBg); railToggle.setOnClickListener(v -> toggleDriveControls()); railToggle.setVisibility(View.VISIBLE);
         positionRailToggle();
 
         status = new TextView(this);
         status.setText("INITIALIZING GOOGLE NAVIGATION…"); status.setTextColor(0xfff4f0e8); status.setTextSize(12);
-        status.setGravity(Gravity.CENTER); status.setBackgroundColor(0xee293239);
+        status.setGravity(Gravity.CENTER);
+        GradientDrawable statusBg=new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,new int[]{surfacePanel,surfaceDeep});
+        statusBg.setStroke(dp(1),surfaceLine);status.setBackground(statusBg);
         FrameLayout.LayoutParams statusLp = new FrameLayout.LayoutParams(-1, dp(34), Gravity.BOTTOM); navigationRoot.addView(status, statusLp);
 
         String requested = getIntent().getStringExtra("destination");
@@ -276,6 +294,7 @@ public class NavigationActivity extends AppCompatActivity {
                     navigator.setAudioGuidanceSettings(audio);navigator.startGuidance();status.setVisibility(android.view.View.GONE);destination.clearFocus();
                     guidanceActive=true;searchBar.setVisibility(View.GONE);driveControls.setVisibility(View.GONE);railToggle.setVisibility(View.VISIBLE);positionRailToggle();
                     if (googleMap != null) googleMap.setPadding(0, 0, 0, dp(88));
+                    focusGuidanceCamera();
                     InputMethodManager keyboard=(InputMethodManager)getSystemService(Context.INPUT_METHOD_SERVICE);
                     if(keyboard!=null)keyboard.hideSoftInputFromWindow(destination.getWindowToken(),0);
                 }else status.setText("ROUTE UNAVAILABLE · "+routeStatus);
@@ -285,13 +304,44 @@ public class NavigationActivity extends AppCompatActivity {
 
     private Button actionButton(String label) {
         Button button = new Button(this); button.setText(label); button.setTextColor(Color.WHITE); button.setTextSize(12);
-        GradientDrawable bg = new GradientDrawable(); bg.setColor(accentColor); bg.setCornerRadius(dp(23)); bg.setStroke(dp(1), withAlpha(Color.WHITE, 0x33)); button.setBackground(bg); return button;
+        GradientDrawable bg = new GradientDrawable(GradientDrawable.Orientation.TL_BR,new int[]{0xff1e252a,0xff050708});
+        bg.setCornerRadius(dp(12)); bg.setStroke(dp(1), withAlpha(accentColor, 0xcc)); button.setBackground(bg); return button;
+    }
+
+    // Keep the same six destinations around the real Google navigation surface.
+    private void installCockpitFrame() {
+        int width=getResources().getDisplayMetrics().widthPixels;
+        int railWidth=Math.round(width*.122f);
+        int headerHeight=Math.round(getResources().getDisplayMetrics().heightPixels*.06f);
+        LinearLayout frame=new LinearLayout(this);frame.setOrientation(LinearLayout.VERTICAL);frame.setBackgroundColor(0xff06090b);
+        LinearLayout header=new LinearLayout(this);header.setGravity(Gravity.CENTER_VERTICAL);header.setPadding(dp(12),0,dp(12),0);
+        TextView logo=new TextView(this);logo.setText("TRX APEX");logo.setTextColor(accentColor);logo.setTypeface(android.graphics.Typeface.DEFAULT,android.graphics.Typeface.BOLD_ITALIC);logo.setTextSize(TypedValue.COMPLEX_UNIT_PX,headerHeight*.48f);
+        header.addView(logo,new LinearLayout.LayoutParams(0,-1,1));logo.setGravity(Gravity.CENTER_VERTICAL);
+        TextClock clock=new TextClock(this);clock.setFormat12Hour("h:mm a");clock.setFormat24Hour("HH:mm");clock.setTextColor(Color.WHITE);clock.setTextSize(TypedValue.COMPLEX_UNIT_PX,headerHeight*.28f);header.addView(clock);
+        frame.addView(header,new LinearLayout.LayoutParams(-1,headerHeight));
+        LinearLayout body=new LinearLayout(this);body.setOrientation(LinearLayout.HORIZONTAL);
+        LinearLayout rail=new LinearLayout(this);rail.setOrientation(LinearLayout.VERTICAL);
+        String[] pages={"home","navigation","media","performance","apps","settings"};
+        String[] labels={"Home","Nav","Media","Performance","Apps","Settings"};
+        String[] icons={"⌂","➤","♫","◴","▦","⚙"};
+        for(int i=0;i<pages.length;i++){
+            final String page=pages[i];
+            LinearLayout cell=new LinearLayout(this);cell.setGravity(Gravity.CENTER);cell.setOrientation(LinearLayout.VERTICAL);cell.setContentDescription(labels[i]);cell.setClickable(true);
+            TextView icon=new TextView(this);icon.setText(icons[i]);icon.setGravity(Gravity.CENTER);icon.setTextSize(TypedValue.COMPLEX_UNIT_PX,railWidth*.4f);icon.setTextColor(i==1?accentColor:0xffdce1e5);cell.addView(icon);
+            TextView label=new TextView(this);label.setText(labels[i]);label.setGravity(Gravity.CENTER);label.setTextColor(0xffdce1e5);label.setTextSize(TypedValue.COMPLEX_UNIT_PX,railWidth*.13f);cell.addView(label);
+            GradientDrawable background=new GradientDrawable();background.setColor(0xff06090b);background.setStroke(1,0xff30363b);cell.setBackground(background);
+            FrameLayout slot=new FrameLayout(this);slot.addView(cell,new FrameLayout.LayoutParams(-1,-1));
+            if(i==1){View stripe=new View(this);stripe.setBackgroundColor(accentColor);slot.addView(stripe,new FrameLayout.LayoutParams(Math.max(3,width/150),-1,Gravity.LEFT));}
+            cell.setOnClickListener(v->{if("navigation".equals(page))return;Intent intent=new Intent(this,MainActivity.class);intent.putExtra("apexPage",page);intent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP|Intent.FLAG_ACTIVITY_CLEAR_TOP);startActivity(intent);finish();});
+            rail.addView(slot,new LinearLayout.LayoutParams(-1,0,1));
+        }
+        body.addView(rail,new LinearLayout.LayoutParams(railWidth,-1));body.addView(navigationRoot,new LinearLayout.LayoutParams(0,-1,1));frame.addView(body,new LinearLayout.LayoutParams(-1,0,1));setContentView(frame);
     }
 
     private Button railButton(String label) {
         Button button=new Button(this);button.setText(label);button.setTextColor(0xfff4f4ef);button.setTextSize(12f);button.setGravity(Gravity.CENTER);button.setAllCaps(false);
-        button.setPadding(0,0,0,0);GradientDrawable bg=new GradientDrawable();bg.setCornerRadius(dp(9));bg.setColor(0xff111c24);bg.setStroke(dp(1),withAlpha(accentColor,0xc8));button.setBackground(bg);
-        LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,dp(48));lp.topMargin=dp(2);lp.bottomMargin=dp(2);button.setLayoutParams(lp);return button;
+        button.setPadding(0,0,0,0);GradientDrawable bg=new GradientDrawable();bg.setCornerRadius(dp(9));bg.setColor(surfaceDeep);bg.setStroke(dp(1),withAlpha(accentColor,0xb0));button.setBackground(bg);
+        LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,dp(42));lp.topMargin=dp(2);lp.bottomMargin=dp(2);button.setLayoutParams(lp);return button;
     }
 
     private void toggleDriveControls() {
@@ -304,7 +354,7 @@ public class NavigationActivity extends AppCompatActivity {
 
     private void positionRailToggle() {
         if (railToggle == null || navigationRoot == null) return;
-        FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(dp(48), dp(48), Gravity.RIGHT | Gravity.CENTER_VERTICAL);
+        FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(dp(58), dp(38), Gravity.RIGHT | Gravity.CENTER_VERTICAL);
         lp.rightMargin = dp(10);
         if (railToggle.getParent() == null) navigationRoot.addView(railToggle, lp); else railToggle.setLayoutParams(lp);
     }
@@ -315,9 +365,9 @@ public class NavigationActivity extends AppCompatActivity {
                 Math.round(Color.green(accentColor) * 0.34f),
                 Math.round(Color.blue(accentColor) * 0.34f));
         return new StylingOptions()
-                .primaryDayModeThemeColor(0xff30383d)
+                .primaryDayModeThemeColor(surfaceBase)
                 .secondaryDayModeThemeColor(darkAccent)
-                .primaryNightModeThemeColor(0xff293237)
+                .primaryNightModeThemeColor(surfaceBase)
                 .secondaryNightModeThemeColor(darkAccent)
                 .headerLargeManeuverIconColor(accentColor)
                 .headerSmallManeuverIconColor(accentColor)
@@ -352,6 +402,7 @@ public class NavigationActivity extends AppCompatActivity {
 
     private void updateTrxMarker(Location location) {
         if (googleMap == null || location == null || !guidanceActive) return;
+        lastRoadLocation = location;
         if (location.hasAccuracy() && location.getAccuracy() > 30f) {if (trxMarker != null) trxMarker.setVisible(false);return;}
         LatLng position = new LatLng(location.getLatitude(), location.getLongitude());
         if (trxMarker == null) {
@@ -369,6 +420,12 @@ public class NavigationActivity extends AppCompatActivity {
         }
     }
 
+    private void focusGuidanceCamera() {
+        // Pinned animateCamera() exits the SDK's follow mode. Let Navigation SDK
+        // 7.9 dynamically set tilt and zoom for the road ahead during guidance.
+        navigationView.getMapAsync(map -> map.followMyLocation(CameraPerspective.TILTED));
+    }
+
     private Bitmap createTrxMarkerBitmap() {
         Bitmap source = BitmapFactory.decodeResource(getResources(), R.drawable.apex_trx_marker);
         if (source == null) return Bitmap.createBitmap(dp(2), dp(2), Bitmap.Config.ARGB_8888);
@@ -378,6 +435,18 @@ public class NavigationActivity extends AppCompatActivity {
     private int parseAccent(String value) {
         try { return Color.parseColor(value == null ? "#f28a32" : value); }
         catch (Throwable ignored) { return 0xfff28a32; }
+    }
+
+    private void selectSurface(String name) {
+        if ("dark".equals(name)) {
+            surfaceBase=0xff202f37; surfaceDeep=0xff0c141a; surfacePanel=0xff19272d; surfaceLine=0xff617b82;
+        } else if ("black".equals(name)) {
+            surfaceBase=0xff0b0e10; surfaceDeep=0xff020304; surfacePanel=0xff111719; surfaceLine=0xff617073;
+        } else if ("carbon".equals(name)) {
+            surfaceBase=0xff222d30; surfaceDeep=0xff0b1113; surfacePanel=0xff1c292c; surfaceLine=0xff74888c;
+        } else {
+            surfaceBase=0xff323d42; surfaceDeep=0xff171f23; surfacePanel=0xff263137; surfaceLine=0xff71868a;
+        }
     }
 
     private int withAlpha(int color, int alpha) {
@@ -410,8 +479,8 @@ public class NavigationActivity extends AppCompatActivity {
     }
 
     @Override protected void onStart() { super.onStart(); if (navigationView != null) navigationView.onStart(); registerRoadLocationListener(); }
-    @Override protected void onResume() { super.onResume(); if (navigationView != null) navigationView.onResume(); }
-    @Override protected void onPause() { if (navigationView != null) navigationView.onPause(); super.onPause(); }
+    @Override protected void onResume() { super.onResume(); FloatingRailService.setLauncherVisible(true); if (navigationView != null) navigationView.onResume(); }
+    @Override protected void onPause() { if (navigationView != null) navigationView.onPause(); FloatingRailService.setLauncherVisible(false); super.onPause(); }
     @Override protected void onStop() { unregisterRoadLocationListener(); if (navigationView != null) navigationView.onStop(); super.onStop(); }
     @Override protected void onDestroy() { unregisterRoadLocationListener(); if (trxMarker != null) trxMarker.remove(); if (navigator != null && isFinishing()) { navigator.stopGuidance(); navigator.clearDestinations(); } if (navigationView != null) navigationView.onDestroy(); super.onDestroy(); }
     @Override public void onTrimMemory(int level) { super.onTrimMemory(level); if (navigationView != null) navigationView.onTrimMemory(level); }

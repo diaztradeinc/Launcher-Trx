@@ -1,0 +1,74 @@
+/* v5.32: clear source picker, full-width live stage and compact performance HUD. */
+.media-source-sheet{display:contents}
+.apex-shell .command-rail{display:grid;grid-template-rows:repeat(7,minmax(0,1fr));justify-content:stretch;align-content:stretch;min-height:0;overflow:hidden}
+.apex-shell .command-rail button,.apex-shell .command-rail button:last-child{min-width:0;min-height:0;max-height:none;height:100%;margin:0;flex:none;align-self:stretch;display:flex;flex-direction:column;justify-content:center;gap:clamp(2px,.6vh,7px);padding:2px 1px}
+.apex-shell .command-rail button span{font-size:clamp(9px,1.17vw,16px);line-height:1.1;white-space:nowrap;overflow-wrap:normal}
+.apex-shell .command-rail button svg{width:clamp(20px,3vh,34px);height:clamp(20px,3vh,34px);flex-shrink:1}
+.apex-shell .media-stage-page{display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(145px,1fr) clamp(43px,6.2vh,69px) clamp(43px,6.7vh,71px) clamp(24px,3.5vh,35px) clamp(36px,5.7vh,62px) clamp(26px,4vh,41px) minmax(90px,.49fr);gap:clamp(3px,.65vh,8px)}
+.apex-shell .media-stage-page>.media-top{grid-column:1;grid-row:1;position:relative;display:flex;align-items:center;justify-content:center;padding:clamp(12px,2vh,25px);overflow:hidden;border:1px solid #647782;border-radius:15px;background:radial-gradient(ellipse at 50% 54%,color-mix(in srgb,var(--accent) 30%,transparent),transparent 55%),var(--finish-grain),#04080b!important}
+.apex-shell .media-stage-page>.track-editorial{grid-column:1;grid-row:2;min-height:0}
+.apex-shell .media-stage-page>.transport{grid-column:1;grid-row:3;min-height:0}
+.apex-shell .media-stage-page>.progress-row{grid-column:1;grid-row:4;min-height:0}
+.apex-shell .media-stage-page>.visual-style-row{grid-column:1;grid-row:5;min-height:0}
+.apex-shell .media-stage-page>.volume-row{grid-column:1;grid-row:6;min-height:0}
+.apex-shell .media-stage-page>.queue-panel{grid-column:1;grid-row:7;min-height:0}
+.apex-shell .media-stage-page .record{position:relative;z-index:2;grid-column:auto;grid-row:auto;justify-self:auto;width:auto;height:min(80%,40vh);max-height:80%;max-width:48%;aspect-ratio:1;transform:translateY(clamp(10px,2.5vh,25px));border:2px solid color-mix(in srgb,var(--accent) 73%,#acc4cb);border-radius:14px;background:#080e13;box-shadow:0 0 0 8px #080a0d9c,0 0 45px color-mix(in srgb,var(--accent) 50%,transparent),0 12px 20px #000c;pointer-events:none}
+.apex-shell .media-stage-page .record img{border-radius:11px;object-fit:cover;width:100%;height:100%}
+.apex-shell .media-stage-page .record.playing:before{border-radius:18px;inset:-8px;animation:stage-breathe 2.8s ease-in-out infinite alternate}
+@keyframes stage-breathe{from{opacity:.2;box-shadow:0 0 10px var(--accent)}to{opacity:.75;box-shadow:0 0 32px var(--accent)}}
+.apex-shell .media-stage-page .source-pill{position:absolute;z-index:4;right:clamp(8px,1.4vw,18px);top:clamp(8px,1.2vh,15px);bottom:auto;left:auto;grid-column:auto;grid-row:auto;display:flex;align-items:center;gap:8px;width:auto;max-width:min(38%,230px);min-width:clamp(95px,13vw,142px);height:clamp(37px,5vh,53px);padding:4px 10px;background:#060c12ed!important;border:1px solid #90a1a8b3;border-radius:26px;box-shadow:0 2px 14px #000b;color:#fff;white-space:nowrap;font-size:clamp(10px,1.5vh,15px)}
+.apex-shell .media-stage-page .source-pill>img,.apex-shell .media-stage-page .source-pill>svg:first-child{width:24px;height:24px;object-fit:contain;flex-shrink:0}
+.apex-shell .media-stage-page .source-pill>span{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.apex-shell .media-stage-page .source-pill>svg:last-child{width:17px;flex-shrink:0;margin-left:auto;transform:rotate(90deg)}
+.apex-shell .media-stage-page .audio-spectrum{position:absolute;inset:0;width:100%;height:100%;z-index:1;border:0!important;border-radius:0;background:transparent!important;padding:0;pointer-events:none;overflow:hidden}
+.apex-shell .media-stage-page .audio-spectrum .spectrum-stage{position:absolute;inset:8% 0 0;display:block;width:100%;height:84%;background:radial-gradient(circle at center,transparent 21%,color-mix(in srgb,var(--accent) 24%,transparent) 22%,transparent 41%);overflow:visible}
+.apex-shell .media-stage-page .audio-spectrum .spectrum-bars{position:absolute;inset:0;display:block;width:100%;height:100%;overflow:visible}
+.apex-shell .media-stage-page .audio-spectrum .spectrum-bars i{position:absolute;left:calc(var(--index) * 3.225%);top:50%;width:2.5%;min-width:2px;height:var(--level);max-height:48%;transform:translateY(-50%);border-radius:4px;background:linear-gradient(180deg,transparent,var(--accent),#ffaaaa,var(--accent),transparent);opacity:calc(.35 + .65 * var(--energy));box-shadow:0 0 11px var(--accent);animation:none}
+.apex-shell .media-stage-page .audio-spectrum.idle .spectrum-bars i{height:4%!important;opacity:.28;animation:none!important}
+.apex-shell .media-stage-page .audio-spectrum.viz-orbit .spectrum-bars i{left:50%;top:50%;width:clamp(2px,.23vw,4px);height:min(var(--level),18%);transform:rotate(calc(var(--index) * 11.25deg)) translateY(clamp(-220px,-19vh,-75px));transform-origin:50% 0;max-height:18%}
+.apex-shell .media-stage-page .audio-spectrum.viz-mirror .spectrum-bars i{height:var(--level);max-height:39%;filter:drop-shadow(0 0 7px var(--accent))}
+.apex-shell .media-stage-page .audio-spectrum.viz-wave .spectrum-stage svg{height:100%;width:100%;opacity:.75}
+.apex-shell .media-stage-page .audio-spectrum.viz-wave .spectrum-stage svg polyline{stroke:var(--accent);stroke-width:1.4;fill:none;vector-effect:non-scaling-stroke}
+.apex-shell .media-stage-page .audio-spectrum>.spectrum-enable,.apex-shell .media-stage-page .audio-spectrum>.spectrum-idle{pointer-events:auto;position:absolute;right:8px;bottom:7px;top:auto;max-width:41%;font-size:clamp(9px,1.2vh,12px);height:auto;min-height:25px;background:#080e14dc;border:1px solid #687783;color:#f3f5f5;border-radius:8px}
+.apex-shell .media-stage-page .visual-style-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;background:var(--finish-grain),#070c10;border:1px solid #617783;border-radius:12px;padding:3px}
+.apex-shell .media-stage-page .visual-style-row button{display:flex;align-items:center;justify-content:center;gap:clamp(2px,1vw,10px);min-height:0;padding:2px 5px;background:transparent!important;border:1px solid transparent;font-size:clamp(10px,1.4vh,16px);color:#dce5e8}
+.apex-shell .media-stage-page .visual-style-row button svg{width:clamp(15px,2.6vh,25px);height:clamp(15px,2.6vh,25px)}
+.apex-shell .media-stage-page .visual-style-row button.selected{border-color:var(--accent);color:#fff;border-radius:9px;background:radial-gradient(circle,color-mix(in srgb,var(--accent) 26%,transparent),#0a0d12)!important;box-shadow:0 0 10px color-mix(in srgb,var(--accent) 43%,transparent)}
+.apex-shell .media-stage-page .track-editorial h1{font-size:clamp(20px,3.4vh,36px)}
+.apex-shell .media-stage-page .transport>button{min-height:37px;min-width:37px}
+.apex-shell .media-stage-page .transport>.primary{width:clamp(44px,6.5vh,67px);min-height:clamp(44px,6.5vh,67px)}
+.apex-shell .media-stage-page .queue-list>button{min-height:clamp(40px,6vh,61px)}
+.media-source-sheet .modal-scrim{align-items:flex-end;padding:0 8px 8px calc(var(--rail) + 8px)}
+.media-source-sheet .modal{width:min(680px,100%);max-height:min(68vh,620px);border-radius:18px 18px 12px 12px;background:var(--finish-grain),#071015}
+.media-source-sheet .modal-body{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;align-content:start}
+.media-source-sheet .source-app{margin:0;min-width:0;min-height:clamp(48px,8vh,76px);background:#131e24;border-color:#657881;overflow:hidden}
+.media-source-sheet .source-app b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.media-source-sheet .source-app img{width:34px;height:34px;object-fit:contain}
+.media-source-sheet .modal-body>.action-row{grid-column:1/-1}
+/* Truck between open arcs; only verified PIDs are shown. */
+.apex-shell .performance-hud-page{display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:clamp(38px,6vh,63px) minmax(150px,1.14fr) minmax(64px,.2fr) minmax(130px,.57fr) clamp(38px,6vh,60px);gap:clamp(4px,.7vh,8px)}
+.apex-shell .performance-hud-page>.performance-heading{grid-row:1;grid-column:1}
+.apex-shell .performance-hud-page>.performance-hero{grid-row:2;grid-column:1;position:relative;border:1px solid #647983;border-radius:14px;background:#03080a}
+.apex-shell .performance-hud-page .hero-art{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center 58%;filter:var(--art-filter) brightness(.85)}
+.apex-shell .performance-hud-page .performance-hero:after{content:'';position:absolute;inset:0;z-index:0;background:linear-gradient(90deg,#03070a9e,transparent 24% 76%,#03070a9e),linear-gradient(0deg,#0507097d,transparent 40%)}
+.apex-shell .performance-hud-page .gauge-row{position:absolute;z-index:1;inset:2% 1%;height:auto;display:flex;align-items:center;justify-content:space-between;pointer-events:none}
+.apex-shell .performance-hud-page .gauge-row>div.instrument-dial{width:min(31%,34vh);aspect-ratio:1;height:auto;max-height:90%;position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;border:0;background:conic-gradient(from 215deg,var(--accent) 0 50deg,#e9f2f5 55deg 230deg,var(--accent) 248deg 290deg,transparent 302deg 360deg);border-radius:50%;box-shadow:0 0 14px color-mix(in srgb,var(--accent) 46%,transparent);isolation:isolate;overflow:hidden}
+.apex-shell .performance-hud-page .gauge-row>div.instrument-dial:before{content:'';position:absolute;inset:3%;z-index:-1;border-radius:50%;background:radial-gradient(circle,#060c11f1 0 50%,#090f13d9 65%,#06090cdb 77%)}
+.apex-shell .performance-hud-page .gauge-row>div.instrument-dial:first-child{clip-path:polygon(0 0,100% 0,100% 43%,76% 43%,76% 100%,0 100%)}
+.apex-shell .performance-hud-page .gauge-row>div.instrument-dial:last-child{clip-path:polygon(0 0,100% 0,100% 100%,24% 100%,24% 43%,0 43%)}
+.apex-shell .performance-hud-page .instrument-dial .dial-ticks span{font-size:clamp(7px,1.1vh,12px)}
+.apex-shell .performance-hud-page .gauge-row strong{font-size:clamp(20px,4.6vh,49px)}
+.apex-shell .performance-hud-page>.performance-modules{grid-row:3;grid-column:1;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;min-height:0}
+.apex-shell .performance-modules .panel{display:grid;grid-template-columns:1fr auto;grid-template-rows:1fr 6px;align-items:center;gap:1px 8px;padding:clamp(5px,.9vh,11px);background:var(--finish-grain),linear-gradient(120deg,#111a1f,#050a0d)}
+.apex-shell .performance-modules span{font-size:clamp(10px,1.5vh,16px);font-weight:700;color:#f0f4f3}
+.apex-shell .performance-modules strong{font-size:clamp(18px,3vh,33px)}
+.apex-shell .performance-modules i{grid-column:1/-1;height:5px;width:100%;border-radius:5px;background:linear-gradient(to right,var(--accent) var(--reading),#45535a var(--reading));box-shadow:0 0 8px color-mix(in srgb,var(--accent) 30%,transparent)}
+.apex-shell .performance-hud-page>.telemetry-grid{grid-row:4;grid-column:1;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr));gap:6px;min-height:0}
+.apex-shell .performance-hud-page .telemetry-grid>div{display:grid;grid-template-columns:1fr auto;grid-template-rows:1fr auto;align-items:center;gap:0 6px;padding:clamp(5px,1vh,12px);background:var(--finish-grain),linear-gradient(140deg,#0d161b,#040809);border-left:2px solid color-mix(in srgb,var(--accent) 75%,#697781)}
+.apex-shell .performance-hud-page .telemetry-grid span{grid-column:1/-1;align-self:end;font-size:clamp(10px,1.4vh,15px)}
+.apex-shell .performance-hud-page .telemetry-grid strong{font-size:clamp(17px,3vh,32px)}
+.apex-shell .performance-hud-page .telemetry-grid small{font-size:clamp(9px,1.35vh,14px)}
+.apex-shell .performance-hud-page>.vehicle-status{grid-row:5;grid-column:1;min-height:0}
+@media(min-aspect-ratio:6/5){.apex-shell .media-stage-page{grid-template-columns:1.1fr 1fr;grid-template-rows:clamp(45px,8vh,69px) clamp(43px,8vh,70px) clamp(27px,5vh,42px) clamp(37px,7vh,59px) clamp(27px,5vh,42px) minmax(90px,1fr)}.apex-shell .media-stage-page>.media-top{grid-column:1;grid-row:1/7}.apex-shell .media-stage-page>.track-editorial{grid-column:2;grid-row:1}.apex-shell .media-stage-page>.transport{grid-column:2;grid-row:2}.apex-shell .media-stage-page>.progress-row{grid-column:2;grid-row:3}.apex-shell .media-stage-page>.visual-style-row{grid-column:2;grid-row:4}.apex-shell .media-stage-page>.volume-row{grid-column:2;grid-row:5}.apex-shell .media-stage-page>.queue-panel{grid-column:2;grid-row:6}.apex-shell .media-stage-page .record{max-width:85%;height:auto;max-height:72%}.apex-shell .performance-hud-page{grid-template-columns:1.12fr 1fr;grid-template-rows:clamp(35px,7vh,61px) minmax(100px,1fr) clamp(50px,9vh,86px) clamp(34px,6vh,57px)}.apex-shell .performance-hud-page>.performance-heading{grid-row:1;grid-column:1/-1}.apex-shell .performance-hud-page>.performance-hero{grid-column:1;grid-row:2/5}.apex-shell .performance-hud-page>.performance-modules{grid-column:2;grid-row:2}.apex-shell .performance-hud-page>.telemetry-grid{grid-column:2;grid-row:3}.apex-shell .performance-hud-page>.vehicle-status{grid-column:2;grid-row:4}}
+@media(max-height:650px){.apex-shell .media-stage-page{grid-template-rows:minmax(85px,1fr) 36px 40px 23px 34px 26px minmax(65px,.5fr)}.apex-shell .performance-hud-page{grid-template-rows:30px minmax(90px,1fr) 52px minmax(90px,.7fr) 38px}.apex-shell .media-stage-page .source-pill{height:35px}}
+.reduce-motion .media-stage-page *{animation:none!important;transition:none!important}

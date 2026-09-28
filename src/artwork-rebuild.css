@@ -1,0 +1,69 @@
+/* Asset-led cockpit design. Live map, album and vehicle readings remain dynamic. */
+.apex-shell{--ui-base:#0a0e11;--ui-deep:#020406;--ui-panel:#0b1014;--ui-raised:#162028;--ui-line:#667984}
+.apex-shell.surface-charcoal{--ui-base:#222a2e;--ui-deep:#0e1316;--ui-panel:#1a2327;--ui-raised:#303b40;--ui-line:#819098}
+.apex-shell.surface-dark{--ui-base:#10191d;--ui-deep:#05090d;--ui-panel:#10171c;--ui-raised:#212d34;--ui-line:#6a7b82}
+.apex-shell.surface-black{--ui-base:#070809;--ui-deep:#000102;--ui-panel:#050708;--ui-raised:#11171a;--ui-line:#53636a}
+.apex-shell.surface-carbon{--ui-base:#0c1012;--ui-deep:#020405;--ui-panel:#0a1013;--ui-raised:#1b262b;--ui-line:#637984;--finish-grain:repeating-linear-gradient(135deg,#ffffff10 0 1px,transparent 1px 6px),repeating-linear-gradient(45deg,#ffffff05 0 1px,transparent 1px 6px)}
+.apex-shell .page{background:var(--finish-grain),linear-gradient(110deg,var(--ui-base),var(--ui-deep) 76%)}
+.apex-shell .panel:not(.home-map):not(.weather-card){background:var(--finish-grain),linear-gradient(120deg,var(--ui-panel),var(--ui-deep) 80%);border:1px solid color-mix(in srgb,var(--ui-line) 75%,transparent)}
+.apex-shell .command-rail{background:var(--finish-grain),linear-gradient(92deg,#0b1217,#030608);border-color:var(--ui-line)}
+.apex-shell .command-rail button.active{background:radial-gradient(circle at center,color-mix(in srgb,var(--accent) 29%,transparent),#090b0f 72%)!important}
+.apex-shell .status-bar{background:var(--finish-grain),linear-gradient(180deg,#0b1014,#020406)}
+.apex-shell .wordmark b{color:#e6eced;text-shadow:1px 1px #718087,2px 2px #272f33;letter-spacing:-.085em}
+.apex-shell .wordmark em{font-weight:900;text-shadow:0 0 9px color-mix(in srgb,var(--accent) 38%,transparent)}
+.apex-shell .home-page{grid-template-rows:minmax(162px,1.17fr) minmax(167px,.92fr) minmax(67px,.22fr) minmax(50px,.16fr)}
+.apex-shell .home-map{display:grid;grid-template-rows:clamp(47px,7vh,68px) minmax(0,1fr);background:#08131c}
+.apex-shell .home-map>.map-preview{grid-row:2;grid-column:1;min-height:0}
+.apex-shell .home-map>.map-search{grid-row:1;grid-column:1;margin:5px 7px;justify-content:flex-start;background:#081019ed!important;border-radius:17px;border:1px solid #76858b9c;z-index:1}
+.apex-shell .home-map>.map-search svg:last-child{margin-left:auto}
+.apex-shell .weather-card{background:linear-gradient(155deg,#080d19d8,#091c28a3 54%,#02050ae0),url('/art/sunset-storm-v531.webp') center 41%/cover!important;border:1px solid #6e82919c;display:flex;flex-direction:column;align-items:stretch;justify-content:space-between;gap:2px;padding:clamp(7px,1.25vw,15px)}
+.apex-shell .weather-card:before{display:none}
+.apex-shell .weather-card .weather-title{display:flex;justify-content:space-between;align-items:center;font-size:clamp(13px,2vh,21px);letter-spacing:0}
+.apex-shell .weather-card .weather-title svg{width:17px;height:17px}
+.apex-shell .weather-summary{display:flex;align-items:center;gap:clamp(6px,1.2vw,15px);min-height:0}
+.apex-shell .weather-summary>svg{width:clamp(35px,6vw,78px);height:clamp(35px,6vw,78px);color:#f4d8a9;filter:drop-shadow(0 2px 8px #000b)}
+.apex-shell .weather-summary>span{display:grid;gap:2px;min-width:0}
+.apex-shell .weather-summary strong{font-size:clamp(35px,6vh,70px);line-height:.9}
+.apex-shell .weather-summary small{font-size:clamp(9px,1.35vh,15px);color:#f1f3ee;white-space:nowrap}
+.apex-shell .home-forecast{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:2px;border-top:1px solid #ffffff63;padding-top:clamp(5px,1vh,12px)}
+.apex-shell .home-forecast>span{display:grid;justify-items:center;gap:2px;font-size:clamp(9px,1.35vh,14px);min-width:0}
+.apex-shell .home-forecast>span svg{width:clamp(14px,2.7vh,26px);height:clamp(14px,2.7vh,26px);color:#f5d49c}
+.apex-shell .home-forecast>span b{font-size:clamp(10px,1.55vh,17px)}
+.apex-shell .home-forecast>small{grid-column:1/-1;color:#f2f3f0}
+.apex-shell .weather-page .weather-hero{background:linear-gradient(95deg,#080d16b8,#0a0e19a0 58%,#05090c8a),url('/art/sunset-storm-v531.webp') center 51%/cover!important}
+.apex-shell .weather-page .weather-hero.sky-rain,.apex-shell .weather-page .weather-hero.sky-storm{background:linear-gradient(100deg,#071524d8,#19314999),url('/art/sunset-storm-v531.webp') center 51%/cover!important}
+.apex-shell .weather-hero:before{background:none}
+.apex-shell .weather-sky-orb{height:clamp(90px,17vh,195px);top:29%;right:auto;left:8%;background:radial-gradient(circle at 42% 42%,#ffe7ac,#fda339 35%,#f7bd2677 55%,transparent 67%);box-shadow:0 0 66px #faaa43a8;opacity:.85}
+.apex-shell .weather-hero-copy{left:31%;bottom:18%;display:grid;justify-items:start;max-width:47%}
+.apex-shell .weather-hero-copy .weather-hero-icon{position:absolute;left:-63%;top:0;width:clamp(75px,13vh,154px);height:clamp(75px,13vh,154px);color:#f0ede8;filter:drop-shadow(0 8px 10px #07101ad9)}
+.apex-shell .weather-hero-stats{right:3%;bottom:13%;min-width:19%;padding-left:8px;border-left:1px solid #ffffff79}
+.apex-shell .forecast-panel{background:#05090cf2}
+.apex-shell .forecast-strip>div:first-child{border-color:var(--accent);box-shadow:inset 0 0 12px color-mix(in srgb,var(--accent) 31%,transparent),0 0 12px color-mix(in srgb,var(--accent) 30%,transparent)}
+.apex-shell .apps-page .app-orbit{background:linear-gradient(#03050988,#05090bbd),url('/art/sunset-storm-v531.webp') center 74%/cover}
+.apex-shell .performance-hero .instrument-dial .dial-ticks{position:absolute;inset:0;z-index:2;pointer-events:none}
+.apex-shell .performance-hero .instrument-dial .dial-ticks span{position:absolute;transform:translate(-50%,-50%);color:#dce3e3;font-size:clamp(7px,1.05vh,12px);text-shadow:0 1px 2px #000}
+.apex-shell .performance-hero .instrument-dial>span{font-size:clamp(9px,1.3vh,13px)}
+.apex-shell .performance-hero .instrument-dial>small{font-size:clamp(7px,1.05vh,11px)}
+.apex-shell .app-orbit:after{pointer-events:none}
+.apex-shell .orbit-emblem{font-size:clamp(22px,3.5vh,35px);font-weight:1000;font-style:italic;color:#d5dfe4;text-shadow:2px 2px 1px #687982,0 0 12px #000}
+.apex-shell .orbit-emblem:before{content:'⌃';position:absolute;top:12%;font-size:clamp(20px,3.4vh,40px);color:var(--accent)}
+.apex-shell .orbit-emblem small{font-style:normal;font-weight:400;text-shadow:none}
+.apex-shell .apps-page .search-box{display:flex;gap:7px}
+.apex-shell .apps-page .search-box input{width:0;min-width:55px}
+.apex-shell .apps-page .search-box .apps-pair,.apex-shell .apps-page .search-box .apps-edit{min-height:38px;max-width:30%;padding:4px 7px;background:#070d12!important;border:1px solid color-mix(in srgb,var(--accent) 54%,var(--ui-line));white-space:nowrap;font-size:clamp(10px,1.5vh,15px)}
+.apex-shell .apps-page .search-box .apps-edit{border-color:var(--accent)!important}
+.apex-shell .apps-page .search-box .apps-pair svg,.apex-shell .apps-page .search-box .apps-edit svg{width:17px;height:17px}
+.apex-shell .apps-library .app-tile{background:#04090deb!important;border-color:#526772bd}
+.apex-shell .media-top{background:radial-gradient(ellipse at 60% 46%,color-mix(in srgb,var(--accent) 38%,transparent),transparent 48%),linear-gradient(128deg,#05090d,#180c14 55%,#030506)}
+.apex-shell .media-top .record{background:#040608;max-width:min(90%,46vh)}
+.apex-shell .audio-spectrum.live .spectrum-stage .spectrum-bars i{min-height:4%;height:var(--level);box-shadow:0 0 10px color-mix(in srgb,var(--accent) 73%,transparent);transition:height 80ms linear}
+.apex-shell .audio-spectrum.idle .spectrum-stage .spectrum-bars i{height:4%!important;opacity:.35;animation:none}
+.apex-shell .queue-panel .queue-list button{color:#f4f5f2}
+.apex-shell .theme-swatches button,.apex-shell .surface-choices button{background:var(--finish-grain),linear-gradient(145deg,var(--ui-raised),var(--ui-deep))!important}
+.apex-shell .weather-card:after{display:none}
+.apex-shell .theme-swatches i,.apex-shell .surface-choices i{box-shadow:inset 0 1px #ffffff5c,inset 0 -5px 12px #0008,0 3px 9px #0008}
+.apex-shell .surface-choices i.carbon{background-image:repeating-linear-gradient(135deg,#ffffff3b 0 1px,transparent 1px 5px),repeating-linear-gradient(45deg,#000b 0 1px,transparent 1px 5px)}
+.apex-shell .settings-actions button{background:var(--finish-grain),linear-gradient(145deg,var(--ui-raised),var(--ui-deep))!important}
+.apex-shell .status-right button[aria-label="Close settings"]{background:transparent!important;border:0!important;box-shadow:none!important}
+@media(max-width:650px){.apex-shell .apps-page .search-box .apps-pair span,.apex-shell .apps-page .search-box .apps-edit span{display:none}.apex-shell .weather-hero-copy{left:29%;max-width:43%}.apex-shell .weather-hero-copy .weather-hero-icon{left:-60%;width:65px;height:65px}.apex-shell .weather-hero-stats{font-size:9px}}
+@media(max-height:650px){.apex-shell .home-page{grid-template-rows:minmax(115px,1fr) minmax(120px,.93fr) 56px 43px}.apex-shell .weather-card .home-forecast{padding-top:3px}.apex-shell .weather-summary strong{font-size:28px}.apex-shell .weather-page .weather-hero-copy strong{font-size:48px}}

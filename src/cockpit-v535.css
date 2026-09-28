@@ -1,0 +1,31 @@
+/* Compact media stage and hero motto; launcher retains its original page rail. */
+.apex-shell .status-right button[aria-label="Open apps"],.apex-shell .status-right button[aria-label="Open settings"],.apex-shell .status-right button[aria-label="Open performance"]{width:clamp(32px,5vh,42px);min-width:32px;min-height:32px;background:transparent!important;border:0!important;padding:3px}
+.apex-shell .status-right button[aria-label="Open apps"] svg,.apex-shell .status-right button[aria-label="Open settings"] svg,.apex-shell .status-right button[aria-label="Open performance"] svg{width:19px;height:19px;color:#e7eff0}
+.apex-shell .hero-panel{position:relative}
+.apex-shell .hero-motto{position:absolute;z-index:2;left:clamp(12px,3.7vw,46px);top:clamp(12px,3.5vh,40px);display:grid;justify-items:start;gap:4px;max-width:90%;text-shadow:0 2px 7px #0610158c}
+.apex-shell .hero-motto strong{font:italic 900 clamp(19px,3.5vw,47px)/1 Barlow,Inter,sans-serif;letter-spacing:-.035em;color:#fff;white-space:nowrap}
+.apex-shell .hero-motto em{font-style:inherit;color:var(--accent)}
+.apex-shell .hero-motto span{font:600 clamp(10px,1.8vw,23px)/1.15 Inter,sans-serif;color:#111619;background:#f4dfe3d9;padding:4px 7px;border-radius:5px;text-shadow:none}
+.apex-shell .media-stage-page{overflow-y:auto;scroll-behavior:smooth;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+.apex-shell .media-stage-page>.media-top{background:radial-gradient(ellipse at 50% 42%,color-mix(in srgb,var(--accent) 15%,transparent),#0c1419 62%,#04090d 100%)!important}
+.apex-shell .media-stage-page>.media-top:before{background:none!important;opacity:0}
+.apex-shell .media-stage-page .record{z-index:3;width:auto;max-width:min(37%,29vh);height:min(69%,29vh);max-height:69%;transform:none;box-shadow:0 0 0 4px #071015,0 0 22px color-mix(in srgb,var(--accent) 35%,transparent)}
+.apex-shell .media-stage-page .audio-spectrum .spectrum-stage{inset:18% 0;width:100%;height:64%;overflow:hidden}
+.apex-shell .media-stage-page .spectrum-bars{align-items:center!important;gap:1px;padding:0 1%!important}
+.apex-shell .media-stage-page .spectrum-bars i{max-height:55%!important;min-width:2px;width:3px!important;height:clamp(3px,var(--level),55%)!important;border-radius:6px!important;background:linear-gradient(180deg,transparent,color-mix(in srgb,var(--accent) 70%,white) 24%,var(--accent) 50%,color-mix(in srgb,var(--accent) 70%,white) 76%,transparent)!important;box-shadow:0 0 7px var(--accent)!important;transition:height 115ms ease-out}
+.apex-shell .media-stage-page .viz-spectrum .spectrum-halo,.apex-shell .media-stage-page .viz-ribbon .spectrum-halo,.apex-shell .media-stage-page .viz-aurora .spectrum-halo{display:none}
+.apex-shell .media-stage-page .viz-halo .spectrum-halo{width:min(47%,32vh);opacity:.65}
+.apex-shell .media-stage-page .viz-halo .spectrum-bars{mask:linear-gradient(90deg,#000 0 30%,transparent 40% 60%,#000 70%)}
+.apex-shell .media-stage-page .viz-ribbon .spectrum-bars i{border-radius:50%!important;transform:translateY(calc((var(--index) - 48) * .16px))!important}
+.apex-shell .media-stage-page .viz-ribbon .spectrum-bars i:nth-child(4n){transform:translateY(-12px)!important}
+.apex-shell .media-stage-page .viz-aurora .spectrum-bars i{filter:hue-rotate(calc(var(--index) * 5deg)) saturate(1.5)!important}
+.apex-shell .media-stage-page .viz-aurora .spectrum-bars{mask:linear-gradient(90deg,#000 0 30%,transparent 40% 60%,#000 70%)}
+.apex-shell .media-stage-page .visual-style-row .shape-glyph{font-size:clamp(17px,2.8vh,26px)}
+.apex-shell .media-stage-page .visual-style-row button:has(.shape-glyph):last-child .shape-glyph{background:linear-gradient(90deg,#2ee0f1,#9d75ef,#f04765,#f7ca63);background-clip:text;-webkit-background-clip:text;color:transparent}
+.apex-shell .media-stage-page .track-editorial{min-width:0;overflow:hidden}
+.apex-shell .media-stage-page .track-editorial h1,.apex-shell .media-stage-page .track-editorial p{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.apex-shell .media-stage-page .queue-panel{min-height:0;display:flex;flex-direction:column;overflow:hidden}
+.apex-shell .media-stage-page .queue-list{min-height:0;overflow-y:auto;overscroll-behavior:contain;scroll-behavior:smooth;-webkit-overflow-scrolling:touch}
+.apex-shell .media-stage-page .queue-list>button{flex-shrink:0}
+@media(max-width:480px){.apex-shell .hero-motto strong{font-size:clamp(15px,4vw,25px)}}
+@media(max-width:480px){.apex-shell .status-right{gap:2px}.apex-shell .status-right button[aria-label="Open apps"],.apex-shell .status-right button[aria-label="Open settings"],.apex-shell .status-right button[aria-label="Open performance"]{min-width:29px;width:29px}.apex-shell .status-right>span{font-size:10px}}

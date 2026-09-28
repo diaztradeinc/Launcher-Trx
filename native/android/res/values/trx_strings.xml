@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="trx_back_service_label">TRX APEX Back control</string>
+    <string name="trx_back_description">Allows the optional floating rail Back button to return from other Android apps. TRX APEX does not read screen content.</string>
+</resources>

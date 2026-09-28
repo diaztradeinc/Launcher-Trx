@@ -13,9 +13,11 @@ import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
+import android.content.res.AssetFileDescriptor;
 import android.location.Location;
 import android.location.LocationManager;
 import android.media.AudioManager;
+import android.media.MediaPlayer;
 import android.media.audiofx.Visualizer;
 import android.net.Uri;
 import android.os.Build;
@@ -54,6 +56,9 @@ import java.util.Locale;
 )
 public class TrxNativePlugin extends Plugin {
     private Visualizer spectrum;
+    private MediaPlayer startupPlayer;
+    private AudioManager startupAudio;
+    private boolean startupPlayed;
     private PlacesClient placesClient;
     private PreviewMapController previewMap;
     private LocationManager locationManager;
@@ -79,13 +84,41 @@ public class TrxNativePlugin extends Plugin {
         previewMap.update(call);
     }
     @Override protected void handleOnResume(){super.handleOnResume();if(previewMap!=null)previewMap.resume();}
-    @Override protected void handleOnPause(){stopSpectrum();if(previewMap!=null)previewMap.pause();super.handleOnPause();}
-    @Override protected void handleOnDestroy(){stopSpectrum();if(previewMap!=null)previewMap.destroy();if(locationManager!=null)locationManager.removeUpdates(locationListener);super.handleOnDestroy();}
+    @Override protected void handleOnPause(){stopSpectrum();releaseStartupSound();if(previewMap!=null)previewMap.pause();super.handleOnPause();}
+    @Override protected void handleOnDestroy(){stopSpectrum();releaseStartupSound();if(previewMap!=null)previewMap.destroy();if(locationManager!=null)locationManager.removeUpdates(locationListener);super.handleOnDestroy();}
+
+    private synchronized void releaseStartupSound(){
+        if(startupPlayer!=null){try{startupPlayer.release();}catch(Throwable ignored){}startupPlayer=null;}
+        if(startupAudio!=null){startupAudio.abandonAudioFocus(null);startupAudio=null;}
+    }
+    @PluginMethod public void playStartupSound(PluginCall call){
+        if(startupPlayed){JSObject response=new JSObject();response.put("success",true);response.put("alreadyPlayed",true);call.resolve(response);return;}
+        getActivity().runOnUiThread(()->{
+            try(AssetFileDescriptor clip=getContext().getAssets().openFd("public/audio/hellrex-startup.mp3")){
+                if(startupPlayed){call.resolve();return;}
+                startupAudio=(AudioManager)getContext().getSystemService(Context.AUDIO_SERVICE);
+                if(startupAudio!=null)startupAudio.requestAudioFocus(null,AudioManager.STREAM_MUSIC,AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK);
+                startupPlayer=new MediaPlayer();
+                startupPlayer.setAudioStreamType(AudioManager.STREAM_MUSIC);
+                startupPlayer.setDataSource(clip.getFileDescriptor(),clip.getStartOffset(),clip.getLength());
+                startupPlayer.setOnCompletionListener(player->releaseStartupSound());
+                startupPlayer.prepare();
+                startupPlayer.start();
+                startupPlayed=true;
+                JSObject response=new JSObject();response.put("success",true);call.resolve(response);
+            }catch(Throwable error){releaseStartupSound();call.reject("Unable to play the startup greeting",error.getMessage());}
+        });
+    }
 
     private synchronized void stopSpectrum(){
         if(spectrum!=null){try{spectrum.setEnabled(false);}catch(Throwable ignored){}try{spectrum.release();}catch(Throwable ignored){}spectrum=null;}
     }
     @PluginMethod public void stopAudioSpectrum(PluginCall call){stopSpectrum();call.resolve();}
+    @PluginMethod public void visualizerAccess(PluginCall call){
+        JSObject result=new JSObject();
+        result.put("granted",Build.VERSION.SDK_INT<23 || getContext().checkSelfPermission(Manifest.permission.RECORD_AUDIO)==PackageManager.PERMISSION_GRANTED);
+        call.resolve(result);
+    }
     @PluginMethod public synchronized void getAudioSpectrum(PluginCall call){
         JSObject result=new JSObject();
         if(Build.VERSION.SDK_INT>=23 && getContext().checkSelfPermission(Manifest.permission.RECORD_AUDIO)!=PackageManager.PERMISSION_GRANTED){
@@ -96,11 +129,21 @@ public class TrxNativePlugin extends Plugin {
             byte[] fft=new byte[spectrum.getCaptureSize()];
             if(spectrum.getFft(fft)!=Visualizer.SUCCESS)throw new IllegalStateException("Audio output is not available");
             JSArray bands=new JSArray();int bins=Math.max(1,fft.length/2-1);
+            float strongest=0;
+            float[] values=new float[32];
             for(int i=0;i<32;i++){
                 int from=1+(int)(Math.pow(i/32.0,1.6)*bins);int to=Math.max(from+1,1+(int)(Math.pow((i+1)/32.0,1.6)*bins));
                 float peak=0;for(int b=from;b<Math.min(to,bins);b++){int re=fft[b*2],im=fft[b*2+1];peak=Math.max(peak,(float)Math.sqrt(re*re+im*im));}
-                bands.put(Math.min(1.0,Math.max(0.0,peak/110.0)));
+                values[i]=peak;strongest=Math.max(strongest,peak);
             }
+            // Some device mixers return a silent FFT while waveform capture remains live.
+            if(strongest<2){byte[] waveform=new byte[spectrum.getCaptureSize()];if(spectrum.getWaveForm(waveform)==Visualizer.SUCCESS){
+                for(int i=0;i<32;i++){float peak=0;int from=i*waveform.length/32,to=(i+1)*waveform.length/32;
+                    for(int j=from;j<to;j++)peak=Math.max(peak,Math.abs((waveform[j]&255)-128));
+                    values[i]=peak;strongest=Math.max(strongest,peak);
+                }
+            }}
+            for(float peak:values)bands.put(Math.min(1.0,Math.max(0.0,peak/90.0)));
             result.put("available",true);result.put("bands",bands);call.resolve(result);
         }catch(Throwable error){stopSpectrum();result.put("available",false);result.put("reason","Audio output visualization is unavailable on this device.");call.resolve(result);}
     }
@@ -140,6 +183,27 @@ public class TrxNativePlugin extends Plugin {
         }
         if ("launcher".equals(group)) {
             requestHomeRole(call);
+            return;
+        }
+        if ("overlay".equals(group)) {
+            try {
+                if (!Settings.canDrawOverlays(getContext())) {
+                    Intent permission = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                        Uri.parse("package:" + getContext().getPackageName()));
+                    getActivity().startActivity(permission);
+                }
+                JSObject result = new JSObject();
+                result.put("granted", Settings.canDrawOverlays(getContext()));
+                result.put("opened", true);
+                call.resolve(result);
+            } catch (Throwable error) { call.reject("Unable to open overlay permission",error.getMessage()); }
+            return;
+        }
+        if ("back".equals(group)) {
+            try {
+                if(!TrxBackService.ready())getActivity().startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS));
+                JSObject result=new JSObject();result.put("granted",TrxBackService.ready());result.put("opened",true);call.resolve(result);
+            }catch(Throwable error){call.reject("Unable to open Android Back control settings",error.getMessage());}
             return;
         }
         if ("bluetooth".equals(group) && Build.VERSION.SDK_INT < 31) {
@@ -216,16 +280,60 @@ public class TrxNativePlugin extends Plugin {
         } catch (Throwable error) { call.reject("Unable to launch app", error.getMessage()); }
     }
 
-    @PluginMethod public void launchAdjacent(PluginCall call){
-        String pkg=call.getString("packageName","");
-        try{
-            Intent intent=getContext().getPackageManager().getLaunchIntentForPackage(pkg);
-            if(intent==null){call.reject("App is not launchable");return;}
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_LAUNCH_ADJACENT);
-            getActivity().startActivity(intent);
-            JSObject result=new JSObject();result.put("success",true);
-            result.put("message","Split screen requested; the device may open the app full screen.");call.resolve(result);
-        }catch(Throwable error){call.reject("Unable to request split screen",error.getMessage());}
+    @PluginMethod public void startAppPair(PluginCall call) {
+        String first=call.getString("first", ""), second=call.getString("second", "");
+        if(first.equals(second)){call.reject("Choose two different apps");return;}
+        PackageManager pm=getContext().getPackageManager();
+        Intent left=pm.getLaunchIntentForPackage(first),right=pm.getLaunchIntentForPackage(second);
+        if(left==null||right==null){call.reject("Both apps must be launchable");return;}
+        boolean manual=Boolean.TRUE.equals(call.getBoolean("manual",false));
+        if(TrxBackService.ready()&&!TrxBackService.automaticPairAvailable()&&!manual){
+            JSObject result=new JSObject();result.put("manualRequired",true);result.put("success",false);
+            result.put("message","Use Android’s Split screen menu to finish this pair.");call.resolve(result);return;
+        }
+        getActivity().runOnUiThread(() -> TrxBackService.startPair(first,second,manual,
+            getActivity().isInMultiWindowMode(),(message,error) -> {
+                if(error){call.reject(message);return;}
+                JSObject result=new JSObject();result.put("success",true);
+                result.put("message",message);call.resolve(result);
+            }));
+    }
+
+    @PluginMethod public void floatingRail(PluginCall call) {
+        boolean enable=Boolean.TRUE.equals(call.getBoolean("enabled",false));
+        JSObject result=new JSObject();
+        boolean granted=Settings.canDrawOverlays(getContext());
+        result.put("granted",granted);
+        if(enable&&!granted){result.put("error","Allow Display over other apps in Android settings first.");call.resolve(result);return;}
+        try {
+            Intent intent=new Intent(getContext(),FloatingRailService.class);
+            intent.putExtra("accentColor",call.getString("accentColor","#f04450"));
+            intent.putExtra("surface",call.getString("surface","carbon"));
+            getContext().getSharedPreferences("launcher",Context.MODE_PRIVATE).edit().putBoolean("floating_rail_enabled",enable).apply();
+            if(enable){ if(Build.VERSION.SDK_INT>=26)getContext().startForegroundService(intent);else getContext().startService(intent); }
+            else getContext().stopService(intent);
+            result.put("enabled",enable);call.resolve(result);
+        }catch(Throwable error){call.reject("Unable to update floating rail",error.getMessage());}
+    }
+
+    @PluginMethod public void railCapabilities(PluginCall call) {
+        JSObject result=new JSObject();
+        result.put("overlay",Settings.canDrawOverlays(getContext()));
+        result.put("back",TrxBackService.ready());
+        result.put("backStatus",TrxBackService.status(getContext()));
+        result.put("pairMode",!TrxBackService.ready()?"unavailable":TrxBackService.automaticPairAvailable()?"automatic":"manual");
+        result.put("enabled",getContext().getSharedPreferences("launcher",Context.MODE_PRIVATE).getBoolean("floating_rail_enabled",true));
+        call.resolve(result);
+    }
+
+    @PluginMethod public void consumeRailDestination(PluginCall call) {
+        Intent intent=getActivity().getIntent();
+        String page=intent.getStringExtra("apexPage");
+        String splitFirst=intent.getStringExtra("apexSplitFirst");
+        intent.removeExtra("apexPage");
+        intent.removeExtra("apexSplitFirst");
+        JSObject result=new JSObject();result.put("page",page==null?"":page);
+        result.put("splitFirst",splitFirst==null?"":splitFirst);call.resolve(result);
     }
 
     @PluginMethod public void appAction(PluginCall call) {
@@ -262,26 +370,40 @@ public class TrxNativePlugin extends Plugin {
         result.put("liked", MediaBridge.liked);
         result.put("positionMs", MediaBridge.currentPositionMs());
         result.put("durationMs", MediaBridge.durationMs);
-        result.put("artwork", bitmapDataUrl(MediaBridge.artwork));
+        // The UI polls playback position frequently. Send full JPEG artwork only
+        // when the track changes or at a periodic refresh, not every poll.
+        long artEpoch=System.currentTimeMillis()/15000L;
+        String artworkKey=artKey(MediaBridge.source+"|"+MediaBridge.title+"|"+MediaBridge.artist+"|"+MediaBridge.durationMs,MediaBridge.artwork,artEpoch);
+        result.put("artworkKey",artworkKey);
+        if(!artworkKey.equals(call.getString("artworkKey","")))result.put("artwork", bitmapDataUrl(MediaBridge.artwork));
         JSArray queue = new JSArray();
+        JSObject knownQueue=call.getObject("queueArtworkKeys");
         MediaBridge.QueueSnapshot snapshot=MediaBridge.queueSnapshot();
         for (int i = 0; i < snapshot.titles.length; i++) {
             JSObject item = new JSObject();
-            item.put("id", i < snapshot.ids.length ? Long.toString(snapshot.ids[i]) : "");
+            String queueId=i < snapshot.ids.length ? Long.toString(snapshot.ids[i]) : "";
+            item.put("id",queueId);
             item.put("title", snapshot.titles[i]);
             item.put("artist", i < snapshot.artists.length ? snapshot.artists[i] : "");
-            item.put("artwork", i < snapshot.artwork.length ? bitmapDataUrl(snapshot.artwork[i]) : "");
+            Bitmap queueArt=i < snapshot.artwork.length ? snapshot.artwork[i] : null;
+            String queueKey=artKey(MediaBridge.source+"|"+queueId+"|"+snapshot.titles[i],queueArt,artEpoch);
+            item.put("artworkKey",queueKey);
+            if(knownQueue==null||!queueKey.equals(knownQueue.optString(queueId,"")))item.put("artwork",bitmapDataUrl(queueArt));
             queue.put(item);
         }
         result.put("queue", queue);
         call.resolve(result);
     }
 
+    private String artKey(String identity,Bitmap bitmap,long epoch){
+        return bitmap==null?"":Integer.toHexString(identity.hashCode())+"-"+epoch;
+    }
+
     private String bitmapDataUrl(Bitmap bitmap) {
         if (bitmap == null) return "";
         try {
             ByteArrayOutputStream out = new ByteArrayOutputStream();
-            bitmap.compress(Bitmap.CompressFormat.JPEG, 84, out);
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 93, out);
             return "data:image/jpeg;base64," + Base64.encodeToString(out.toByteArray(), Base64.NO_WRAP);
         } catch (Throwable ignored) { return ""; }
     }
@@ -363,6 +485,9 @@ public class TrxNativePlugin extends Plugin {
         result.put("livePidCount", ObdBridge.livePidCount);
         result.put("ageMs",ObdBridge.lastUpdate==0?null:android.os.SystemClock.elapsedRealtime()-ObdBridge.lastUpdate);
         result.put("diagnostics",ObdBridge.diagnostics());
+        result.put("lastError",ObdBridge.lastError);
+        result.put("reconnectAttempts",ObdBridge.reconnectAttempts);
+        result.put("connectionMode",ObdBridge.connectionMode);
         putNumber(result, "rpm", ObdBridge.rpm);
         putNumber(result, "coolantF", ObdBridge.coolantF);
         putNumber(result, "intakeF", ObdBridge.intakeF);
@@ -408,12 +533,82 @@ public class TrxNativePlugin extends Plugin {
         } catch (Throwable error) { call.reject("Location unavailable", error.getMessage()); }
     }
 
+    @PluginMethod public void getWeather(PluginCall call) {
+        Double lat=call.getDouble("latitude"),lon=call.getDouble("longitude");
+        if(lat==null||lon==null){
+            if(getPermissionState("location")!=com.getcapacitor.PermissionState.GRANTED){call.reject("Location permission required");return;}
+            try {
+                LocationManager manager=(LocationManager)getContext().getSystemService(Context.LOCATION_SERVICE);
+                Location best=null;
+                for(String provider:manager.getProviders(true)){
+                    Location item=manager.getLastKnownLocation(provider);
+                    if(item!=null&&(best==null||item.getTime()>best.getTime()))best=item;
+                }
+                if(best!=null&&System.currentTimeMillis()-best.getTime()<1800000L){lat=best.getLatitude();lon=best.getLongitude();}
+            }catch(SecurityException ignored){}
+        }
+        if(lat==null||lon==null||Math.abs(lat)>90||Math.abs(lon)>180){call.reject("Location unavailable");return;}
+        final double weatherLat=lat,weatherLon=lon;
+        new Thread(() -> {
+            java.net.HttpURLConnection connection=null;
+            try {
+                String endpoint=String.format(Locale.US,
+                    "https://api.open-meteo.com/v1/forecast?latitude=%.4f&longitude=%.4f&current=temperature_2m,apparent_temperature,weather_code&hourly=temperature_2m,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min,sunset&forecast_days=5&timezone=auto&temperature_unit=fahrenheit",weatherLat,weatherLon);
+                connection=(java.net.HttpURLConnection)new java.net.URL(endpoint).openConnection();
+                connection.setConnectTimeout(7000);connection.setReadTimeout(7000);
+                if(connection.getResponseCode()!=200)throw new IllegalStateException("Weather service unavailable");
+                byte[] body;
+                try(java.io.InputStream stream=connection.getInputStream();ByteArrayOutputStream output=new ByteArrayOutputStream()){
+                    byte[] buffer=new byte[4096];int count;
+                    while((count=stream.read(buffer))!=-1)output.write(buffer,0,count);
+                    body=output.toByteArray();
+                }
+                org.json.JSONObject forecast=new org.json.JSONObject(new String(body,java.nio.charset.StandardCharsets.UTF_8));
+                org.json.JSONObject current=forecast.getJSONObject("current");
+                int code=current.getInt("weather_code");
+                JSObject result=new JSObject();result.put("temperature",Math.round(current.getDouble("temperature_2m")));
+                result.put("condition",weatherCondition(code));
+                result.put("feelsLike",Math.round(current.optDouble("apparent_temperature",current.getDouble("temperature_2m"))));
+                org.json.JSONObject hourly=forecast.getJSONObject("hourly"),daily=forecast.getJSONObject("daily");
+                org.json.JSONArray times=hourly.getJSONArray("time"),temperatures=hourly.getJSONArray("temperature_2m"),codes=hourly.getJSONArray("weather_code");
+                JSArray hours=new JSArray();String currentHour=current.getString("time").substring(0,13);
+                int start=0;while(start<times.length()&&times.getString(start).compareTo(currentHour)<0)start++;
+                for(int i=start;i<Math.min(start+8,times.length());i++){
+                    JSObject item=new JSObject();item.put("time",times.getString(i));item.put("temperature",Math.round(temperatures.getDouble(i)));
+                    item.put("condition",weatherCondition(codes.getInt(i)));hours.put(item);
+                }
+                result.put("hourly",hours);
+                org.json.JSONArray dates=daily.getJSONArray("time"),highs=daily.getJSONArray("temperature_2m_max"),lows=daily.getJSONArray("temperature_2m_min"),sunsets=daily.getJSONArray("sunset"),dayCodes=daily.getJSONArray("weather_code");
+                JSArray days=new JSArray();for(int i=0;i<Math.min(5,dates.length());i++){
+                    JSObject item=new JSObject();item.put("date",dates.getString(i));item.put("high",Math.round(highs.getDouble(i)));
+                    item.put("low",Math.round(lows.getDouble(i)));item.put("sunset",sunsets.getString(i));
+                    item.put("condition",weatherCondition(dayCodes.getInt(i)));days.put(item);
+                }
+                result.put("daily",days);
+                call.resolve(result);
+            }catch(Throwable error){call.reject("Weather service unavailable",error.getMessage());}
+            finally{if(connection!=null)connection.disconnect();}
+        }).start();
+    }
+
+    private static String weatherCondition(int code){
+        if(code==0)return "CLEAR";
+        if(code<=3)return "PARTLY CLOUDY";
+        if(code<=48)return "FOGGY";
+        if(code<=67)return "RAIN";
+        if(code<=77)return "SNOW";
+        if(code<=82)return "SHOWERS";
+        if(code<=86)return "SNOW";
+        return "STORMS";
+    }
+
     @PluginMethod public void openNavigation(PluginCall call) {
         Intent intent = new Intent(getContext(), NavigationActivity.class);
         intent.putExtra("destination", call.getString("destination", ""));
         String placeId=call.getString("placeId");
         if(placeId!=null&&!placeId.trim().isEmpty())intent.putExtra("placeId",placeId);
         intent.putExtra("theme",call.getString("theme","titanium"));
+        intent.putExtra("surface",call.getString("surface","charcoal"));
         intent.putExtra("accentColor",call.getString("accentColor","#f28a32"));
         Integer accentStrength=call.getInt("accentStrength");
         if(accentStrength!=null)intent.putExtra("accentStrength",accentStrength);
