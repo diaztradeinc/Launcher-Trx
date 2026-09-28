@@ -90,8 +90,8 @@ class Google3DPreviewActivity : Activity(), OnMap3DViewReadyCallback {
                     status.text="3D is still loading. Check connection and Maps 3D SDK access in Google Cloud. Back to map remains available."
                 }
             },30000)
-        } catch(e:Exception) { showError(e.javaClass.simpleName) }
-          catch(e:LinkageError) { showError("3D renderer unavailable on this device") }
+        } catch(e:Exception) { recordError(e);showError(e.javaClass.simpleName) }
+          catch(e:LinkageError) { recordError(e);showError(e.javaClass.simpleName) }
     }
 
     override fun onMap3DViewReady(googleMap3D: GoogleMap3D) {
@@ -148,7 +148,10 @@ class Google3DPreviewActivity : Activity(), OnMap3DViewReadyCallback {
             heading,if(overhead)0.0 else 72.0,0.0,if(wide)85.0 else 22.0))
     }
 
-    override fun onError(error: Exception) { runOnUiThread { showError(error.javaClass.simpleName) } }
+    override fun onError(error: Exception) { recordError(error);runOnUiThread { showError(error.javaClass.simpleName) } }
+    private fun recordError(error:Throwable) {
+        android.util.Log.e("Apex3D",error.stackTraceToString().replace(Regex("AIza[\\w-]+"),"[REDACTED_GOOGLE_KEY]"))
+    }
     private fun showError(reason:String) {
         if(isDestroyed || isFinishing)return
         failed=true
