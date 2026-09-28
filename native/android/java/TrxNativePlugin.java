@@ -370,19 +370,33 @@ public class TrxNativePlugin extends Plugin {
         result.put("liked", MediaBridge.liked);
         result.put("positionMs", MediaBridge.currentPositionMs());
         result.put("durationMs", MediaBridge.durationMs);
-        result.put("artwork", bitmapDataUrl(MediaBridge.artwork));
+        // The UI polls playback position frequently. Send full JPEG artwork only
+        // when the track changes or at a periodic refresh, not every poll.
+        long artEpoch=System.currentTimeMillis()/15000L;
+        String artworkKey=artKey(MediaBridge.source+"|"+MediaBridge.title+"|"+MediaBridge.artist+"|"+MediaBridge.durationMs,MediaBridge.artwork,artEpoch);
+        result.put("artworkKey",artworkKey);
+        if(!artworkKey.equals(call.getString("artworkKey","")))result.put("artwork", bitmapDataUrl(MediaBridge.artwork));
         JSArray queue = new JSArray();
+        JSObject knownQueue=call.getObject("queueArtworkKeys");
         MediaBridge.QueueSnapshot snapshot=MediaBridge.queueSnapshot();
         for (int i = 0; i < snapshot.titles.length; i++) {
             JSObject item = new JSObject();
-            item.put("id", i < snapshot.ids.length ? Long.toString(snapshot.ids[i]) : "");
+            String queueId=i < snapshot.ids.length ? Long.toString(snapshot.ids[i]) : "";
+            item.put("id",queueId);
             item.put("title", snapshot.titles[i]);
             item.put("artist", i < snapshot.artists.length ? snapshot.artists[i] : "");
-            item.put("artwork", i < snapshot.artwork.length ? bitmapDataUrl(snapshot.artwork[i]) : "");
+            Bitmap queueArt=i < snapshot.artwork.length ? snapshot.artwork[i] : null;
+            String queueKey=artKey(MediaBridge.source+"|"+queueId+"|"+snapshot.titles[i],queueArt,artEpoch);
+            item.put("artworkKey",queueKey);
+            if(knownQueue==null||!queueKey.equals(knownQueue.optString(queueId,"")))item.put("artwork",bitmapDataUrl(queueArt));
             queue.put(item);
         }
         result.put("queue", queue);
         call.resolve(result);
+    }
+
+    private String artKey(String identity,Bitmap bitmap,long epoch){
+        return bitmap==null?"":Integer.toHexString(identity.hashCode())+"-"+epoch;
     }
 
     private String bitmapDataUrl(Bitmap bitmap) {

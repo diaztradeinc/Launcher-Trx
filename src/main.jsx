@@ -51,24 +51,33 @@ function useStored(key, fallback) {
 function legacyString(key, fallback) { const v=localStorage.getItem(key); try { return JSON.parse(v) || fallback; } catch { return v || fallback; } }
 function reading(value, digits=0) { return Number.isFinite(value) ? value.toFixed(digits) : '—'; }
 function formatTime(ms) { const s=Math.floor((ms || 0)/1000);return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); }
-function useLive() {
+function useLive(active) {
   const [live,setLive]=useState({media:null,obd:null,location:null,weather:read('trx-apex-last-weather',null)});
   const weatherAt=useRef(0);
   const weatherReady=useRef(Boolean(read('trx-apex-last-weather',null)));
   useEffect(()=>{
-    let alive=true,timer;
+    let alive=true,timer,busy=false;
     async function refresh(){
-      const [media,obd,location]=await Promise.all([native.media(),native.obd(),native.location()]);
-      if(!alive)return;
-      setLive(v=>({...v,media,obd,location}));
-      if(Date.now()-weatherAt.current>(weatherReady.current?600000:15000)){
-        weatherAt.current=Date.now();const weather=await currentWeather(location);
-        if(alive && weather){weatherReady.current=true;setLive(v=>({...v,weather}));localStorage.setItem('trx-apex-last-weather',JSON.stringify(weather));}
+      if(!alive||busy)return;
+      if(document.hidden){timer=setTimeout(refresh,8000);return;}
+      busy=true;
+      try{
+        const [media,obd,location]=await Promise.all([native.media(),native.obd(),native.location()]);
+        if(!alive)return;
+        setLive(v=>({...v,media,obd,location}));
+        if(Date.now()-weatherAt.current>(weatherReady.current?600000:15000)){
+          weatherAt.current=Date.now();const weather=await currentWeather(location);
+          if(alive && weather){weatherReady.current=true;setLive(v=>({...v,weather}));localStorage.setItem('trx-apex-last-weather',JSON.stringify(weather));}
+        }
+      }catch(error){console.warn('TRX live refresh:',error);}finally{
+        busy=false;
+        if(alive)timer=setTimeout(refresh,active==='media'?1500:3000);
       }
-      if(alive)timer=setTimeout(refresh,1500);
     }
-    refresh();return()=>{alive=false;clearTimeout(timer);};
-  },[]);
+    const resume=()=>{if(!document.hidden){clearTimeout(timer);if(!busy)refresh();}};
+    document.addEventListener('visibilitychange',resume);
+    refresh();return()=>{alive=false;clearTimeout(timer);document.removeEventListener('visibilitychange',resume);};
+  },[active]);
   async function refreshWeather(){weatherAt.current=Date.now();const w=await currentWeather(live.location);if(w){weatherReady.current=true;setLive(v=>({...v,weather:w}));localStorage.setItem('trx-apex-last-weather',JSON.stringify(w));}return Boolean(w);}
   return {...live,refreshWeather};
 }
@@ -99,7 +108,7 @@ function App(){
   const [notice,setNotice]=useState('');
   const [quick,setQuick]=useState(null);
   const [viewport,setViewport]=useState({width:innerWidth,height:innerHeight,dpr:devicePixelRatio});
-  const live=useLive();
+  const live=useLive(active);
   const noticeTimer=useRef();
   const startupSoundStarted=useRef(false);
   function notify(message){setNotice(message);clearTimeout(noticeTimer.current);noticeTimer.current=setTimeout(()=>setNotice(''),5500);}
@@ -313,7 +322,7 @@ function SettingsPage(p){
   async function toggleRail(enabled){if(enabled){const permission=await native.requestPermissionGroup('overlay');if(!permission?.granted){notify('Allow Display over other apps, then return here.');return;}}const result=await act(native.floatingRail(enabled,THEMES[theme].accent,surface));if(!result?.error)setRailEnabled(enabled);}
   return <section className="page settings-page" aria-label="Settings page"><div className="studio-hero"><img className="hero-art" src={HERO} alt="Theme preview, red RAM TRX"/></div><div className="theme-panel panel"><span>APPEARANCE · Theme color</span><div className="theme-swatches">{Object.entries(THEMES).map(([id,t])=><button key={id} aria-label={t.name+' theme'} aria-pressed={theme===id} className={theme===id?'selected':''} onClick={()=>setTheme(id)}><i style={{background:`linear-gradient(135deg,${t.accent},${t.tone})`}}/><b>{t.name}</b></button>)}</div></div><div className="surface-panel panel"><span>UI FINISH</span><div className="surface-choices">{Object.entries(SURFACES).map(([id,choice])=><button key={id} aria-label={choice.name+" UI finish"} aria-pressed={surface===id} className={surface===id?"selected":""} onClick={()=>setSurface(id)}><i style={{backgroundColor:choice.color}} className={id}/><b>{choice.name}</b></button>)}</div></div><div className="studio-rows panel"><Action label="Screen fit" detail={`${viewport.width} × ${viewport.height} · ${displayProfile}`} onClick={()=>setSheet('display')}/><Range label="Accent brightness" value={accent} set={setAccent} min={30} max={100} suffix="%"/><Range label="Icon size" value={iconScale} set={setIconScale} min={80} max={125} suffix="%"/><Toggle label="Floating navigation" value={railEnabled&&railCapabilities?.overlay} setValue={toggleRail}/><Action label="Back over apps" detail={railCapabilities?.back?"Ready":"Grant access"} onClick={()=>act(native.requestPermissionGroup("back"))}/><Toggle label="Reduce animation" value={reducedMotion} setValue={setReducedMotion}/><Action label="Vehicle link" detail={obd?.ecuConnected?'Live':obd?.connected?'Adapter connected':'Not connected'} onClick={()=>setSheet('vehicle')}/></div><section className="identity-panel panel" aria-label="Greeting names"><span>YOUR COCKPIT · Greeting names</span><label>Your name<input aria-label="Your name" maxLength={32} value={personalName} onChange={e=>setPersonalName(e.target.value.replace(/[\r\n]/g,'').slice(0,32))} onBlur={()=>{if(!personalName.trim())setPersonalName('Michael');}}/></label><label>Vehicle name<input aria-label="Vehicle name" maxLength={32} value={vehicleName} onChange={e=>setVehicleName(e.target.value.replace(/[\r\n]/g,'').slice(0,32))} onBlur={()=>{if(!vehicleName.trim())setVehicleName('Hell Rex');}}/></label><small>Recorded audio says “Michael” and “Hellrex”; changing these labels does not change its spoken words.</small><Toggle label="Startup greeting" value={startupSoundEnabled} setValue={setStartupSoundEnabled}/></section><div className="settings-actions"><button onClick={()=>setSheet('calibration')}><SlidersHorizontal/>Calibrate display</button><button onClick={()=>setSheet('system')}><Settings/>System</button></div>
     {sheet&&<Modal title={{display:'Display preferences',vehicle:'Vehicle connection',calibration:'Screen calibration',visual:'Artwork calibration',system:'System',navigation:'Navigation'}[sheet]} close={()=>setSheet(null)}>
-      {sheet==='display'&&<><p>Fits your current app window. Uconnect uses cleaner surfaces and stronger artwork contrast; Phone uses original artwork colors.</p><div className="choice-row" aria-label="Display profile">{['auto','phone','uconnect','custom'].map(v=><button key={v} aria-pressed={v===displayProfile} className={v===displayProfile?'active':''} onClick={()=>setDisplayProfile(v)}>{v}</button>)}</div><p className="display-summary" role="status">Active: {displayProfile==='auto'?'Auto → ':''}{resolvedProfile} · {viewport.width} × {viewport.height} layout<br/>{Math.round(viewport.width*viewport.dpr)} × {Math.round(viewport.height*viewport.dpr)} estimated render pixels · artwork contrast {appliedVisual.contrast}%</p><h3>Lighting</h3><small>Day brightens panels and borders. Auto follows the device clock: day from 7 AM to 7 PM.</small><div className="choice-row">{['day','night','auto'].map(v=><button key={v} aria-pressed={displayMode===v} className={displayMode===v?'active':''} onClick={()=>setDisplayMode(v)}>{v}</button>)}</div><Toggle label="Reduce animation" value={reducedMotion} setValue={setReducedMotion}/><Action label="Artwork calibration" onClick={()=>setSheet('visual')}/></>}
+      {sheet==='display'&&<><p>Fits your current app window. Uconnect uses cleaner surfaces and stronger artwork contrast; Phone uses original artwork colors.</p><div className="choice-row" aria-label="Display profile">{['auto','phone','uconnect','custom'].map(v=><button key={v} aria-pressed={v===displayProfile} className={v===displayProfile?'active':''} onClick={()=>setDisplayProfile(v)}>{v}</button>)}</div><p className="display-summary" role="status">Active: {displayProfile==='auto'?'Auto → ':''}{resolvedProfile} · {viewport.width} × {viewport.height} layout<br/>{Math.round(viewport.width*viewport.dpr)} × {Math.round(viewport.height*viewport.dpr)} estimated render pixels · artwork contrast {appliedVisual.contrast}%</p>{resolvedProfile==='phone'&&resolveDisplayProfile('auto',device)==='uconnect'&&<button className="primary" onClick={()=>setDisplayProfile('uconnect')}>Use measured Uconnect profile</button>}<h3>Lighting</h3><small>Day brightens panels and borders. Auto follows the device clock: day from 7 AM to 7 PM.</small><div className="choice-row">{['day','night','auto'].map(v=><button key={v} aria-pressed={displayMode===v} className={displayMode===v?'active':''} onClick={()=>setDisplayMode(v)}>{v}</button>)}</div><Toggle label="Reduce animation" value={reducedMotion} setValue={setReducedMotion}/><Action label="Artwork calibration" onClick={()=>setSheet('visual')}/></>}
       {sheet==='vehicle'&&<><p>{obd?.status||'Pair your OBDLink MX+ in Android Bluetooth.'}</p><Action label="Bluetooth permission" onClick={()=>act(native.requestPermissionGroup('bluetooth'))}/><Action label="Pair OBDLink MX+" onClick={()=>act(native.settings('bluetooth'))}/><Action label="Reconnect adapter" onClick={()=>act(native.reconnectObd())}/><p>If both Bluetooth socket modes fail, disconnect other OBD apps and paired devices from the MX+, then reconnect. Detailed adapter responses are available on Performance.</p></>}
       {sheet==='system'&&<><Action label="Default launcher" onClick={()=>act(native.requestPermissionGroup('launcher'))}/><Action label="Media control access" onClick={()=>act(native.requestPermissionGroup('media'))}/><Action label="Back button in other apps" detail={railCapabilities?.backStatus||(railCapabilities?.back?'Ready':'Enable optional Accessibility control')} onClick={()=>act(native.requestPermissionGroup('back'))}/><Action label="App permissions" onClick={()=>act(native.settings('app'))}/><Action label="Navigation defaults" onClick={()=>setSheet('navigation')}/><Action label="Preview first-run setup" onClick={()=>{localStorage.removeItem('trx-apex-commissioned');location.reload();}}/><p>TRX APEX · {__APP_VERSION__}</p></>}
       {sheet==='navigation'&&<><Toggle label="Voice guidance" value={preferences.audioEnabled} setValue={v=>setPreferences({...preferences,audioEnabled:v})}/><Toggle label="Avoid tolls" value={preferences.avoidTolls} setValue={v=>setPreferences({...preferences,avoidTolls:v})}/><Toggle label="Satellite map" value={preferences.mapMode==='satellite'} setValue={v=>setPreferences({...preferences,mapMode:v?'satellite':'standard'})}/></>}

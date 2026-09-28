@@ -2,6 +2,8 @@ import { Capacitor, registerPlugin } from '@capacitor/core';
 
 const plugin = registerPlugin('TrxNative');
 const unavailable = {success:false,error:'This action requires the Android launcher.'};
+let currentArtworkKey='',currentArtwork='';
+const queueArtwork=new Map();
 export const isNative = Capacitor.isNativePlatform();
 
 async function safe(method, args, fallback) {
@@ -19,7 +21,27 @@ export const native = {
   apps: () => safe('getInstalledApps', {}, { apps: [] }),
   launchApp: (packageName) => safe('launchApp', { packageName }, unavailable),
   appAction: (packageName, action) => safe('appAction', { packageName, action }, unavailable),
-  media: () => safe('getMediaState', {}, null),
+  media: async () => {
+    const queueArtworkKeys=Object.fromEntries([...queueArtwork].map(([id,item])=>[id,item.key]));
+    const state=await safe('getMediaState', {artworkKey:currentArtworkKey,queueArtworkKeys}, null);
+    if(!state)return state;
+    if(state.artworkKey){
+      if(typeof state.artwork==='string')currentArtwork=state.artwork;
+      else if(state.artworkKey!==currentArtworkKey)currentArtwork='';
+      currentArtworkKey=state.artworkKey;
+      state.artwork=currentArtwork;
+    }else{currentArtworkKey='';currentArtwork='';state.artwork='';}
+    for(const item of state.queue||[]){
+      const id=String(item.id??'');const known=queueArtwork.get(id);
+      if(item.artworkKey){
+        if(typeof item.artwork!=='string')item.artwork=known?.key===item.artworkKey?known.artwork:'';
+        queueArtwork.set(id,{key:item.artworkKey,artwork:item.artwork});
+      }else item.artwork=item.artwork||'';
+    }
+    const active=new Set((state.queue||[]).map(item=>String(item.id??'')));
+    for(const id of queueArtwork.keys())if(!active.has(id))queueArtwork.delete(id);
+    return state;
+  },
   mediaCommand: (command, positionMs, index, queueId) => safe('mediaCommand', { command, positionMs, index, queueId }, unavailable),
   spectrum: () => safe('getAudioSpectrum', {}, {available:false,reason:'Audio visualizer requires Android'}),
   visualizerAccess: () => safe('visualizerAccess', {}, {granted:false}),

@@ -5,7 +5,12 @@ export const DISPLAY_PRESETS = {
 };
 export function resolveDisplayProfile(profile,device) {
   if(['phone','uconnect','custom'].includes(profile))return profile;
-  return /ottocast|p3[ -]?pro/i.test(`${device?.manufacturer||''} ${device?.model||''}`)?'uconnect':'phone';
+  // Ottocast branding can be absent from Android's manufacturer/model fields.
+  // Match the measured TRX app window, not an assumed Uconnect panel resolution.
+  const measured=Number(device?.widthPixels)>=770&&Number(device?.widthPixels)<=840&&
+    Number(device?.heightPixels)>=925&&Number(device?.heightPixels)<=1010&&
+    Number(device?.densityDpi)>=190&&Number(device?.densityDpi)<=240;
+  return measured||/ottocast|p3[ -]?pro/i.test(`${device?.manufacturer||''} ${device?.model||''}`)?'uconnect':'phone';
 }
 export function displayVisual(profile,custom) {
   if(profile!=='custom')return DISPLAY_PRESETS[profile]||DISPLAY_PRESETS.phone;

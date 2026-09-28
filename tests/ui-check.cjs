@@ -26,6 +26,24 @@ async function main(){
     window.__APEX_TEST_BRIDGE__={getMediaState:()=>({...media}),getObdState:()=>({connected:true,ecuConnected:false,deviceName:'OBDLink MX+',status:'ADAPTER CONNECTED · ECU NO DATA',livePidCount:0,protocol:'ISO 15765-4 CAN',batteryV:12.4,diagnostics:'010C → NO DATA >'}),getLocation:()=>({latitude:40.32,longitude:-74.59}),getDisplayInfo:()=>({widthPixels:800,heightPixels:965,densityDpi:213,manufacturer:'Ottocast',model:'P3 Pro'}),getInstalledApps:()=>({apps}),mapPreview:a=>record('mapPreview',a),searchDestinations:a=>({suggestions:[{label:'Test destination, New Jersey',primary:'Test destination',secondary:'A longer street address in New Jersey',placeId:'test-place'}]}),openNavigation:a=>record('openNavigation',a),launchApp:a=>record('launchApp',a),startAppPair:a=>record('startAppPair',a),visualizerAccess:()=>({granted:true}),getAudioSpectrum:()=>({available:true,bands:Array.from({length:32},(_,i)=>.12+.7*Math.abs(Math.sin(i*.43)))}),stopAudioSpectrum:()=>({success:true}),appAction:a=>record('appAction',a),reconnectObd:a=>record('reconnectObd',a),requestPermissionGroup:a=>({...record('requestPermissionGroup',a),granted:true}),openSystemSettings:a=>record('openSystemSettings',a),mediaCommand:a=>{record('mediaCommand',a);if(a.command==='favorite')media.liked=!media.liked;if(a.command==='toggle')media.playing=!media.playing;return {success:true,liked:media.liked};}};
    });
    await p.goto('http://127.0.0.1:5181');await p.evaluate(()=>document.fonts.ready);
+   if(size.width===602){
+    const checks=await p.evaluate(async()=>{
+     const {resolveDisplayProfile}=await import('/src/display-settings.js');
+     const {native}=await import('/src/native.js');
+     const b=window.__APEX_TEST_BRIDGE__,original=b.getMediaState;
+     const seen=[];
+     b.getMediaState=args=>{
+      seen.push(args);
+      return {...window.__media,artworkKey:'track-v548',...(args.artworkKey==='track-v548'?{}:{artwork:'album-art'}),queue:[{id:'11',title:'Next',artist:'Artist',artworkKey:'queue-v548',...(args.queueArtworkKeys?.['11']==='queue-v548'?{}:{artwork:'queue-art'})}]};
+     };
+     try{
+      const first=await native.media(),second=await native.media();
+      return {profile:resolveDisplayProfile('auto',{manufacturer:'unknown',model:'unknown',widthPixels:800,heightPixels:965,densityDpi:213}),explicit:resolveDisplayProfile('phone',{widthPixels:800,heightPixels:965,densityDpi:213}),first,second,sent:seen.at(-1)};
+     }finally{b.getMediaState=original;}
+    });
+    if(checks.profile!=='uconnect'||checks.explicit!=='phone')throw Error('Measured Ottocast profile did not apply or override explicit choice');
+    if(checks.first.artwork!=='album-art'||checks.second.artwork!=='album-art'||checks.second.queue?.[0]?.artwork!=='queue-art'||checks.sent.artworkKey!=='track-v548'||checks.sent.queueArtworkKeys?.['11']!=='queue-v548')throw Error('Unchanged media artwork was not reused across native polls');
+   }
    if(await p.locator('.launch-splash').count())throw Error('Completed setup should not replay the first-run splash');
    const navigate=async label=>{
     if(label==='Weather')await p.getByRole('button',{name:'Open weather',exact:true}).click();
@@ -73,6 +91,7 @@ async function main(){
     const dialog=p.getByRole('dialog',{name:'Display preferences'});
     const profiles=dialog.locator('[aria-label="Display profile"]');
     const palette=()=>p.locator('.apex-shell').evaluate(e=>getComputedStyle(e).getPropertyValue('--ui-panel'));
+    await dialog.getByRole('button',{name:'Use measured Uconnect profile',exact:true}).click();
     await profiles.getByRole('button',{name:'uconnect',exact:true}).click();
     if(await profiles.getByRole('button',{name:'uconnect',exact:true}).getAttribute('aria-pressed')!=='true')throw Error('Uconnect selection missing');
     const selected=await profiles.getByRole('button',{name:'uconnect',exact:true}).evaluate(e=>getComputedStyle(e).borderTopColor);
