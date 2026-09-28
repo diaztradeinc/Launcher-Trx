@@ -27,7 +27,7 @@ jobs:
           packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
       - uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: '8.9'
+          gradle-version: '8.13'
           cache-read-only: false
       - name: Generate original demo geometry
         run: python3 prototype-nav/tools/generate_scene.py
