@@ -32,6 +32,7 @@ class GoogleNavigationActivity : AppCompatActivity() {
     private val lookup = Executors.newSingleThreadExecutor()
     private var generation = 0
     private var initializing = false
+    private var startupError: String? = null
     private var active = false
     private var night = true
     private var voice = true
@@ -56,7 +57,7 @@ class GoogleNavigationActivity : AppCompatActivity() {
         val header = row()
         header.addView(label("TRX",22,true), LinearLayout.LayoutParams(0,dp(48),1f))
         header.addView(label("APEX",22,true).apply { setTextColor(red) },LinearLayout.LayoutParams(0,dp(48),1f))
-        header.addView(label("NAV LAB 0.3",11),LinearLayout.LayoutParams(0,dp(48),1f))
+        header.addView(label("NAV LAB 0.3.1",11),LinearLayout.LayoutParams(0,dp(48),1f))
         frame.addView(header)
         val body=row();frame.addView(body,LinearLayout.LayoutParams(-1,0,1f))
         val dock=LinearLayout(this).apply { orientation=1 }
@@ -73,7 +74,7 @@ class GoogleNavigationActivity : AppCompatActivity() {
         status=label("Enable location to begin",12).apply { tag="google-status";setPadding(dp(8),dp(6),dp(8),dp(6));setOnClickListener {initialize()} };content.addView(status)
         val viewport=FrameLayout(this);content.addView(viewport,LinearLayout.LayoutParams(-1,0,1f))
         try { navView=NavigationView(this);viewport.addView(navView,FrameLayout.LayoutParams(-1,-1));navView!!.onCreate(state) }
-        catch(e:Exception) { status.text="Map could not start: ${e.javaClass.simpleName}";navView=null }
+        catch(e:Exception) { startupError="Map could not start: ${e.javaClass.simpleName}";status.text=startupError;navView=null }
         val tools=HorizontalScrollView(this).apply { isHorizontalScrollBarEnabled=false }
         val controls=row();tools.addView(controls)
         controls.addView(button("Recenter") {recenter()})
@@ -86,14 +87,14 @@ class GoogleNavigationActivity : AppCompatActivity() {
     private fun initialize() {
         if(navView==null || initializing || navigator!=null)return
         if(checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION)!=PackageManager.PERMISSION_GRANTED) {
-            status.text="Precise location required · tap here to retry"
+            startupError="Precise location required · tap here to retry";status.text=startupError
             requestPermissions(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION,Manifest.permission.ACCESS_COARSE_LOCATION),73);return
         }
-        status.text="Connecting to Google Navigation…";initializing=true
+        startupError=null;status.text="Connecting to Google Navigation…";initializing=true
         NavigationApi.getNavigator(this,object:NavigationApi.NavigatorListener {
             override fun onNavigatorReady(n:Navigator) {
                 if(isFinishing || isDestroyed)return
-                initializing=false;navigator=n
+                initializing=false;startupError=null;navigator=n
                 navView?.apply {
                     setNavigationUiEnabled(true);setHeaderEnabled(true);setEtaCardEnabled(true);setRecenterButtonEnabled(true)
                     setSpeedometerEnabled(true);setSpeedLimitIconEnabled(true)
@@ -103,17 +104,17 @@ class GoogleNavigationActivity : AppCompatActivity() {
                 }
                 applyVoice();status.text="Google Navigation ready · enter a destination"
             }
-            override fun onError(code:Int) {initializing=false;status.text=when(code) {
-                NavigationApi.ErrorCode.NOT_AUTHORIZED->"Google key needs authorization for this Nav Lab app · Setup for details"
+            override fun onError(code:Int) {initializing=false;startupError=when(code) {
+                NavigationApi.ErrorCode.NOT_AUTHORIZED->"Google authorization failed (1). Add com.diaztradeinc.trxnavprototype to your existing key’s Android apps; check Navigation SDK and Maps SDK access. Setup has the signing fingerprint. Tap here after correcting Google Cloud."
                 NavigationApi.ErrorCode.TERMS_NOT_ACCEPTED->"Google terms not accepted · tap to retry"
                 NavigationApi.ErrorCode.LOCATION_PERMISSION_MISSING->"Precise location required · tap to retry"
                 else->"Google Navigation error $code · tap to retry"
-            } }
+            };status.text=startupError }
         })
     }
     @Suppress("DEPRECATION") private fun findDestination() {
         val query=search.text.toString().trim();if(query.isEmpty())return
-        if(navigator==null){status.text="Navigation is not ready · tap status to retry";return}
+        if(navigator==null){status.visibility=View.VISIBLE;status.text=startupError ?: "Connecting to Google Navigation…";return}
         val request=++generation;status.text="Finding destinations…"
         lookup.execute {
             try {

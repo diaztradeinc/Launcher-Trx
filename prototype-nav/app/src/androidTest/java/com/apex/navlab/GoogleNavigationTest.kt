@@ -35,6 +35,10 @@ class GoogleNavigationTest {
             assertTrue(all.any {it.text.toString()=="TRX"})
             assertTrue(all.any {it.text.toString()=="Saved"})
             assertTrue(all.any {it.text.toString()=="End"})
+            val diagnostic=status.text.toString()
+            all.filterIsInstance<android.widget.EditText>().first().setText("Plainsboro NJ")
+            all.first {it.text.toString()=="Find"}.performClick()
+            assertEquals("Find must preserve the actionable startup error",diagnostic,status.text.toString())
             all.first {it.text.toString().contains("Setup")}.performClick()
         }
         ins.waitForIdleSync()

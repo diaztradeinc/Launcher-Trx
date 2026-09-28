@@ -46,3 +46,9 @@ Launcher entry now opens a Google Navigation SDK 7.9.0 viewport inside the APEX 
 Features: confirmed address search (Android Geocoder, not Places autocomplete), saved destinations, real SDK routing/guidance/ETA, traffic, buildings, tilted following camera, road/satellite layers, route overview, day/night and voice preferences, end route, launcher page shortcuts. Native Google maneuver/ETA/attribution stay unobscured; custom controls occupy separate layout rows. Google standard location marker retained pending a supported custom vehicle implementation.
 
 CI injects existing MAPS_API_KEY. Google Cloud must enable Navigation SDK for Android and billing, and authorize package com.diaztradeinc.trxnavprototype with permanent SHA-1 03:04:AF:48:B6:70:72:BE:31:3F:17:C2:D8:F7:17:6D:6C:78:D3:BC. A successful APK build does not prove key authorization or road navigation. Google instrumentation checks the real activity, permission-denied recovery and settings; the simulation tests still validate only synthetic rendering.
+
+
+### Authorization finding, 2026-09-28
+v0.3 runtime logs contained Google Maps and Navigation SDK authorization failures for `com.diaztradeinc.trxnavprototype`, despite passing the two UI/simulation tests. Those tests did **not** validate live navigation. Google Cloud authorization must be corrected for the existing key; a new APK is not required for a server-side restriction update. The launcher package remains unchanged.
+
+Find now preserves startup errors, with a regression assertion for the permission-denied case. The delivery script also blocks APK publication when either Google SDK reports an authorization failure. A log without that error is not proof of route success.
