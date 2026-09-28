@@ -23,6 +23,8 @@ class MainActivity : Activity(), Choreographer.FrameCallback {
     private lateinit var pauseButton: TextView
     private lateinit var mapButton: TextView
     private lateinit var voiceButton: TextView
+    private val dockScales=mutableMapOf<TextView,Float>()
+    private val dockTexts=mutableMapOf<TextView,String>()
     private val textSizes=mutableMapOf<TextView,Float>()
     private val positioned=mutableListOf<Pair<View,FloatArray>>()
     private var speech:TextToSpeech?=null
@@ -61,13 +63,15 @@ class MainActivity : Activity(), Choreographer.FrameCallback {
         panel(0f,0f,602f,50f,Color.rgb(9,11,14))
         label("TRX",16f,0f,94f,50f,25f,Color.WHITE,true)
         label("APEX",109f,0f,110f,50f,25f,red,true)
-        label("3D LAB  •  v0.1",380f,0f,210f,50f,13f,Color.LTGRAY)
+        label("3D LAB  •  v0.2",380f,0f,210f,50f,13f,Color.LTGRAY)
         panel(0f,50f,78f,676f,Color.rgb(10,12,15))
         val dock=listOf("⌂\nHome","➤\nNav","♫\nMedia","◴\nPerformance","▦\nApps","⚙\nSettings")
         dock.forEachIndexed { i,text ->
             val b=button(text,0f,68f+i*97f,78f,85f,if(i==1)Color.rgb(53,12,20) else Color.rgb(10,12,15),"dock$i") {
                 when(i) {0->finish();1->recenter();5->showSettings();else->AlertDialog.Builder(this).setTitle(text.substringAfter('\n')).setMessage("This separate app tests navigation only. Your launcher still contains this page.").setPositiveButton("OK",null).show()}
-            };b.textSize=12f
+            }
+            b.background=GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT,intArrayOf(if(i==1)Color.rgb(57,12,20) else Color.rgb(12,15,19),Color.rgb(7,9,12))).apply{setStroke(1,Color.rgb(30,34,40))}
+            b.setTextColor(if(i==1)red else Color.rgb(213,217,223));dockTexts[b]=text
         }
         panel(0f,165f,3f,85f,red)
         button("SIMULATION • NOT FOR DRIVING",91f,59f,497f,27f,Color.rgb(30,34,40),"simulation") { about() }
@@ -115,12 +119,21 @@ class MainActivity : Activity(), Choreographer.FrameCallback {
             val lp=v.layoutParams as FrameLayout.LayoutParams
             val w=(p[2]*sx).roundToInt();val h=(p[3]*sy).roundToInt();val x=(p[0]*sx).roundToInt();val y=(p[1]*sy).roundToInt()
             if(lp.width!=w || lp.height!=h || lp.leftMargin!=x || lp.topMargin!=y){lp.width=w;lp.height=h;lp.leftMargin=x;lp.topMargin=y;v.layoutParams=lp}
-            if(v is TextView)v.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX,(textSizes[v] ?: 13f)*min(sx,sy))
+            if(v is TextView){
+                v.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX,(textSizes[v] ?: 13f)*min(sx,sy))
+                dockTexts[v]?.let { text ->
+                    val styled=android.text.SpannableString(text)
+                    styled.setSpan(android.text.style.AbsoluteSizeSpan((30*min(sx,sy)).roundToInt()),0,text.indexOf('\n'),0)
+                    if(dockScales[v]!=min(sx,sy)){
+                        v.text=styled;dockScales[v]=min(sx,sy)
+                    }
+                }
+            }
         }
     }
     private fun recenter(){scene.topDown=false;scene.wide=false;mapButton.text="3D  /  MAP"}
     private fun showSettings(){AlertDialog.Builder(this).setTitle("3D Lab settings").setItems(arrayOf("Change camera distance","Day / night lighting","About this prototype")){_,i->when(i){0->scene.wide=!scene.wide;1->scene.toggleNight();2->about()}}.show()}
-    private fun about(){AlertDialog.Builder(this).setTitle("TRX APEX 3D Lab • 0.1").setMessage("Original low-poly truck proxy and synthetic road. No GPS, live traffic, real map, or Google navigation data.\n\nThis build tests the chase camera, HUD, sound and renderer. It is not guidance for driving. Your launcher remains a separate app.\n\n30 FPS is a target; the counter measures submitted frames on this device.").setPositiveButton("OK",null).show()}
+    private fun about(){AlertDialog.Builder(this).setTitle("TRX APEX 3D Lab • 0.2").setMessage("Original low-poly truck proxy and synthetic road. No GPS, live traffic, real map, or Google navigation data.\n\nThis build tests the chase camera, HUD, sound and renderer. It is not guidance for driving. Your launcher remains a separate app.\n\n30 FPS is a target; the counter measures submitted frames on this device.").setPositiveButton("OK",null).show()}
     private fun speak(text:String){if(voice && speechReady)speech?.speak(text,TextToSpeech.QUEUE_FLUSH,null,"demo")}
     private fun toast(text:String)=Toast.makeText(this,text,Toast.LENGTH_SHORT).show()
     private fun updateHud() {

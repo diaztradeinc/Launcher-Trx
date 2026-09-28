@@ -33,8 +33,8 @@ class RoadRenderer(private val surface: SurfaceView) : AutoCloseable {
     private val resources=ResourceLoader(engine,true)
     private var swap: SwapChain?=null
     private val light=EntityManager.get().create()
-    private val sky=Skybox.Builder().color(.17f,.21f,.29f,1f).build(engine)
-    private val ambient=IndirectLight.Builder().irradiance(1,floatArrayOf(.65f,.69f,.8f)).intensity(35000f).build(engine)
+    private val sky=Skybox.Builder().color(.045f,.065f,.12f,1f).build(engine)
+    private val ambient=IndirectLight.Builder().irradiance(1,floatArrayOf(.65f,.69f,.8f)).intensity(22000f).build(engine)
     private val bytes=surface.context.assets.open("scene.glb").use { it.readBytes() }
     private val buffer=ByteBuffer.allocateDirect(bytes.size).apply { put(bytes); flip() }
     private val asset=checkNotNull(loader.createAsset(buffer)) { "Could not load original demo geometry" }
@@ -51,7 +51,7 @@ class RoadRenderer(private val surface: SurfaceView) : AutoCloseable {
         view.renderQuality=view.renderQuality.apply { hdrColorBuffer=View.QualityLevel.MEDIUM }
         scene.skybox=sky;scene.indirectLight=ambient
         LightManager.Builder(LightManager.Type.DIRECTIONAL).color(1f,.78f,.58f)
-            .intensity(100000f).direction(-.4f,-1f,-.3f).castShadows(true).build(engine,light)
+            .intensity(100000f).direction(-.6f,-.5f,-.3f).castShadows(true).build(engine,light)
         scene.addEntity(light)
         resources.asyncBeginLoad(asset);asset.releaseSourceData()
         ui.renderCallback=object: UiHelper.RendererCallback {
@@ -75,8 +75,8 @@ class RoadRenderer(private val surface: SurfaceView) : AutoCloseable {
         night=!night
         val lm=engine.lightManager;val i=lm.getInstance(light)
         lm.setIntensity(i,if(night)15000f else 100000f)
-        ambient.intensity=if(night)18000f else 35000f
-        sky.setColor(if(night).015f else .17f,if(night).023f else .21f,if(night).06f else .29f,1f)
+        ambient.intensity=if(night)14000f else 22000f
+        sky.setColor(if(night).004f else .045f,if(night).008f else .065f,if(night).025f else .12f,1f)
     }
     fun render(time:Long,s:Double):Boolean {
         if(closed || !ui.isReadyToRender || swap==null)return false

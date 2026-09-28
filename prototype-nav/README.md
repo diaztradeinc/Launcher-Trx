@@ -1,4 +1,4 @@
-# TRX APEX 3D Lab 0.1
+# TRX APEX 3D Lab 0.2
 
 An isolated native Android/Filament prototype. App ID `com.diaztradeinc.trxnavprototype`; this does not replace the TRX APEX launcher or register as a home app.
 
@@ -34,3 +34,7 @@ Without signing environment variables local debug signing is used. CI requires t
 Approve actual device render/layout first. Then source a properly licensed detailed truck model and choose a map/routing provider whose terms permit the intended custom rendering. A real navigation engine also needs location permissions, snapped-location updates, road mesh/tile rendering, maneuvers/lane data, rerouting, location-loss behavior and device testing. Do not connect Google Navigation data to this synthetic/non-Google world.
 
 Renderer surface and asset lifecycle follows the Apache-2.0 Filament ModelViewer example, copyright 2020 Android Open Source Project. Procedural geometry and HUD are original code.
+
+## 0.2 visual pass
+
+Sculpted original pickup proxy with sloped glass, tubular sports bar, widened wheel arches, tread blocks, tailgate strokes and exhausts. Continuous sandstone ridges, shoulders, reflectors and route chevrons replace the sparse test scene. Dock icons now scale independently from labels. This remains a synthetic simulation; no exact licensed TRX model or live routing is included. Version code 2 updates the separate lab app. Phone smoothness was reported by the user for 0.1; P3 Pro performance remains unverified.
