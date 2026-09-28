@@ -54,24 +54,24 @@ class GoogleNavigationActivity : AppCompatActivity() {
         setContentView(frame)
         frame.setOnApplyWindowInsetsListener { v,i -> v.setPadding(i.systemWindowInsetLeft,i.systemWindowInsetTop,i.systemWindowInsetRight,i.systemWindowInsetBottom);i }
         val header = row()
-        header.addView(label("TRX",22,true), LinearLayout.LayoutParams(0,dp(48),1))
-        header.addView(label("APEX",22,true).apply { setTextColor(red) },LinearLayout.LayoutParams(0,dp(48),1))
-        header.addView(label("NAV LAB 0.3",11),LinearLayout.LayoutParams(0,dp(48),1))
+        header.addView(label("TRX",22,true), LinearLayout.LayoutParams(0,dp(48),1f))
+        header.addView(label("APEX",22,true).apply { setTextColor(red) },LinearLayout.LayoutParams(0,dp(48),1f))
+        header.addView(label("NAV LAB 0.3",11),LinearLayout.LayoutParams(0,dp(48),1f))
         frame.addView(header)
-        val body=row();frame.addView(body,LinearLayout.LayoutParams(-1,0,1))
+        val body=row();frame.addView(body,LinearLayout.LayoutParams(-1,0,1f))
         val dock=LinearLayout(this).apply { orientation=1 }
         body.addView(dock,LinearLayout.LayoutParams(dp(58),-1))
         listOf("⌂\nHome","➤\nNav","♫\nMedia","◴\nPerf","▦\nApps","⚙\nSetup").forEachIndexed { index,title ->
             val b=label(title,11).apply { gravity=Gravity.CENTER;setTextColor(if(index==1)red else Color.LTGRAY);setOnClickListener { when(index) {1->recenter();5->settings();else->openLauncher(listOf("home","navigation","media","performance","apps")[index])} } }
             val slot=FrameLayout(this);slot.addView(b,FrameLayout.LayoutParams(-1,-1))
             if(index==1)slot.addView(View(this).apply { setBackgroundColor(red) },FrameLayout.LayoutParams(dp(3),-1))
-            dock.addView(slot,LinearLayout.LayoutParams(-1,0,1))
+            dock.addView(slot,LinearLayout.LayoutParams(-1,0,1f))
         }
-        val content=LinearLayout(this).apply { orientation=1 };body.addView(content,LinearLayout.LayoutParams(0,-1,1))
+        val content=LinearLayout(this).apply { orientation=1 };body.addView(content,LinearLayout.LayoutParams(0,-1,1f))
         searchRow=row();search=EditText(this).apply { hint="Destination or address";setTextColor(Color.WHITE);setHintTextColor(Color.LTGRAY);setTextSize(14f);setSingleLine();imeOptions=android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH;setOnEditorActionListener { _,_,_->findDestination();true } }
-        searchRow.addView(search,LinearLayout.LayoutParams(0,dp(52),1));searchRow.addView(button("Find") {findDestination()});content.addView(searchRow)
+        searchRow.addView(search,LinearLayout.LayoutParams(0,dp(52),1f));searchRow.addView(button("Find") {findDestination()});content.addView(searchRow)
         status=label("Enable location to begin",12).apply { tag="google-status";setPadding(dp(8),dp(6),dp(8),dp(6));setOnClickListener {initialize()} };content.addView(status)
-        val viewport=FrameLayout(this);content.addView(viewport,LinearLayout.LayoutParams(-1,0,1))
+        val viewport=FrameLayout(this);content.addView(viewport,LinearLayout.LayoutParams(-1,0,1f))
         try { navView=NavigationView(this);viewport.addView(navView,FrameLayout.LayoutParams(-1,-1));navView!!.onCreate(state) }
         catch(e:Exception) { status.text="Map could not start: ${e.javaClass.simpleName}";navView=null }
         val tools=HorizontalScrollView(this).apply { isHorizontalScrollBarEnabled=false }
