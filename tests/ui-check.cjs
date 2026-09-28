@@ -99,11 +99,14 @@ async function main(){
     const unselected=await profiles.getByRole('button',{name:'phone',exact:true}).evaluate(e=>getComputedStyle(e).borderTopColor);
     if(selected===unselected)throw Error('Display selection invisible');
     if(!await p.locator('.rendering-uconnect').count())throw Error('Uconnect rendering not applied');
+    const art=await p.locator('.theme-swatches button').evaluateAll(buttons=>buttons.map(b=>getComputedStyle(b.querySelector('i')).backgroundImage));
+    if(art.length!==5||new Set(art).size!==5||art.some(v=>!v.includes('url(')))throw Error('Five distinct theme artworks must appear on Uconnect');
     await dialog.getByRole('button',{name:'night',exact:true}).click();const night=await palette();
     await dialog.getByRole('button',{name:'day',exact:true}).click();if(night===await palette())throw Error('Day/night has no visible effect');
     await profiles.getByRole('button',{name:'auto',exact:true}).click();
     if(!await p.locator('.profile-auto.rendering-uconnect').count())throw Error('Auto did not detect Ottocast');
     await p.getByRole('button',{name:'Close dialog',exact:true}).click();
+    await p.locator('.settings-page').evaluate(e=>e.scrollTop=0);
     await p.screenshot({path:path.join(output,'settings-uconnect.png')});
     await navigate('Weather');await p.screenshot({path:path.join(output,'weather-uconnect.png')});
     await p.getByRole('button',{name:'Close weather and return Home'}).click();
@@ -111,6 +114,8 @@ async function main(){
     await p.screenshot({path:path.join(output,'home-uconnect.png')});
     await navigate('Performance');await p.screenshot({path:path.join(output,'performance-uconnect.png')});
     await navigate('Media');await p.screenshot({path:path.join(output,'media-uconnect.png')});
+    await navigate('Apps');await p.screenshot({path:path.join(output,'apps-uconnect.png')});
+    await p.getByRole('button',{name:'All apps',exact:true}).click();await p.screenshot({path:path.join(output,'app-drawer-uconnect.png')});
     await navigate('Settings');await p.getByRole('button',{name:/Screen fit/}).click();
     await dialog.getByRole('button',{name:'Artwork calibration',exact:true}).click();
     const originalBlack=await palette();
@@ -148,7 +153,7 @@ async function main(){
     if(!await p.getByRole('button',{name:/Like track|Unlike track/}).isDisabled())throw Error('Unsupported Like must disable');
     await navigate('Performance');
     if(await p.locator('.performance-hero .instrument-dial').count())throw Error('Legacy performance dials remain');
-    if(await p.locator('.performance-modules').getByText('BOOST · PSI',{exact:true}).count()!==1||await p.locator('.telemetry-grid').getByText('Boost',{exact:true}).count())throw Error('Boost must appear once');
+    if(await p.locator('.performance-modules').getByText('BOOST EST. · PSI',{exact:true}).count()!==1||await p.locator('.telemetry-grid').getByText('Boost',{exact:true}).count())throw Error('Estimated boost must appear once');
     if(await p.locator('.telemetry-grid>.panel').first().locator('span').textContent()!=='Coolant')throw Error('Coolant should lead the secondary instrument row');
     if(await p.locator('.performance-speed strong').textContent()!=='—')throw Error('Unavailable speed must not show zero');
     await p.getByRole('button',{name:/Adapter connected/}).click();await p.getByRole('button',{name:'Reconnect',exact:true}).click();await p.getByRole('button',{name:'Close dialog',exact:true}).click();
