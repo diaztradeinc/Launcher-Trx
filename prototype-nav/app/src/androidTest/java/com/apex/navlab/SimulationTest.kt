@@ -27,8 +27,11 @@ class SimulationTest {
         val screenshot=checkNotNull(instrumentation.uiAutomation.takeScreenshot())
         val file=File(rule.activity.getExternalFilesDir(null),"$name.png")
         file.outputStream().use { screenshot.compress(Bitmap.CompressFormat.PNG,100,it) }
-        instrumentation.uiAutomation.executeShellCommand("mkdir -p /sdcard/Download/navlab; cp ${file.absolutePath} /sdcard/Download/navlab/").use { descriptor ->
-            ParcelFileDescriptor.AutoCloseInputStream(descriptor).readBytes()
+        for(command in listOf("mkdir -p /sdcard/Download/navlab", "cp ${file.absolutePath} /sdcard/Download/navlab/")) {
+            instrumentation.uiAutomation.executeShellCommand(command).use { descriptor ->
+                val output=ParcelFileDescriptor.AutoCloseInputStream(descriptor).readBytes().decodeToString()
+                assertTrue("Screenshot export failed: $output",output.isBlank())
+            }
         }
         return screenshot
     }

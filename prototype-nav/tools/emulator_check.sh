@@ -10,3 +10,6 @@ trap collect EXIT
 adb shell wm size 602x726
 adb shell wm density 160
 timeout --signal=TERM --kill-after=15s 240s gradle -p prototype-nav connectedDebugAndroidTest --no-daemon
+
+# Screenshot export is a delivery gate, not an optional artifact.
+timeout 10s adb shell ls /sdcard/Download/navlab/01-chase.png /sdcard/Download/navlab/04-exit.png
