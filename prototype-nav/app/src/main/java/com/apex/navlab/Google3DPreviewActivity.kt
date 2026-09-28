@@ -33,6 +33,7 @@ class Google3DPreviewActivity : Activity(), OnMap3DViewReadyCallback {
     private val handler = Handler(Looper.getMainLooper())
     private var sceneReady = false
     private var failed = false
+    private var errorDetails = ""
     private var heading = 0.0
     private var overhead = false
     private var wide = false
@@ -63,7 +64,12 @@ class Google3DPreviewActivity : Activity(), OnMap3DViewReadyCallback {
         header.addView(text("TRX APEX · 3D PREVIEW",18),LinearLayout.LayoutParams(0,dp(52),1f))
         header.addView(button("Back to map") { finish() })
         root.addView(header)
-        status=text("Loading Google 3D…",13).apply { tag="3d-status" }
+        status=text("Loading Google 3D…",13).apply { tag="3d-status"
+            setOnClickListener {
+                if(errorDetails.isNotEmpty()) android.app.AlertDialog.Builder(this@Google3DPreviewActivity)
+                    .setTitle("Google 3D details").setMessage(errorDetails).setPositiveButton("Close",null).show()
+            }
+        }
         root.addView(status)
         root.addView(text("Renderer preview only · tap a road to place the truck",12))
         val viewport=android.widget.FrameLayout(this).apply { tag="3d-viewport" }
@@ -148,6 +154,9 @@ class Google3DPreviewActivity : Activity(), OnMap3DViewReadyCallback {
 
     override fun onError(error: Exception) { recordError(error);runOnUiThread { showError(error.javaClass.simpleName) } }
     private fun recordError(error:Throwable) {
+        errorDetails=generateSequence(error) { it.cause }.take(3)
+            .joinToString("\n") { "${it.javaClass.simpleName}: ${it.message.orEmpty().take(600)}" }
+            .replace(Regex("AIza[\\w-]+"),"[REDACTED_GOOGLE_KEY]")
         android.util.Log.e("Apex3D",error.stackTraceToString().replace(Regex("AIza[\\w-]+"),"[REDACTED_GOOGLE_KEY]"))
     }
     private fun showError(reason:String,cloudHint:Boolean=true) {
@@ -155,6 +164,7 @@ class Google3DPreviewActivity : Activity(), OnMap3DViewReadyCallback {
         failed=true
         status.text=if(cloudHint) "Google 3D unavailable ($reason). Check connection and Maps 3D SDK access, or return to the working map."
             else "Google 3D unavailable ($reason). This build has a renderer compatibility error. Return to the working map."
+        status.append(" Tap this message for details.")
         controls.forEach { it.isEnabled=false }
     }
     private fun dp(value:Int)=(value*resources.displayMetrics.density).toInt()

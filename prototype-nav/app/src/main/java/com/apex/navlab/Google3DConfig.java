@@ -13,7 +13,7 @@ final class Google3DConfig {
         return Map3DInitConfig.create(
                 latitude, longitude, 0.0,
                 0.0, 45.0, 0.0, 1800.0,
-                -1000.0, 63170000.0,
+                0.0, 63170000.0,
                 0.0, 360.0, 0.0, 90.0,
                 null, Map3DMode.HYBRID, null,
                 locale.getLanguage().isEmpty() ? "en" : locale.getLanguage(),

@@ -67,3 +67,9 @@ Enable **Maps 3D SDK for Android** for the same Cloud project/key; Maps/Navigati
 The original truck-only asset is `models/apex-truck-v02.glb` (257,036 bytes), served from this public repository over HTTPS. It is not a licensed detailed RAM model. The generator deterministically exports it without the synthetic world. Preserve the versioned URL's content; change the filename for future mesh revisions.
 
 CI now checks real 3D map readiness and a map-tap/model-placement callback, exporting its status and screenshot. A successful callback does not alone prove model visual quality; inspect the screenshot and test on Ottocast. The combined Navigation/Maps3D dependency and emulator results must pass before publishing.
+
+
+### Device testing, user requested 2026-09-28
+The user offered phone/Ottocast testing to save iteration time. A commit explicitly marked `[device-test]` (or manual workflow input `device_test`) runs credential preflight, compilation and permanent signature verification, then publishes a **SIGNED-DEVICE-TEST-APK**. It skips emulator validation and must not be described as runtime-verified. Ordinary pushes retain the full runtime gates.
+
+Maps 3D 0.2.2 Kotlin `create` default-argument initialization failed with `NoSuchMethodError`; the preview now uses a Java factory with explicit parameters. SDK validation also requires minimum camera altitude >= 0.0, now corrected. Device readiness/model rendering remains pending. Tap a failure message in the preview to see redacted error details.

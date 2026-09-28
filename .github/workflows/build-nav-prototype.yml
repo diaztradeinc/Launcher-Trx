@@ -4,6 +4,11 @@ on:
     branches: [prototype/v0.1-native-3d]
     paths: ['prototype-nav/**', '.github/workflows/build-nav-prototype.yml']
   workflow_dispatch:
+    inputs:
+      device_test:
+        description: Build a signed preview for manual device testing (skip emulator)
+        type: boolean
+        default: false
 concurrency:
   group: nav-lab-${{ github.ref }}
   cancel-in-progress: true
@@ -12,6 +17,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
+      # Explicit user-requested device testing; normal pushes retain runtime gates.
+      DEVICE_TEST: ${{ contains(github.event.head_commit.message, '[device-test]') || inputs.device_test }}
       MAPS_API_KEY: ${{ secrets.MAPS_API_KEY }}
       APEX_KEYSTORE_BASE64: ${{ secrets.APEX_KEYSTORE_BASE64 }}
       APEX_KEYSTORE_PASSWORD: ${{ secrets.APEX_KEYSTORE_PASSWORD }}
@@ -46,11 +53,13 @@ jobs:
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --print-certs prototype-nav/app/build/outputs/apk/debug/app-debug.apk | grep -Fi 'Signer #1 certificate SHA-1 digest: 0304af48b67072be313f17c2d8f7176d6c78d3bc'
           "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging prototype-nav/app/build/outputs/apk/debug/app-debug.apk
       - name: Enable emulator acceleration
+        if: env.DEVICE_TEST != 'true'
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
       - name: Render and exercise prototype
+        if: env.DEVICE_TEST != 'true'
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 35
@@ -74,8 +83,16 @@ jobs:
             prototype-nav/app/build/outputs/androidTest-results/
           if-no-files-found: ignore
       - name: Upload verified prototype APK
+        if: success() && env.DEVICE_TEST != 'true'
         uses: actions/upload-artifact@v4
         with:
           name: TRX-APEX-3D-Lab-v0.4.0-SIGNED-APK
+          path: prototype-nav/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 30
+      - name: Upload signed device-test APK
+        if: success() && env.DEVICE_TEST == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: TRX-APEX-3D-Lab-v0.4.0-SIGNED-DEVICE-TEST-APK
           path: prototype-nav/app/build/outputs/apk/debug/app-debug.apk
           retention-days: 30
