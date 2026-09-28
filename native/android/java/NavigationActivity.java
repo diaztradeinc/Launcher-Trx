@@ -24,6 +24,9 @@ import android.util.Log;
 import android.view.View;
 import android.view.inputmethod.InputMethodManager;
 import android.content.Context;
+import android.content.Intent;
+import android.widget.TextClock;
+import android.util.TypedValue;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
@@ -111,17 +114,12 @@ public class NavigationActivity extends AppCompatActivity {
     private void buildUi(Bundle state) {
         navigationRoot = new FrameLayout(this);
         navigationRoot.setBackgroundColor(surfaceDeep);
-        // The floating dock occupies the bottom edge over other apps.
-        // Reserve that edge so route controls stay tappable above the dock.
-        if(android.provider.Settings.canDrawOverlays(this)
-            && getSharedPreferences("launcher",MODE_PRIVATE).getBoolean("floating_rail_enabled",true))
-            navigationRoot.setPadding(0,0,0,dp(64));
         navigationView = new NavigationView(this);
         FrameLayout.LayoutParams mapLp = new FrameLayout.LayoutParams(-1, -1);
         // The Ottocast bar consumes the bottom edge of the measured portrait window.
         if (getResources().getDisplayMetrics().densityDpi >= 500) mapLp.bottomMargin = dp(22);
         navigationRoot.addView(navigationView, mapLp);
-        setContentView(navigationRoot);
+        installCockpitFrame();
 
         searchBar = new LinearLayout(this);
         searchBar.setOrientation(LinearLayout.HORIZONTAL);
@@ -310,6 +308,36 @@ public class NavigationActivity extends AppCompatActivity {
         bg.setCornerRadius(dp(12)); bg.setStroke(dp(1), withAlpha(accentColor, 0xcc)); button.setBackground(bg); return button;
     }
 
+    // Keep the same six destinations around the real Google navigation surface.
+    private void installCockpitFrame() {
+        int width=getResources().getDisplayMetrics().widthPixels;
+        int railWidth=Math.round(width*.122f);
+        int headerHeight=Math.round(getResources().getDisplayMetrics().heightPixels*.06f);
+        LinearLayout frame=new LinearLayout(this);frame.setOrientation(LinearLayout.VERTICAL);frame.setBackgroundColor(0xff06090b);
+        LinearLayout header=new LinearLayout(this);header.setGravity(Gravity.CENTER_VERTICAL);header.setPadding(dp(12),0,dp(12),0);
+        TextView logo=new TextView(this);logo.setText("TRX APEX");logo.setTextColor(accentColor);logo.setTypeface(android.graphics.Typeface.DEFAULT,android.graphics.Typeface.BOLD_ITALIC);logo.setTextSize(TypedValue.COMPLEX_UNIT_PX,headerHeight*.48f);
+        header.addView(logo,new LinearLayout.LayoutParams(0,-1,1));logo.setGravity(Gravity.CENTER_VERTICAL);
+        TextClock clock=new TextClock(this);clock.setFormat12Hour("h:mm a");clock.setFormat24Hour("HH:mm");clock.setTextColor(Color.WHITE);clock.setTextSize(TypedValue.COMPLEX_UNIT_PX,headerHeight*.28f);header.addView(clock);
+        frame.addView(header,new LinearLayout.LayoutParams(-1,headerHeight));
+        LinearLayout body=new LinearLayout(this);body.setOrientation(LinearLayout.HORIZONTAL);
+        LinearLayout rail=new LinearLayout(this);rail.setOrientation(LinearLayout.VERTICAL);
+        String[] pages={"home","navigation","media","performance","apps","settings"};
+        String[] labels={"Home","Nav","Media","Performance","Apps","Settings"};
+        String[] icons={"⌂","➤","♫","◴","▦","⚙"};
+        for(int i=0;i<pages.length;i++){
+            final String page=pages[i];
+            LinearLayout cell=new LinearLayout(this);cell.setGravity(Gravity.CENTER);cell.setOrientation(LinearLayout.VERTICAL);cell.setContentDescription(labels[i]);cell.setClickable(true);
+            TextView icon=new TextView(this);icon.setText(icons[i]);icon.setGravity(Gravity.CENTER);icon.setTextSize(TypedValue.COMPLEX_UNIT_PX,railWidth*.4f);icon.setTextColor(i==1?accentColor:0xffdce1e5);cell.addView(icon);
+            TextView label=new TextView(this);label.setText(labels[i]);label.setGravity(Gravity.CENTER);label.setTextColor(0xffdce1e5);label.setTextSize(TypedValue.COMPLEX_UNIT_PX,railWidth*.13f);cell.addView(label);
+            GradientDrawable background=new GradientDrawable();background.setColor(0xff06090b);background.setStroke(1,0xff30363b);cell.setBackground(background);
+            FrameLayout slot=new FrameLayout(this);slot.addView(cell,new FrameLayout.LayoutParams(-1,-1));
+            if(i==1){View stripe=new View(this);stripe.setBackgroundColor(accentColor);slot.addView(stripe,new FrameLayout.LayoutParams(Math.max(3,width/150),-1,Gravity.LEFT));}
+            cell.setOnClickListener(v->{if("navigation".equals(page))return;Intent intent=new Intent(this,MainActivity.class);intent.putExtra("apexPage",page);intent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP|Intent.FLAG_ACTIVITY_CLEAR_TOP);startActivity(intent);finish();});
+            rail.addView(slot,new LinearLayout.LayoutParams(-1,0,1));
+        }
+        body.addView(rail,new LinearLayout.LayoutParams(railWidth,-1));body.addView(navigationRoot,new LinearLayout.LayoutParams(0,-1,1));frame.addView(body,new LinearLayout.LayoutParams(-1,0,1));setContentView(frame);
+    }
+
     private Button railButton(String label) {
         Button button=new Button(this);button.setText(label);button.setTextColor(0xfff4f4ef);button.setTextSize(12f);button.setGravity(Gravity.CENTER);button.setAllCaps(false);
         button.setPadding(0,0,0,0);GradientDrawable bg=new GradientDrawable();bg.setCornerRadius(dp(9));bg.setColor(surfaceDeep);bg.setStroke(dp(1),withAlpha(accentColor,0xb0));button.setBackground(bg);
@@ -451,8 +479,8 @@ public class NavigationActivity extends AppCompatActivity {
     }
 
     @Override protected void onStart() { super.onStart(); if (navigationView != null) navigationView.onStart(); registerRoadLocationListener(); }
-    @Override protected void onResume() { super.onResume(); if (navigationView != null) navigationView.onResume(); }
-    @Override protected void onPause() { if (navigationView != null) navigationView.onPause(); super.onPause(); }
+    @Override protected void onResume() { super.onResume(); FloatingRailService.setLauncherVisible(true); if (navigationView != null) navigationView.onResume(); }
+    @Override protected void onPause() { if (navigationView != null) navigationView.onPause(); FloatingRailService.setLauncherVisible(false); super.onPause(); }
     @Override protected void onStop() { unregisterRoadLocationListener(); if (navigationView != null) navigationView.onStop(); super.onStop(); }
     @Override protected void onDestroy() { unregisterRoadLocationListener(); if (trxMarker != null) trxMarker.remove(); if (navigator != null && isFinishing()) { navigator.stopGuidance(); navigator.clearDestinations(); } if (navigationView != null) navigationView.onDestroy(); super.onDestroy(); }
     @Override public void onTrimMemory(int level) { super.onTrimMemory(level); if (navigationView != null) navigationView.onTrimMemory(level); }

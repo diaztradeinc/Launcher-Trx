@@ -62,10 +62,24 @@ async function main(){
     if(size.width===602)await p.screenshot({animations:'disabled',path:path.join(output,label.toLowerCase()+'.png')});
    }
    if(size.width===602){
+    const profileGeometry={};
+    for(const profile of ['phone','uconnect','custom']){
+     await p.evaluate(v=>localStorage.setItem('trx-apex-display-profile',v),profile);await p.reload();
+     profileGeometry[profile]=[];
+     for(const label of ['Settings','Performance','Apps','Media','Weather']){
+      await navigate(label);await p.waitForTimeout(550);
+      const geometry=await p.locator('.page').evaluate(e=>[...e.children].filter(x=>!x.classList.contains('modal-scrim')).map(x=>{const r=x.getBoundingClientRect();return [Math.round(r.x),Math.round(r.y),Math.round(r.width),Math.round(r.height)];}));
+      profileGeometry[profile].push({page:label,geometry});
+     }
+    }
+    fs.writeFileSync(path.join(output,'profile-geometry.json'),JSON.stringify(profileGeometry,null,2));
+    if(JSON.stringify(profileGeometry.phone)!==JSON.stringify(profileGeometry.uconnect)||JSON.stringify(profileGeometry.phone)!==JSON.stringify(profileGeometry.custom))throw Error('Display profiles changed approved page geometry');
+    fs.writeFileSync(path.join(output,'profile-geometry.json'),JSON.stringify(profileGeometry,null,2));
+    await p.evaluate(()=>localStorage.setItem('trx-apex-display-profile','phone'));await p.reload();
     const dockLabels=await p.getByRole('navigation',{name:'Main navigation'}).getByRole('button').evaluateAll(items=>items.map(e=>e.getAttribute('aria-label')));
     if(JSON.stringify(dockLabels)!==JSON.stringify(['Home','Navigation','Media','Performance','Apps','Settings']))throw Error('Launcher page rail must have the six destinations and no old Back button');
-    const dockPlacement=await p.locator('.command-rail').evaluate(e=>{const d=e.getBoundingClientRect(),s=e.closest('.calibrated-stage').getBoundingClientRect();return {gap:d.left-s.left,heightRatio:d.height/s.height}});
-    if(Math.abs(dockPlacement.gap)>2||dockPlacement.heightRatio<.94)throw Error('Launcher page rail does not reach the left edge');
+    const dockPlacement=await p.locator('.command-rail').evaluate(e=>{const d=e.getBoundingClientRect(),s=e.closest('.calibrated-stage').getBoundingClientRect();const h=document.querySelector('.status-bar').getBoundingClientRect();return {gap:d.left-s.left,belowHeader:Math.abs(d.top-h.bottom)<2,heightRatio:d.height/(s.height-h.height)}});
+    if(Math.abs(dockPlacement.gap)>2||!dockPlacement.belowHeader||dockPlacement.heightRatio<.99)throw Error('Launcher page rail does not reach the left edge');
     const railOverlap=await p.locator('.command-rail button').evaluateAll(items=>{const r=items.map(e=>e.getBoundingClientRect());return r.some((a,i)=>r.some((b,j)=>j>i&&Math.min(a.right,b.right)-Math.max(a.left,b.left)>1&&Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top)>1));});
     if(railOverlap)throw Error('Navigation rail buttons overlap');
     await navigate('Home');
@@ -100,7 +114,7 @@ async function main(){
     if(selected===unselected)throw Error('Display selection invisible');
     if(!await p.locator('.rendering-uconnect').count())throw Error('Uconnect rendering not applied');
     const art=await p.locator('.theme-swatches button').evaluateAll(buttons=>buttons.map(b=>getComputedStyle(b.querySelector('i')).backgroundImage));
-    if(art.length!==5||new Set(art).size!==5||art.some(v=>!v.includes('url(')))throw Error('Five distinct theme artworks must appear on Uconnect');
+    if(art.length!==5||new Set(art).size!==5||art.some(v=>v==='none'))throw Error('Five distinct theme artworks must appear on Uconnect');
     await dialog.getByRole('button',{name:'night',exact:true}).click();const night=await palette();
     await dialog.getByRole('button',{name:'day',exact:true}).click();if(night===await palette())throw Error('Day/night has no visible effect');
     await profiles.getByRole('button',{name:'auto',exact:true}).click();
@@ -146,6 +160,13 @@ async function main(){
     if(!await p.evaluate(()=>window.__calls.some(c=>c.method==='launchApp'&&c.args.packageName==='test.app4')))throw Error('Media picker did not launch Spotify');
     if(!await p.evaluate(()=>JSON.parse(localStorage.getItem('trx-apex-media-source')||'null')?.packageName==='test.app4'))throw Error('Media source selection did not persist');
     await navigate('Navigation');await p.getByRole('textbox',{name:'Destination',exact:true}).fill('test destination');await p.getByRole('button',{name:/Test destination A longer/}).click();await p.getByRole('button',{name:'Start route',exact:true}).click();
+    await p.getByRole('button',{name:'Save destination',exact:true}).click();
+    await p.getByRole('textbox',{name:'Location name',exact:true}).fill('Lake House');
+    await p.screenshot({path:path.join(output,'save-destination.png')});
+    await p.getByRole('dialog',{name:'Save destination'}).getByRole('button',{name:'Save',exact:true}).click();
+    await p.getByRole('button',{name:'Favorites',exact:true}).click();
+    await p.getByRole('button',{name:/Lake House/}).click();
+    if(!await p.evaluate(()=>JSON.parse(localStorage.getItem('trx-apex-nav-favorites'))['custom:Lake House']?.placeId==='test-place'))throw Error('Custom saved destination lost selected place');
     const calls=await p.evaluate(()=>window.__calls);for(const cmd of ['favorite','toggle','volume',...(canNext?['next']:[])])if(!calls.some(c=>c.method==='mediaCommand'&&c.args.command===cmd))throw Error('Missing '+cmd);if(!calls.some(c=>c.method==='openNavigation'&&c.args.placeId==='test-place'&&c.args.theme==='baja'&&c.args.surface==='carbon'))throw Error('Route/theme bridge mismatch');
     await p.reload();if(!await p.locator('.theme-baja.surface-carbon').count())throw Error('Theme or UI finish persistence failed');
     await navigate('Media');
@@ -160,7 +181,17 @@ async function main(){
     if(!await p.evaluate(()=>window.__calls.some(c=>c.method==='reconnectObd')))throw Error('Reconnect not dispatched');
     await p.evaluate(()=>{localStorage.setItem('trx-apex-orbit-favorites',JSON.stringify(['test.app0','test.app1','test.app2','test.app3','test.app4','test.app5']));});await p.reload();
     await navigate('Apps');
-    const collisions=await p.locator('.app-orbit .app-tile').evaluateAll(items=>{const r=items.map(e=>e.getBoundingClientRect());return r.some((a,i)=>r.some((b,j)=>j>i&&Math.min(a.right,b.right)-Math.max(a.left,b.left)>1&&Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top)>1));});
+    await p.getByRole('button',{name:'Edit favorites',exact:true}).first().click();
+    const fav=p.getByRole('dialog',{name:'Edit favorites'});
+    await fav.getByRole('button',{name:'Remove Maps favorite',exact:true}).click();
+    await fav.getByRole('button',{name:'Cancel',exact:true}).click();
+    if(!await p.evaluate(()=>JSON.parse(localStorage.getItem('trx-apex-orbit-favorites')).includes('test.app0')))throw Error('Cancel changed favorites');
+    await p.getByRole('button',{name:'Edit favorites',exact:true}).first().click();
+    await fav.getByRole('button',{name:'Move Spotify earlier',exact:true}).click();
+    await p.screenshot({path:path.join(output,'edit-favorites.png')});
+    await fav.getByRole('button',{name:'Save',exact:true}).click();
+    if(await p.evaluate(()=>JSON.parse(localStorage.getItem('trx-apex-orbit-favorites'))[3])!=='test.app4')throw Error('Favorite reorder not saved');
+    const collisions=await p.locator('.app-orbit .orbit-add').evaluateAll(items=>{const r=items.map(e=>e.getBoundingClientRect());return r.some((a,i)=>r.some((b,j)=>j>i&&Math.min(a.right,b.right)-Math.max(a.left,b.left)>1&&Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top)>1));});
     if(collisions)throw Error('Six favorites overlap at maximum icon size');
     const row=await p.locator('.apps-grid .app-tile').evaluateAll(items=>items.map(e=>Math.round(e.getBoundingClientRect().top)));
     if(new Set(row).size!==1)throw Error('Favorites must occupy one row');
@@ -226,7 +257,7 @@ async function main(){
   }
   fs.writeFileSync(path.join(output,'layout-results.json'),JSON.stringify({errors,results},null,2));
   console.log(JSON.stringify({errors,issues:results.filter(r=>r.outside.length||r.overlaps.length),layouts:results.length}));
-  if(errors.length||results.some(r=>['Media','Performance'].includes(r.page)&&(r.outside.length||r.overlaps.length)))process.exitCode=1;
- }finally{if(browser)await browser.close();server.kill();}
+  if(errors.length||results.some(r=>r.outside.length||r.overlaps.length))process.exitCode=1;
+ }catch(e){console.error(e);throw e;}finally{server.kill();if(browser)await browser.close();}
 }
 main().catch(e=>{console.error(e);process.exitCode=1;});
