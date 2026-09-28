@@ -1,8 +1,10 @@
-# TRX APEX 3D Lab 0.2
+# TRX APEX Navigation Lab 0.3.2
 
 An isolated native Android/Filament prototype. App ID `com.diaztradeinc.trxnavprototype`; this does not replace the TRX APEX launcher or register as a home app.
 
-**Simulation only. Not for driving.** No GPS, Google Navigation data, road database, API key, or internet permission. All roads and scenery are synthetic. The original low-poly pickup is a visual proxy, not a licensed RAM/TRX model. UI fidelity and vehicle detailing are prototype quality, not the photorealistic concept image.
+**Current entry point:** Google Navigation trial. Runtime authorization is blocked; the latest build is not a verified live-navigation release. See the authorization finding below.
+
+**Separate Filament simulation (Setup → Open 3D simulation):** Not for driving. This scene uses no GPS, Google Navigation data or road database. All its roads and scenery are synthetic. The original low-poly pickup is a visual proxy, not a licensed RAM/TRX model. UI fidelity and vehicle detailing are prototype quality, not the photorealistic concept image.
 
 ## Controls
 
@@ -20,7 +22,7 @@ Filament frame submissions are capped at 30/sec. The on-screen value is a submis
 
 ## Reproduce
 
-JDK 17, Gradle 8.9, Android SDK 35:
+JDK 17, Gradle 8.13, Android SDK 35:
 
 ```
 python3 prototype-nav/tools/generate_scene.py
@@ -31,13 +33,13 @@ Without signing environment variables local debug signing is used. CI requires t
 
 ## Further implementation
 
-Approve actual device render/layout first. Then source a properly licensed detailed truck model and choose a map/routing provider whose terms permit the intended custom rendering. A real navigation engine also needs location permissions, snapped-location updates, road mesh/tile rendering, maneuvers/lane data, rerouting, location-loss behavior and device testing. Do not connect Google Navigation data to this synthetic/non-Google world.
+Approve actual device render/layout first. Then source a properly licensed detailed truck model and choose a map/routing provider whose terms permit the intended custom rendering. A real navigation engine also needs location permissions, snapped-location updates, road mesh/tile rendering, maneuvers/lane data, rerouting, location-loss behavior and device testing. The synthetic demo is not a geographic map. See `GOOGLE_3D_INTEGRATION.md` for the proposed real-map integration and unresolved verification gates.
 
 Renderer surface and asset lifecycle follows the Apache-2.0 Filament ModelViewer example, copyright 2020 Android Open Source Project. Procedural geometry and HUD are original code.
 
 ## 0.2 visual pass
 
-Sculpted original pickup proxy with sloped glass, tubular sports bar, widened wheel arches, tread blocks, tailgate strokes and exhausts. Continuous sandstone ridges, shoulders, reflectors and route chevrons replace the sparse test scene. Dock icons now scale independently from labels. This remains a synthetic simulation; no exact licensed TRX model or live routing is included. Version code 2 updates the separate lab app. Phone smoothness was reported by the user for 0.1; P3 Pro performance remains unverified.
+Sculpted original pickup proxy with sloped glass, tubular sports bar, widened wheel arches, tread blocks, tailgate strokes and exhausts. Continuous sandstone ridges, shoulders, reflectors and route chevrons replace the sparse test scene. Dock icons now scale independently from labels. This remains a synthetic simulation; no exact licensed TRX model or live routing is included. Version code 2 updates the separate lab app. The user reported smooth simulation tests on both phone and Ottocast; this does not validate the separate Google map renderer or live navigation.
 
 
 ## v0.3 — Google Navigation trial

@@ -57,7 +57,7 @@ class GoogleNavigationActivity : AppCompatActivity() {
         val header = row()
         header.addView(label("TRX",22,true), LinearLayout.LayoutParams(0,dp(48),1f))
         header.addView(label("APEX",22,true).apply { setTextColor(red) },LinearLayout.LayoutParams(0,dp(48),1f))
-        header.addView(label("NAV LAB 0.3.1",11),LinearLayout.LayoutParams(0,dp(48),1f))
+        header.addView(label("NAV LAB 0.3.2",11),LinearLayout.LayoutParams(0,dp(48),1f))
         frame.addView(header)
         val body=row();frame.addView(body,LinearLayout.LayoutParams(-1,0,1f))
         val dock=LinearLayout(this).apply { orientation=1 }
@@ -105,7 +105,7 @@ class GoogleNavigationActivity : AppCompatActivity() {
                 applyVoice();status.text="Google Navigation ready · enter a destination"
             }
             override fun onError(code:Int) {initializing=false;startupError=when(code) {
-                NavigationApi.ErrorCode.NOT_AUTHORIZED->"Google authorization failed (1). Add com.diaztradeinc.trxnavprototype to your existing key’s Android apps; check Navigation SDK and Maps SDK access. Setup has the signing fingerprint. Tap here after correcting Google Cloud."
+                NavigationApi.ErrorCode.NOT_AUTHORIZED->"Google authorization failed (1). Setup → Google connection details identifies this build. Check the matching Google Cloud key, Android restrictions, enabled SDKs and billing; tap here after correcting them."
                 NavigationApi.ErrorCode.TERMS_NOT_ACCEPTED->"Google terms not accepted · tap to retry"
                 NavigationApi.ErrorCode.LOCATION_PERMISSION_MISSING->"Precise location required · tap to retry"
                 else->"Google Navigation error $code · tap to retry"
@@ -151,7 +151,7 @@ class GoogleNavigationActivity : AppCompatActivity() {
             else status.text="Route unavailable: $result"
         } }
     }
-    private fun endRoute() {generation++;navigator?.stopGuidance();navigator?.clearDestinations();active=false;searchRow.visibility=View.VISIBLE;status.visibility=View.VISIBLE;status.text="Route ended · choose a destination"}
+    private fun endRoute() {generation++;navigator?.stopGuidance();navigator?.clearDestinations();active=false;searchRow.visibility=View.VISIBLE;status.visibility=View.VISIBLE;status.text=startupError ?: if(navigator!=null) "Route ended · choose a destination" else "Google Navigation is still connecting"}
     private fun recenter(){map?.followMyLocation(GoogleMap.CameraPerspective.TILTED)}
     private fun applyVoice(){navigator?.setAudioGuidanceSettings(AudioGuidanceSettings.builder().setGuidanceMode(if(voice)AudioGuidanceSettings.GuidanceMode.VOICE_ALERTS_AND_GUIDANCE else AudioGuidanceSettings.GuidanceMode.SILENT).build())}
     private fun settings() {
@@ -159,8 +159,16 @@ class GoogleNavigationActivity : AppCompatActivity() {
             0->{night=!night;prefs.edit().putBoolean("night",night).apply();navView?.setForceNightMode(if(night)ForceNightMode.FORCE_NIGHT else ForceNightMode.FORCE_DAY)}
             1->{voice=!voice;prefs.edit().putBoolean("voice",voice).apply();applyVoice()}
             2->{if(active)Toast.makeText(this,"End guidance before opening the simulation",Toast.LENGTH_LONG).show() else startActivity(Intent(this,MainActivity::class.java))}
-            3->AlertDialog.Builder(this).setTitle("Google authorization").setMessage("Navigation SDK for Android and billing must be enabled. Authorize Android package:\ncom.diaztradeinc.trxnavprototype\n\nSigning SHA-1:\n03:04:AF:48:B6:70:72:BE:31:3F:17:C2:D8:F7:17:6D:6C:78:D3:BC\n\nThis app uses the existing MAPS_API_KEY build secret. No replacement map provider is used.").setPositiveButton("Close",null).show()
+            3->AlertDialog.Builder(this).setTitle("Google authorization").setMessage("Navigation SDK for Android and billing must be enabled. Authorize Android package:\ncom.diaztradeinc.trxnavprototype\n\nSigning SHA-1:\n03:04:AF:48:B6:70:72:BE:31:3F:17:C2:D8:F7:17:6D:6C:78:D3:BC\n\nBuild credential fingerprint (SHA-256 prefix): ${credentialFingerprint()}\n\nCompare this with the CI credential check to confirm the installed APK uses the current repository secret. This identifier is not the API key. A successful build does not prove Google authorization.").setPositiveButton("Close",null).show()
         } }.setNegativeButton("Close",null).show()
+    }
+    @Suppress("DEPRECATION")
+    private fun credentialFingerprint():String {
+        val key=packageManager.getApplicationInfo(packageName,PackageManager.GET_META_DATA)
+            .metaData?.getString("com.google.android.geo.API_KEY").orEmpty().trim()
+        if(key.isEmpty())return "MISSING"
+        return java.security.MessageDigest.getInstance("SHA-256").digest(key.toByteArray(Charsets.UTF_8))
+            .take(8).joinToString("") { "%02x".format(it.toInt() and 0xff) }
     }
     private fun openLauncher(page:String) {
         try {startActivity(Intent().setClassName("com.diaztradeinc.trxlauncher","com.diaztradeinc.trxlauncher.MainActivity").putExtra("apexPage",page).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP))}
