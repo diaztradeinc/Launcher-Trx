@@ -106,7 +106,7 @@ class Google3DLiveActivity : Activity(), OnMap3DViewReadyCallback {
         root.addView(viewport,LinearLayout.LayoutParams(-1,0,1f))
         trip=text("Waiting for Google ETA…",20).apply { tag="live-eta";background=panel() };root.addView(trip)
         val controls=LinearLayout(this)
-        cameraButton=button("Above") { overhead=!overhead;cameraButton.text=if(overhead)"Chase" else "Above";following=true;lastDrawn=null }
+        cameraButton=button("Above") { overhead=!overhead;cameraButton.text=if(overhead)"Chase" else "Above";following=true;followButton.text="Explore";lastDrawn=null }
         followButton=button("Explore") { following=!following;followButton.text=if(following)"Explore" else "Recenter";lastDrawn=null }
         listOf(cameraButton,followButton,button("End") {
             navigator?.stopGuidance();navigator?.clearDestinations();clearRoute();lastInfo=null;finish()
