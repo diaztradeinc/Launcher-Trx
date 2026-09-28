@@ -6,8 +6,8 @@ android {
         applicationId = "com.diaztradeinc.trxnavprototype"
         minSdk = 26
         targetSdk = 35
-        versionCode = 5
-        versionName = "0.3.2"
+        versionCode = 6
+        versionName = "0.4.0"
         manifestPlaceholders["MAPS_API_KEY"] = (System.getenv("MAPS_API_KEY") ?: "").trim()
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64") }
@@ -32,6 +32,7 @@ kotlin { compilerOptions { jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarg
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs_nio:2.1.5")
     implementation("com.google.android.libraries.navigation:navigation:7.9.0")
+    implementation("com.google.android.gms:play-services-maps3d:0.2.2")
     implementation("org.chromium.net:cronet-fallback:119.6045.31")
     implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("com.google.android.filament:filament-android:1.56.0")

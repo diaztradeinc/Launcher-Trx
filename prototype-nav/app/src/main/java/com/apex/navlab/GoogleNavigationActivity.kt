@@ -57,7 +57,7 @@ class GoogleNavigationActivity : AppCompatActivity() {
         val header = row()
         header.addView(label("TRX",22,true), LinearLayout.LayoutParams(0,dp(48),1f))
         header.addView(label("APEX",22,true).apply { setTextColor(red) },LinearLayout.LayoutParams(0,dp(48),1f))
-        header.addView(label("NAV LAB 0.3.2",11),LinearLayout.LayoutParams(0,dp(48),1f))
+        header.addView(label("NAV LAB 0.4.0",11),LinearLayout.LayoutParams(0,dp(48),1f))
         frame.addView(header)
         val body=row();frame.addView(body,LinearLayout.LayoutParams(-1,0,1f))
         val dock=LinearLayout(this).apply { orientation=1 }
@@ -155,10 +155,19 @@ class GoogleNavigationActivity : AppCompatActivity() {
     private fun recenter(){map?.followMyLocation(GoogleMap.CameraPerspective.TILTED)}
     private fun applyVoice(){navigator?.setAudioGuidanceSettings(AudioGuidanceSettings.builder().setGuidanceMode(if(voice)AudioGuidanceSettings.GuidanceMode.VOICE_ALERTS_AND_GUIDANCE else AudioGuidanceSettings.GuidanceMode.SILENT).build())}
     private fun settings() {
-        AlertDialog.Builder(this).setTitle("APEX Navigation").setItems(arrayOf(if(night)"Use day map" else "Use night map",if(voice)"Mute voice guidance" else "Enable voice guidance","Open 3D simulation","Google connection details")) {_,i->when(i) {
+        AlertDialog.Builder(this).setTitle("APEX Navigation").setItems(arrayOf(if(night)"Use day map" else "Use night map",if(voice)"Mute voice guidance" else "Enable voice guidance","Open 3D simulation","Google connection details","Google 3D preview")) {_,i->when(i) {
             0->{night=!night;prefs.edit().putBoolean("night",night).apply();navView?.setForceNightMode(if(night)ForceNightMode.FORCE_NIGHT else ForceNightMode.FORCE_DAY)}
             1->{voice=!voice;prefs.edit().putBoolean("voice",voice).apply();applyVoice()}
             2->{if(active)Toast.makeText(this,"End guidance before opening the simulation",Toast.LENGTH_LONG).show() else startActivity(Intent(this,MainActivity::class.java))}
+            4->{
+                if(active)Toast.makeText(this,"End guidance before opening the 3D preview",Toast.LENGTH_LONG).show()
+                else {
+                    val center=map?.cameraPosition?.target
+                    startActivity(Intent(this,Google3DPreviewActivity::class.java)
+                        .putExtra("latitude",center?.latitude ?: 40.333)
+                        .putExtra("longitude",center?.longitude ?: -74.593))
+                }
+            }
             3->AlertDialog.Builder(this).setTitle("Google authorization").setMessage("Navigation SDK for Android and billing must be enabled. Authorize Android package:\ncom.diaztradeinc.trxnavprototype\n\nSigning SHA-1:\n03:04:AF:48:B6:70:72:BE:31:3F:17:C2:D8:F7:17:6D:6C:78:D3:BC\n\nBuild credential fingerprint (SHA-256 prefix): ${credentialFingerprint()}\n\nCompare this with the CI credential check to confirm the installed APK uses the current repository secret. This identifier is not the API key. A successful build does not prove Google authorization.").setPositiveButton("Close",null).show()
         } }.setNegativeButton("Close",null).show()
     }

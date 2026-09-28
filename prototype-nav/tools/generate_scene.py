@@ -179,3 +179,26 @@ assert all(math.isfinite(v) for vs,ns in groups.values() for arr in (vs,ns) for 
 assert all(a['count']%3==0 for a in accessors)
 assert route(0)==(0,0) and route(360)==(80,-360)
 print(f'{path}: {len(output):,} bytes; {sum(len(vs)//3 for vs,ns in groups.values()):,} triangles; 2 nodes; synthetic geometry validated')
+
+# Export only the original truck for the geographic 3D preview. The immutable
+# versioned asset is hosted in this public repository; no scene scenery is used.
+truck_doc=json.loads(json.dumps(doc))
+truck_doc['scenes']=[{'nodes':[0]}]
+truck_doc['nodes']=[{'name':'Truck','mesh':0}]
+truck_doc['meshes']=[truck_doc['meshes'][1]]
+used=sorted({a for primitive in truck_doc['meshes'][0]['primitives'] for a in primitive['attributes'].values()})
+truck_binary=bytearray();truck_accessors=[];truck_views=[]
+for old in used:
+    a=dict(doc['accessors'][old]);view=doc['bufferViews'][a['bufferView']]
+    start=view['byteOffset'];data=binary[start:start+view['byteLength']]
+    truck_views.append(dict(view,byteOffset=len(truck_binary)))
+    truck_binary.extend(data);a['bufferView']=len(truck_views)-1;truck_accessors.append(a)
+for primitive in truck_doc['meshes'][0]['primitives']:
+    primitive['attributes']={k:used.index(v) for k,v in primitive['attributes'].items()}
+truck_doc['accessors']=truck_accessors;truck_doc['bufferViews']=truck_views
+truck_doc['buffers']=[{'byteLength':len(truck_binary)}]
+truck_js=json.dumps(truck_doc,separators=(',',':')).encode();truck_js+=b' '*((-len(truck_js))%4)
+truck_binary+=b'\x00'*((-len(truck_binary))%4)
+truck_output=struct.pack('<III',0x46546c67,2,28+len(truck_js)+len(truck_binary))+struct.pack('<II',len(truck_js),0x4e4f534a)+truck_js+struct.pack('<II',len(truck_binary),0x004e4942)+truck_binary
+truck_path=ROOT/'models/apex-truck-v02.glb';truck_path.parent.mkdir(exist_ok=True);truck_path.write_bytes(truck_output)
+print(f'{truck_path}: {len(truck_output):,} bytes; truck only')

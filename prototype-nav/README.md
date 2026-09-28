@@ -1,8 +1,8 @@
-# TRX APEX Navigation Lab 0.3.2
+# TRX APEX Navigation Lab 0.4.0
 
 An isolated native Android/Filament prototype. App ID `com.diaztradeinc.trxnavprototype`; this does not replace the TRX APEX launcher or register as a home app.
 
-**Current entry point:** Google Navigation trial. Runtime authorization is blocked; the latest build is not a verified live-navigation release. See the authorization finding below.
+**Current entry point:** Google Navigation trial. The user reports that the standard map now loads. This does not yet verify live route guidance or the new 3D renderer. See the authorization finding below.
 
 **Separate Filament simulation (Setup → Open 3D simulation):** Not for driving. This scene uses no GPS, Google Navigation data or road database. All its roads and scenery are synthetic. The original low-poly pickup is a visual proxy, not a licensed RAM/TRX model. UI fidelity and vehicle detailing are prototype quality, not the photorealistic concept image.
 
@@ -54,3 +54,16 @@ CI injects existing MAPS_API_KEY. Google Cloud must enable Navigation SDK for An
 v0.3 runtime logs contained Google Maps and Navigation SDK authorization failures for `com.diaztradeinc.trxnavprototype`, despite passing the two UI/simulation tests. Those tests did **not** validate live navigation. Google Cloud authorization must be corrected for the existing key; a new APK is not required for a server-side restriction update. The launcher package remains unchanged.
 
 Find now preserves startup errors, with a regression assertion for the permission-denied case. The delivery script also blocks APK publication when either Google SDK reports an authorization failure. A log without that error is not proof of route success.
+
+
+## v0.4.0 — Google geographic 3D preview
+
+Setup → Google 3D preview opens the experimental Google Maps 3D 0.2.2 renderer at the current standard-map center. Tap a road to place the original red pickup proxy. Controls offer chase/overhead, 45-degree rotation, near/wide and recenter. Back to map returns to standard Google navigation. Opening the preview is blocked while route guidance is active.
+
+This is a geographic renderer evaluation, not live 3D navigation: no simulated journey, fake lane guidance or route is shown. The close camera uses the tapped map's altitude; the model is relative to the mesh. Google attribution remains inside an unobscured viewport. A slow/error state leaves Back to map available.
+
+Enable **Maps 3D SDK for Android** for the same Cloud project/key; Maps/Navigation authorization does not automatically enable this service. The existing MAPS_API_KEY is used for both metadata entries. No new secret is required if that key permits all required SDKs.
+
+The original truck-only asset is `models/apex-truck-v02.glb` (257,036 bytes), served from this public repository over HTTPS. It is not a licensed detailed RAM model. The generator deterministically exports it without the synthetic world. Preserve the versioned URL's content; change the filename for future mesh revisions.
+
+CI now checks real 3D map readiness and a map-tap/model-placement callback, exporting its status and screenshot. A successful callback does not alone prove model visual quality; inspect the screenshot and test on Ottocast. The combined Navigation/Maps3D dependency and emulator results must pass before publishing.
