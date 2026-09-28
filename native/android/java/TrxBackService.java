@@ -46,12 +46,13 @@ public class TrxBackService extends AccessibilityService {
         try{return getPackageManager().getApplicationLabel(getPackageManager().getApplicationInfo(pkg,0)).toString();}
         catch(Exception ignored){return pkg;}
     }
-    private void openPairInRecents(){
-        String message="In Recents, choose Split screen for "+appLabel(pairFirst)+", then select "+appLabel(pairSecond)+".";
-        boolean opened=performGlobalAction(GLOBAL_ACTION_RECENTS);
-        if(!opened)message="Open Android Recents. Choose Split screen for "+appLabel(pairFirst)+", then select "+appLabel(pairSecond)+".";
+    private void openOttocastPairPicker(){
+        // Ottocast's navigation bar owns the long-press Back split-screen action.
+        // Leave the first selected app in front so its picker docks that app,
+        // rather than accidentally splitting APEX or a Recents preview.
+        String message=appLabel(pairFirst)+" is ready. Hold Ottocast Back, then choose "+appLabel(pairSecond)+".";
         Toast.makeText(this,message,Toast.LENGTH_LONG).show();
-        finishPair("Manual split required. "+message,!opened);
+        finishPair("Finish in Ottocast: "+message,false);
     }
     interface PairResult { void complete(String message,boolean error); }
     private final Handler handler=new Handler(Looper.getMainLooper());
@@ -59,7 +60,7 @@ public class TrxBackService extends AccessibilityService {
     private PairResult pairResult;
     private int pairStage;
     private boolean manualPair;
-    private final Runnable pairTimeout=() -> finishPair("Android did not finish opening the selected pair. Use Recents → Split screen on this device.",true);
+    private final Runnable pairTimeout=() -> finishPair("Pair setup timed out. Open the first app, hold Ottocast Back, and choose the second app.",true);
 
     static void startPair(String first,String second,boolean manual,boolean alreadySplit,PairResult result){
         TrxBackService service=active;
@@ -100,7 +101,7 @@ public class TrxBackService extends AccessibilityService {
         if(pairResult==null||pairStage!=2)return;
         // The first selected app has reported its own foreground window. Never split the launcher.
         if(!pairFirst.equals(currentWindowPackage)){finishPair("Pairing stopped because the foreground app changed.",true);return;}
-        if(manualPair){openPairInRecents();return;}
+        if(manualPair){openOttocastPairPicker();return;}
         if(!supportsSplitAction()||!performGlobalAction(GLOBAL_ACTION_TOGGLE_SPLIT_SCREEN)){
             manualPair=true;prepareSecond();return;
         }
