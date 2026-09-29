@@ -36,7 +36,7 @@ class RenderSmokeActivity : AppCompatActivity() {
         map.mapboxMap.loadStyle("""{"version":8,"sources":{},"layers":[{"id":"background","type":"background","paint":{"background-color":"#303642"}}]}""") {
             map.location.setLocationProvider(provider)
             if (!intent.getBooleanExtra("noModel", false)) {
-                map.location.locationPuck = LocationPuck3D(modelUri="asset://apex-truck.glb", modelScale=listOf(2.2f,2.2f,2.2f), modelRotation=listOf(0f,0f,180f))
+                map.location.locationPuck = LocationPuck3D(modelUri="asset://apex-truck.glb", modelScale=listOf(18f,18f,18f), modelRotation=listOf(0f,0f,180f))
             }
             map.location.enabled = true
             provider.changePosition(Location.Builder().longitude(point.longitude()).latitude(point.latitude()).timestamp(System.currentTimeMillis()).bearing(0.0).build())
