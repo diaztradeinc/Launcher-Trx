@@ -80,9 +80,11 @@ class NavigationActivity : AppCompatActivity() {
     private var currentLocation: Location? = null
     private var simulation = true
     private var hasCentered = false
+    private var permissionRequested = false
     private var pendingDestination: Point? = null
     private val requests = RequestEpoch()
     private val renderRequests = RequestEpoch()
+    private val searchRequests = RequestEpoch()
     private var searchClient: PlaceSearch? = null
     private var speech: TextToSpeech? = null
     private val handler = Handler(Looper.getMainLooper())
@@ -217,12 +219,12 @@ class NavigationActivity : AppCompatActivity() {
         camera = NavigationCamera(map.mapboxMap, map.camera, viewport)
         map.camera.addCameraAnimationsLifecycleListener(NavigationBasicGesturesHandler(camera))
         lineApi = MapboxRouteLineApi(MapboxRouteLineApiOptions.Builder().build())
-        lineView = MapboxRouteLineView(MapboxRouteLineViewOptions.Builder(this)
+        lineView = MapboxRouteLineView(MapboxRouteLineViewOptions.Builder(UiScale.context(this))
             .routeLineColorResources(RouteLineColorResources.Builder()
                 .routeDefaultColor(Color.rgb(41, 211, 255))
                 .routeCasingColor(Color.rgb(9, 71, 117)).build())
             .build())
-        arrowView = MapboxRouteArrowView(RouteArrowOptions.Builder(this).build())
+        arrowView = MapboxRouteArrowView(RouteArrowOptions.Builder(UiScale.context(this)).build())
         map.location.apply {
             setLocationProvider(locationProvider)
             locationPuck = LocationPuck3D(
@@ -273,7 +275,10 @@ class NavigationActivity : AppCompatActivity() {
             nav.startTripSession(withForegroundService = false)
         } else {
             status.text = "Precise location permission is required for live guidance"
-            requestPermissions(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION), 71)
+            if (!permissionRequested) {
+                permissionRequested = true
+                requestPermissions(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION), 71)
+            }
         }
     }
 
@@ -337,6 +342,8 @@ class NavigationActivity : AppCompatActivity() {
     private fun endRoute() {
         requests.next()
         renderRequests.next()
+        searchRequests.next()
+        searchClient?.cancel()
         pendingDestination = null
         active = false
         attachedNav?.setNavigationRoutes(emptyList())
@@ -359,9 +366,10 @@ class NavigationActivity : AppCompatActivity() {
                 val query = input.text.toString().trim()
                 if (query.length < 3) { toast("Enter at least three characters"); return@setPositiveButton }
                 status.text = "Searching addresses…"
+                val searchEpoch = searchRequests.next()
                 searchClient?.search(query) { result ->
                     runOnUiThread {
-                        if (isDestroyed || isFinishing || !lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED)) return@runOnUiThread
+                        if (!searchRequests.current(searchEpoch) || isDestroyed || isFinishing || !lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED)) return@runOnUiThread
                         result.fold(onSuccess = { places ->
                             status.text = if (simulation) "SIMULATION · Choose a result" else "LIVE GPS · Choose a result"
                             if (places.isEmpty()) toast("No addresses found")
@@ -398,7 +406,8 @@ class NavigationActivity : AppCompatActivity() {
         }
         val metrics = resources.displayMetrics
         val mapPixelRatio = min(metrics.widthPixels / 420f, metrics.heightPixels / 720f).coerceAtLeast(.5f)
-        map = MapView(this, MapInitOptions(this, mapOptions = MapOptions.Builder().pixelRatio(mapPixelRatio).build()))
+        val mapContext = UiScale.context(this)
+        map = MapView(mapContext, MapInitOptions(mapContext, mapOptions = MapOptions.Builder().pixelRatio(mapPixelRatio).build()))
         map.setMaximumFps(30)
         // Leave the attribution area inside the map unobscured above the bottom UI.
         place(map, 0f, 45f, 420f, 545f)
@@ -417,7 +426,7 @@ class NavigationActivity : AppCompatActivity() {
         button("End", "End navigation", 330f, 602f, 78f, 47f, true) { endRoute() }
         button("Find", "Find address", 12f, 659f, 92f, 49f) { search() }
         button(if (simulation) "Demo" else "GPS", "Start demo or recenter GPS", 113f, 659f, 92f, 49f) {
-            if (simulation) requestRoute(demoDestination) else if (fresh) camera.requestNavigationCameraToFollowing() else startSession()
+            if (simulation) requestRoute(demoDestination) else if (fresh) camera.requestNavigationCameraToFollowing() else { permissionRequested = false; startSession() }
         }
         button("Overview", "Route overview", 214f, 659f, 92f, 49f) { camera.requestNavigationCameraToOverview() }
         button("Setup", "Map settings", 315f, 659f, 93f, 49f) { settings() }
@@ -478,7 +487,7 @@ class NavigationActivity : AppCompatActivity() {
     }
     private fun toast(text: String) { Toast.makeText(this, text, Toast.LENGTH_SHORT).show() }
     override fun onResume() { super.onResume(); if (::map.isInitialized) handler.post(staleCheck) }
-    override fun onPause() { handler.removeCallbacks(staleCheck); speech?.stop(); searchClient?.cancel(); super.onPause() }
+    override fun onPause() { handler.removeCallbacks(staleCheck); speech?.stop(); searchRequests.next(); searchClient?.cancel(); super.onPause() }
     override fun onDestroy() {
         requests.next()
         renderRequests.next()

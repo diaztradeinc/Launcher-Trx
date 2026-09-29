@@ -27,6 +27,9 @@ class SetupActivity : AppCompatActivity() {
             hint = "Mapbox public token: pk.…"
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
             setSingleLine(true)
+            transformationMethod = android.text.method.PasswordTransformationMethod.getInstance()
+            setTextColor(Color.WHITE)
+            setHintTextColor(Color.LTGRAY)
             setText(prefs.getString("public-token", getString(R.string.mapbox_public_token)))
             tag = "public-token"
         }
