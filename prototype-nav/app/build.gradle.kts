@@ -6,8 +6,8 @@ android {
         applicationId = "com.diaztradeinc.trxnavprototype"
         minSdk = 26
         targetSdk = 35
-        versionCode = 7
-        versionName = "0.5.0"
+        versionCode = 8
+        versionName = "0.5.1"
         manifestPlaceholders["MAPS_API_KEY"] = (System.getenv("MAPS_API_KEY") ?: "").trim()
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64") }

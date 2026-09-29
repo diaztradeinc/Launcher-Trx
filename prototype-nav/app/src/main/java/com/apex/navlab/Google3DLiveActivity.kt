@@ -59,6 +59,10 @@ class Google3DLiveActivity : Activity(), OnMap3DViewReadyCallback {
     private lateinit var trip: TextView
     private lateinit var turnImage: ImageView
     private lateinit var laneImage: ImageView
+    private val mapPrefs by lazy { getSharedPreferences("live-3d-map", MODE_PRIVATE) }
+    private var roadmap = true
+    private lateinit var mapModeButton: TextView
+    private fun selectedMapMode() = if(roadmap) Map3DMode.ROADMAP else Map3DMode.HYBRID
     private lateinit var cameraButton: TextView
     private lateinit var followButton: TextView
 
@@ -83,6 +87,7 @@ class Google3DLiveActivity : Activity(), OnMap3DViewReadyCallback {
     }
     override fun onCreate(state: Bundle?) {
         super.onCreate(state)
+        roadmap=mapPrefs.getBoolean("roadmap",true)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         window.statusBarColor=Color.BLACK;window.navigationBarColor=Color.BLACK
         val root=LinearLayout(this).apply { orientation=1;setBackgroundColor(0xff080b0f.toInt()) }
@@ -108,12 +113,16 @@ class Google3DLiveActivity : Activity(), OnMap3DViewReadyCallback {
         val controls=LinearLayout(this)
         cameraButton=button("Above") { overhead=!overhead;cameraButton.text=if(overhead)"Chase" else "Above";following=true;followButton.text="Explore";lastDrawn=null }
         followButton=button("Explore") { following=!following;followButton.text=if(following)"Explore" else "Recenter";lastDrawn=null }
-        listOf(cameraButton,followButton,button("End") {
+        mapModeButton=button(if(roadmap)"Roadmap" else "Satellite") { switchMapMode() }.apply {
+            tag="live-map-mode";isEnabled=false
+            contentDescription="Map style. Tap to switch between Roadmap and Satellite"
+        }
+        listOf(cameraButton,followButton,mapModeButton,button("End") {
             navigator?.stopGuidance();navigator?.clearDestinations();clearRoute();lastInfo=null;finish()
         }).forEach { controls.addView(it,LinearLayout.LayoutParams(0,dp(52),1f)) }
         root.addView(controls)
         try {
-            val candidate=Map3DView(this,Google3DConfig.create(intent.getDoubleExtra("latitude",40.333),intent.getDoubleExtra("longitude",-74.593)))
+            val candidate=Map3DView(this,Google3DConfig.create(intent.getDoubleExtra("latitude",40.333),intent.getDoubleExtra("longitude",-74.593),selectedMapMode()))
             candidate.onCreate(state);view=candidate;viewport.addView(candidate,FrameLayout.LayoutParams(-1,-1));candidate.getMap3DViewAsync(this)
         } catch(e:Exception) { fail(e) } catch(e:LinkageError) { fail(e) }
         handler.postDelayed({ if(!ready && !rendererFailed && !isDestroyed) problem="3D terrain is still loading · Back to map remains available" },30000)
@@ -121,10 +130,28 @@ class Google3DLiveActivity : Activity(), OnMap3DViewReadyCallback {
     override fun onMap3DViewReady(googleMap3D: GoogleMap3D) { runOnUiThread {
         if(isDestroyed || isFinishing)return@runOnUiThread
         map=googleMap3D
+        mapModeButton.isEnabled=true
+        try { googleMap3D.setMapMode(selectedMapMode()) }
+        catch(e:Exception) { fail(e) }
         googleMap3D.setOnMapReadyListener { handler.post {
             if(!isDestroyed) { ready=true;problem=null;lastDrawn=null;drawRoute() }
         } }
     } }
+    private fun switchMapMode() {
+        val current=map ?: return
+        val next=!roadmap
+        try {
+            current.setMapMode(if(next)Map3DMode.ROADMAP else Map3DMode.HYBRID)
+            roadmap=next
+            mapPrefs.edit().putBoolean("roadmap",roadmap).apply()
+            mapModeButton.text=if(roadmap)"Roadmap" else "Satellite"
+            rendererFailed=false;problem=null;lastDrawn=null
+            drawRoute();renderHud(SystemClock.elapsedRealtime())
+        } catch(e:Exception) {
+            record(e)
+            Toast.makeText(this,"Map style could not change. Tap status for details.",Toast.LENGTH_LONG).show()
+        }
+    }
     override fun onError(error: Exception) { runOnUiThread { fail(error) } }
 
     private fun connect() {
@@ -281,7 +308,7 @@ class Google3DLiveActivity : Activity(), OnMap3DViewReadyCallback {
             !gps -> "Position paused · waiting for GPS"
             !heightFresh -> "Live position · waiting for elevation to follow camera"
             !following -> "Exploring map · tap Recenter to follow"
-            else -> "LIVE 3D · ${if(overhead)"overhead" else "chase"} · terrain alignment under test"
+            else -> "${if(roadmap)"ROADMAP" else "SATELLITE"} · ${if(overhead)"overhead" else "chase"} · terrain alignment under test"
         }
     }
     private fun distance(meters:Int?):String = when {

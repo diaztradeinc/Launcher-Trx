@@ -9,13 +9,17 @@ final class Google3DConfig {
     private Google3DConfig() {}
 
     static Map3DInitConfig create(double latitude, double longitude) {
+        return create(latitude, longitude, Map3DMode.HYBRID);
+    }
+
+    static Map3DInitConfig create(double latitude, double longitude, @Map3DMode int mode) {
         Locale locale = Locale.getDefault();
         return Map3DInitConfig.create(
                 latitude, longitude, 0.0,
                 0.0, 45.0, 0.0, 1800.0,
                 0.0, 63170000.0,
                 0.0, 360.0, 0.0, 90.0,
-                null, Map3DMode.HYBRID, null,
+                null, mode, null,
                 locale.getLanguage().isEmpty() ? "en" : locale.getLanguage(),
                 locale.getCountry().isEmpty() ? "US" : locale.getCountry());
     }

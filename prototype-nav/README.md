@@ -1,4 +1,4 @@
-# TRX APEX Navigation Lab 0.5.0
+# TRX APEX Navigation Lab 0.5.1
 
 An isolated native Android/Filament prototype. App ID `com.diaztradeinc.trxnavprototype`; this does not replace the TRX APEX launcher or register as a home app.
 
@@ -107,3 +107,15 @@ Device checks (passenger or stationary controls):
 `[device-test]` builds run motion unit tests, compile instrumentation and verify the
 permanent signing certificate; emulator runtime tests are skipped at the user's
 request. Signed device-test output is not labelled runtime-verified.
+
+## v0.5.1 — Google ROADMAP comparison
+
+Live 3D now defaults to Maps 3D SDK 0.2.2 ROADMAP mode. Tap the bottom
+Roadmap/Satellite button to switch modes on the same active route. The selection
+persists for Live 3D; the isolated tap-to-place preview retains its original HYBRID
+configuration. Routing, camera distances, model and guidance logic are unchanged
+so the comparison isolates the renderer mode.
+
+This tests Google's documented standard street-map mode. It does not claim access
+to the Google Maps consumer app's Immersive Navigation. Device checks must confirm
+mode appearance, truck/route rendering, switching both ways, and preference retention.

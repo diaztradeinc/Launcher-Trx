@@ -57,7 +57,7 @@ class GoogleNavigationActivity : AppCompatActivity() {
         val header = row()
         header.addView(label("TRX",22,true), LinearLayout.LayoutParams(0,dp(48),1f))
         header.addView(label("APEX",22,true).apply { setTextColor(red) },LinearLayout.LayoutParams(0,dp(48),1f))
-        header.addView(label("NAV LAB 0.5.0",11),LinearLayout.LayoutParams(0,dp(48),1f))
+        header.addView(label("NAV LAB 0.5.1",11),LinearLayout.LayoutParams(0,dp(48),1f))
         frame.addView(header)
         val body=row();frame.addView(body,LinearLayout.LayoutParams(-1,0,1f))
         val dock=LinearLayout(this).apply { orientation=1 }
