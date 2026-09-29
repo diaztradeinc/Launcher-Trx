@@ -241,6 +241,7 @@ class NavigationActivity : AppCompatActivity() {
             map.location.locationPuck = LocationPuck3D(
                 modelUri = "asset://apex-truck.glb",
                 modelScale = listOf(18f, 18f, 18f),
+                modelEmissiveStrength = 0f,
                 modelRotation = listOf(0f, 0f, 180f)
             )
             status.text = if (simulation) "SIMULATION · Tap Demo to start" else "Map ready · waiting for GPS"

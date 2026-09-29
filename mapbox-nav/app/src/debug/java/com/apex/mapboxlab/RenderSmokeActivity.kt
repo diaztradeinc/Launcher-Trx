@@ -33,10 +33,10 @@ class RenderSmokeActivity : AppCompatActivity() {
         val point = Point.fromLngLat(-122.33517,47.6080)
         map.mapboxMap.setCamera(CameraOptions.Builder().center(point).zoom(19.0).pitch(55.0).build())
         val provider = NavigationLocationProvider()
-        map.mapboxMap.loadStyle("""{"version":8,"sources":{},"layers":[{"id":"background","type":"background","paint":{"background-color":"#303642"}}]}""") {
+        map.mapboxMap.loadStyle("""{"version":8,"lights":[{"id":"ambient","type":"ambient","properties":{"color":"#ffffff","intensity":0.8}},{"id":"directional","type":"directional","properties":{"color":"#ffffff","intensity":0.7,"direction":[180,45]}}],"sources":{},"layers":[{"id":"background","type":"background","paint":{"background-color":"#303642"}}]}""") {
             map.location.setLocationProvider(provider)
             if (!intent.getBooleanExtra("noModel", false)) {
-                map.location.locationPuck = LocationPuck3D(modelUri="asset://apex-truck.glb", modelScale=listOf(18f,18f,18f), modelRotation=listOf(0f,0f,180f))
+                map.location.locationPuck = LocationPuck3D(modelUri="asset://apex-truck.glb", modelScale=listOf(18f,18f,18f), modelEmissiveStrength=0f, modelRotation=listOf(0f,0f,180f))
             }
             map.location.enabled = true
             provider.changePosition(Location.Builder().longitude(point.longitude()).latitude(point.latitude()).timestamp(System.currentTimeMillis()).bearing(0.0).build())
