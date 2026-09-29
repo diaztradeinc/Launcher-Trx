@@ -1,4 +1,4 @@
-# TRX APEX Mapbox Lab 0.1.1
+# TRX APEX Mapbox Lab 0.1.2
 
 Standalone Android prototype: `com.diaztradeinc.trxmapboxlab`.
 It installs alongside the existing launcher and Google navigation lab.
@@ -59,3 +59,11 @@ Provider references:
 - https://docs.mapbox.com/android/navigation/guides/install/
 - https://docs.mapbox.com/map-styles/reference/standard/
 - https://docs.mapbox.com/api/search/geocoding/
+
+## Native crash investigation (0.1.2)
+
+The supplied OnePlus Android 16 report identifies REASON_CRASH_NATIVE / signal 6 after replay startup, without a Java exception. It does not identify the faulting library. This build reads Android 12+ native tombstone summaries (abort message and crashing-thread frames only), locally and on demand. Open View / copy crash report immediately after updating to recover a retained earlier crash. No need to start navigation first.
+
+Opening the map no longer automatically starts a trip session. Demo requests a route, prepares replay events and then starts replay; GPS starts live tracking. This separates map rendering from session activation for diagnosis. A confirmed native-crash fix is still pending the detailed trace.
+
+Schema reference: https://android.googlesource.com/platform/system/core/+/refs/heads/main/debuggerd/proto/tombstone.proto

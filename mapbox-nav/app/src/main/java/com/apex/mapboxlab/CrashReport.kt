@@ -1,6 +1,7 @@
 package com.apex.mapboxlab
 
 import android.app.ActivityManager
+import android.app.ApplicationExitInfo
 import android.content.Context
 import android.os.Build
 import java.io.File
@@ -30,8 +31,24 @@ object CrashReport {
         appendLine("Stage time: ${prefs.getLong("time", 0)}")
         if (Build.VERSION.SDK_INT >= 30) runCatching {
             val manager = app.getSystemService(ActivityManager::class.java)
-            manager.getHistoricalProcessExitReasons(app.packageName, 0, 3).forEach {
+            manager.getHistoricalProcessExitReasons(app.packageName, 0, 5).forEachIndexed { index, it ->
                 appendLine("Process exit: reason=${it.reason}, status=${it.status}, time=${it.timestamp}, ${clean(it.description.orEmpty())}")
+                if (Build.VERSION.SDK_INT >= 31 && it.reason == ApplicationExitInfo.REASON_CRASH_NATIVE && index < 3) {
+                    val native = runCatching {
+                        it.traceInputStream?.use { input ->
+                            val out = java.io.ByteArrayOutputStream()
+                            val buffer = ByteArray(8192)
+                            while (true) {
+                                val count = input.read(buffer)
+                                if (count < 0) break
+                                require(out.size() + count <= NativeTombstone.MAX_BYTES) { "Trace exceeds size limit" }
+                                out.write(buffer, 0, count)
+                            }
+                            NativeTombstone.summarize(out.toByteArray())
+                        } ?: "Android no longer has a native trace for this exit."
+                    }.getOrElse { error -> "Native trace unavailable: ${error.javaClass.simpleName}" }
+                    appendLine(clean(native))
+                }
             }
         }
         val crash = File(app.filesDir, "last-crash.txt")

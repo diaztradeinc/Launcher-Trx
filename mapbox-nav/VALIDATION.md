@@ -20,3 +20,10 @@ The delivered build is a device-test prototype. No claim is made of Ottocast fra
 - Local compilation and three unit tests pass with the embedded token intentionally empty, matching CI.
 - Exact 0.1.0 signed APK launches in the offline emulator; device-specific online failure is not reproduced. Earlier emulator SystemUI crashes at high density are separate from this app. No claim of a confirmed device crash fix.
 - Device test: install 0.1.1 as an update; leave truck off; open simulation and live GPS. If either closes, reopen setup and copy diagnostics. Record the device and Android version.
+
+## 0.1.2 native crash diagnostics
+
+- Device report: OnePlus CPH2551, Android 16, arm64; exit reason 5 / status 6 after Starting replay session. No Java stack. Faulting library is unknown until native trace is available.
+- Added bounded, selective AOSP tombstone decoding and asynchronous local report reading. Tests cover crashing-thread selection, omission of memory/log data, unknown fields and malformed/oversized records.
+- Removed automatic trip activation on map entry; replay begins after Demo returns a route and events are prepared. Live trip begins with GPS.
+- Local empty-token build and six unit tests pass. No Android 16 runtime verification or claimed root-cause fix.

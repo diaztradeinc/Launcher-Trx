@@ -71,6 +71,7 @@ class NavigationActivity : AppCompatActivity() {
     private var replayObserver: ReplayProgressObserver? = null
     private var attachedNav: MapboxNavigation? = null
     private var active = false
+    private var sessionRequested = false
     private var styleReady = false
     private var observingNavigation = false
     private var night = true
@@ -208,7 +209,7 @@ class NavigationActivity : AppCompatActivity() {
                         mapboxNavigation.registerRouteProgressObserver(it)
                     }
                 }
-                startSession()
+                if (sessionRequested) startSession()
     }
 
     private fun evaluateViewport() {
@@ -270,7 +271,7 @@ class NavigationActivity : AppCompatActivity() {
             styleReady = true
             evaluateViewport()
             attachedNav?.let { attachNavigationObservers(it) }
-            status.text = if (simulation) "SIMULATION · Tap Demo to start" else "Map ready · waiting for GPS"
+            status.text = if (simulation) "SIMULATION · Tap Demo to start" else "Map ready · Tap GPS to connect"
         }
         map.gestures.addOnMapLongClickListener { point ->
             confirmDestination(point, "Selected map point")
@@ -290,18 +291,19 @@ class NavigationActivity : AppCompatActivity() {
     private fun startSession() {
         val nav = attachedNav ?: return
         if (!styleReady || !observingNavigation) return
-        CrashReport.stage(if (simulation) "Starting replay session" else "Starting live session")
+        if (!sessionRequested) return
         if (simulation) {
+            if (!active) return
+            CrashReport.stage("Replay: enabling trip session")
             nav.startReplayTripSession(withForegroundService = false)
-            if (!active) {
-                nav.mapboxReplayer.clearEvents()
-                nav.mapboxReplayer.pushEvents(listOf(ReplayRouteMapper.mapToUpdateLocation(Date().time.toDouble(), origin)))
-                nav.mapboxReplayer.playFirstLocation()
-            }
+            CrashReport.stage("Replay: trip enabled; starting prepared route events")
             nav.mapboxReplayer.play()
+            CrashReport.stage("Replay: playback requested")
         } else if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
             rawFixTime = 0
+            CrashReport.stage("Live GPS: enabling trip session")
             nav.startTripSession(withForegroundService = false)
+            CrashReport.stage("Live GPS: trip enabled")
         } else {
             status.text = "Precise location permission is required for live guidance"
             if (!permissionRequested) {
@@ -361,7 +363,8 @@ class NavigationActivity : AppCompatActivity() {
                         nav.mapboxReplayer.clearEvents()
                         nav.mapboxReplayer.pushEvents(events)
                         nav.mapboxReplayer.seekTo(events.first())
-                        nav.mapboxReplayer.play()
+                        sessionRequested = true
+                        startSession()
                     }
                     camera.requestNavigationCameraToFollowing()
                 }
@@ -413,7 +416,7 @@ class NavigationActivity : AppCompatActivity() {
 
     private fun settings() {
         val metrics = resources.displayMetrics
-        AlertDialog.Builder(UiScale.context(this)).setTitle("Mapbox Lab 0.1.1")
+        AlertDialog.Builder(UiScale.context(this)).setTitle("Mapbox Lab 0.1.2")
             .setItems(arrayOf(if (night) "Switch to day" else "Switch to night", if (buildings) "Hide 3D scenery" else "Show 3D scenery", "Display and prototype details", "Return to token / mode setup")) { _, index ->
                 when (index) {
                     0 -> { night = !night; applyStyle() }
@@ -455,7 +458,7 @@ class NavigationActivity : AppCompatActivity() {
         button("End", "End navigation", 330f, 602f, 78f, 47f, true) { endRoute() }
         button("Find", "Find address", 12f, 659f, 92f, 49f) { search() }
         button(if (simulation) "Demo" else "GPS", "Start demo or recenter GPS", 113f, 659f, 92f, 49f) {
-            if (simulation) requestRoute(demoDestination) else if (fresh && styleReady) camera.requestNavigationCameraToFollowing() else { permissionRequested = false; startSession() }
+            if (simulation) requestRoute(demoDestination) else if (fresh && styleReady) camera.requestNavigationCameraToFollowing() else { sessionRequested = true; permissionRequested = false; startSession() }
         }
         button("Overview", "Route overview", 214f, 659f, 92f, 49f) { if (styleReady) camera.requestNavigationCameraToOverview() }
         button("Setup", "Map settings", 315f, 659f, 93f, 49f) { settings() }
