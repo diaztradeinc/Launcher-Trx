@@ -6,8 +6,8 @@ android {
         applicationId = "com.diaztradeinc.trxmapboxlab"
         minSdk = 26
         targetSdk = 35
-        versionCode = 4
-        versionName = "0.1.3"
+        versionCode = 5
+        versionName = "0.2.0"
         resValue("string", "mapbox_public_token", (System.getenv("MAPBOX_PUBLIC_TOKEN") ?: "").trim())
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64") }

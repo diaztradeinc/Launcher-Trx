@@ -1,4 +1,4 @@
-# TRX APEX Mapbox Lab 0.1.3
+# TRX APEX Mapbox Lab 0.2.0
 
 Standalone Android prototype: `com.diaztradeinc.trxmapboxlab`.
 It installs alongside the existing launcher and Google navigation lab.
@@ -7,9 +7,9 @@ It installs alongside the existing launcher and Google navigation lab.
 
 1. Install the device-test APK and open **TRX Mapbox Lab**.
 2. A privately configured build has the public token filled in. Otherwise paste your own Mapbox `pk.` token. Secret `sk.` tokens are rejected.
-3. Choose **Open 3D route simulation**, wait for the map, then tap **Demo**.
+3. Choose **Open 3D route simulation**, wait for the map, then tap **Demo**, inspect the preview, and tap **Start**.
 4. Keep the experimental truck checkbox off for the first test. Check the route, default location marker, buildings, turn banner, voice, overview and End. The bundled truck can be enabled separately after the base map is stable.
-5. Use **Setup → Return to token / mode setup** and choose **Open live GPS test** for a separate GPS session. Grant precise location. Find an address, select a result, and confirm Navigate. Long-pressing the map also selects a destination.
+5. Use **Setup → Return to token / mode setup** and choose **Open live GPS test** for a separate GPS session. Grant precise location. Find an address, select a result, preview the route, then tap Start. Long-pressing the map also selects a destination.
 
 Simulation always starts in Seattle and never consumes live GPS. Live mode never silently substitutes simulated positions. This version pauses the trip session when backgrounded; keep it foregrounded for testing. End clears guidance and ignores late route responses. Stale live positions suppress spoken and displayed instructions after eight seconds.
 
@@ -32,7 +32,7 @@ Token initialization now occurs before navigation activity construction. Camera 
 
 ## Honest limits
 
-This is a device-test prototype, not a tested replacement for a navigation app. A passing compilation or server API check does not establish map rendering, correct vehicle orientation, on-road behavior, location source quality or Ottocast performance. The pickup is our existing original low-poly proxy, not a licensed detailed RAM model. 3D Lanes, lane-specific vehicle placement and accurate elevated road meshes are not included. Coverage depends on Mapbox. Background navigation, business/POI autocomplete and saved destinations are later work.
+This is a device-test prototype, not a tested replacement for a navigation app. A passing compilation or server API check does not establish map rendering, correct vehicle orientation, on-road behavior, location source quality or Ottocast performance. The pickup is our existing original low-poly proxy, not a licensed detailed RAM model. 3D Lanes, lane-specific vehicle placement and accurate elevated road meshes are not included. Coverage depends on Mapbox. Background navigation and business/POI autocomplete are not included. Saved addresses contain user-entered text only and are searched again when used.
 
 ## Build
 
@@ -71,3 +71,9 @@ Schema reference: https://android.googlesource.com/platform/system/core/+/refs/h
 ## Map surface sizing fix (0.1.3)
 
 The device trace reports an uncaught native `failed to resize: size is empty` exception. The HUD layout was inserting MapView at 1x1 physical pixels, then resizing it from a post-layout listener. This is unsafe at high map pixel ratios. MapView now receives realistic initial dimensions, child bounds are applied before measurement, and transient dimensions are clamped to at least two logical map pixels. Existing layout proportions and map pixel ratio are preserved. The local report also includes measured map dimensions and ratio. Device confirmation is still required.
+
+## Complete foreground trip flow (0.2.0)
+
+Preserves the working 0.1.3 map surface layout. Adds route preview with time/distance, provider-returned alternatives, explicit Start, turn list through Trip, end-trip confirmation, persistent arrival display, Home/Work and named saved addresses, plus persistent day/night, scenery and voice preferences. Only user-authored address strings are saved; temporary geocoder labels and coordinates are never persisted. Saved addresses are resolved again online. Alternatives are offered only when returned by Mapbox.
+
+Device acceptance: preview and cancel a demo, choose an alternative if available, start and finish demo, verify arrival persists; save/edit/remove Home; restart and verify preferences; connect precise live GPS then preview/start a short trip; background/resume and confirm the documented foreground-only behavior. This is a feature-complete foreground test build, not an assertion of road validation or background guidance.

@@ -71,6 +71,12 @@ class NavigationActivity : AppCompatActivity() {
     private var replayObserver: ReplayProgressObserver? = null
     private var attachedNav: MapboxNavigation? = null
     private var active = false
+    private var previewRoutes = emptyList<NavigationRoute>()
+    private var selectedRoute = 0
+    private var destinationLabel = "Destination"
+    private var arrived = false
+    private lateinit var routeButton: TextView
+    private val preferences by lazy { getSharedPreferences("navigation-preferences", MODE_PRIVATE) }
     private var sessionRequested = false
     private var styleReady = false
     private var observingNavigation = false
@@ -100,9 +106,9 @@ class NavigationActivity : AppCompatActivity() {
     private var layoutHeight = 720f
     private val staleCheck = object : Runnable {
         override fun run() {
-            if (!simulation && !fresh) {
+            if (!simulation && sessionRequested && !fresh) {
                 status.text = "Waiting for fresh GPS · guidance paused"
-                guidance.text = "Location unavailable\nKeep the map open to reconnect"
+                if (!arrived && previewRoutes.isEmpty()) guidance.text = "Location unavailable\nKeep the map open to reconnect"
                 speech?.stop()
             }
             handler.postDelayed(this, 1_000)
@@ -124,8 +130,8 @@ class NavigationActivity : AppCompatActivity() {
                 hasCentered = true
                 camera.requestNavigationCameraToFollowing()
             }
-            status.text = if (simulation) "SIMULATION · NOT LIVE GPS" else "LIVE GPS · ${if (active) "Guidance active" else "Choose a destination"}"
-            if (!active) guidance.text = "Where to?\nFind an address or hold a point on the map"
+            if (previewRoutes.isEmpty() && !arrived) status.text = if (simulation) "SIMULATION · NOT LIVE GPS" else "LIVE GPS · ${if (active) "Guidance active" else "Choose a destination"}"
+            if (!active && previewRoutes.isEmpty() && !arrived) guidance.text = "Where to?\nFind an address or hold a point on the map"
         }
     }
 
@@ -141,8 +147,12 @@ class NavigationActivity : AppCompatActivity() {
             trip.text = "$eta arrival   ·   ${kotlin.math.ceil(progress.durationRemaining / 60).toInt()} min   ·   ${PrototypePolicy.formatDistance(progress.distanceRemaining.toDouble())}"
             map.mapboxMap.style?.let { arrowView.renderManeuverUpdate(it, arrowApi.addUpcomingManeuverArrow(progress)) }
             if (progress.currentState == com.mapbox.navigation.base.trip.model.RouteProgressState.COMPLETE) {
+                val reached = destinationLabel
                 endRoute()
-                guidance.text = "You have arrived\nChoose another destination when ready"
+                arrived = true
+                guidance.text = "You have arrived\n$reached"
+                trip.text = "Trip complete"
+                if (voice && speechReady) speech?.speak("You have arrived at your destination", TextToSpeech.QUEUE_FLUSH, null, "arrival")
             }
         }
     }
@@ -161,6 +171,8 @@ class NavigationActivity : AppCompatActivity() {
             }
             viewport.onRouteChanged(update.navigationRoutes.first())
             evaluateViewport()
+        } else if (previewRoutes.isNotEmpty()) {
+            showPreview()
         } else {
             map.mapboxMap.style?.let { style ->
                 lineApi.clearRouteLine { if (!isDestroyed && renderRequests.current(renderEpoch)) lineView.renderClearRouteLineValue(style, it) }
@@ -224,6 +236,9 @@ class NavigationActivity : AppCompatActivity() {
         if (!PrototypePolicy.publicTokenValid(token)) { finish(); return }
         MapboxOptions.accessToken = token
         simulation = intent.getBooleanExtra("simulation", true)
+        night = preferences.getBoolean("night", true)
+        buildings = preferences.getBoolean("buildings", true)
+        voice = preferences.getBoolean("voice", true)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         window.statusBarColor = Color.BLACK
         window.navigationBarColor = Color.BLACK
@@ -327,12 +342,12 @@ class NavigationActivity : AppCompatActivity() {
     private fun confirmDestination(point: Point, label: String) {
         if (attachedNav == null || !styleReady) { toast("Wait for the map to finish loading"); return }
         AlertDialog.Builder(UiScale.context(this)).setTitle(label)
-            .setMessage(if (simulation) "Simulate a route from the Seattle demo origin?" else "Navigate from your current GPS position?")
-            .setPositiveButton(if (simulation) "Simulate" else "Navigate") { _, _ -> requestRoute(point) }
+            .setMessage(if (simulation) "Preview a simulated drive from Seattle?" else "Preview a drive from your current location?")
+            .setPositiveButton("Preview route") { _, _ -> requestRoute(point, label) }
             .setNegativeButton("Cancel", null).show()
     }
 
-    private fun requestRoute(destination: Point) {
+    private fun requestRoute(destination: Point, label: String = "Seattle demo") {
         val nav = attachedNav ?: return
         if (!styleReady) { toast("Map is still loading"); return }
         if (!simulation && (!fresh || currentLocation == null)) { toast("Waiting for a fresh GPS position"); return }
@@ -340,9 +355,10 @@ class NavigationActivity : AppCompatActivity() {
         endRoute()
         val epoch = requests.next()
         pendingDestination = destination
+        destinationLabel = label
         status.text = "Finding route…"
         nav.requestRoutes(RouteOptions.builder().applyDefaultNavigationOptions()
-            .applyLanguageAndVoiceUnitOptions(this).coordinatesList(listOf(start, destination)).build(),
+            .applyLanguageAndVoiceUnitOptions(this).coordinatesList(listOf(start, destination)).alternatives(true).build(),
             object : NavigationRouterCallback {
                 override fun onCanceled(routeOptions: RouteOptions, routerOrigin: String) {
                     if (requests.current(epoch)) status.text = "Route request canceled · choose a destination"
@@ -354,22 +370,81 @@ class NavigationActivity : AppCompatActivity() {
                     if (!requests.current(epoch) || isDestroyed || attachedNav == null) return
                     if (routes.isEmpty()) { status.text = "No drivable route found"; return }
                     if (!simulation && !fresh) { status.text = "GPS became stale · choose destination again after reconnecting"; return }
-                    active = true
-                    nav.setNavigationRoutes(routes)
-                    guidance.text = "Starting guidance…"
-                    if (simulation) {
-                        val events = ReplayRouteMapper().mapDirectionsRouteGeometry(routes.first().directionsRoute)
-                        if (events.isEmpty()) { endRoute(); status.text = "Route has no replay geometry"; return }
-                        nav.mapboxReplayer.stop()
-                        nav.mapboxReplayer.clearEvents()
-                        nav.mapboxReplayer.pushEvents(events)
-                        nav.mapboxReplayer.seekTo(events.first())
-                        sessionRequested = true
-                        startSession()
-                    }
-                    camera.requestNavigationCameraToFollowing()
+                    previewRoutes = routes
+                    selectedRoute = 0
+                    showPreview()
+
                 }
             })
+    }
+
+    private fun routeSummary(route: NavigationRoute): String {
+        val directions = route.directionsRoute
+        return "${kotlin.math.ceil(directions.duration() / 60).toInt()} min · ${PrototypePolicy.formatDistance(directions.distance())}"
+    }
+
+    private fun showPreview() {
+        val route = previewRoutes.getOrNull(selectedRoute) ?: return
+        val epoch = renderRequests.next()
+        lineApi.setNavigationRoutes(listOf(route)) { draw ->
+            if (!isDestroyed && renderRequests.current(epoch)) map.mapboxMap.style?.let { lineView.renderRouteDrawData(it, draw) }
+        }
+        viewport.onRouteChanged(route)
+        evaluateViewport()
+        camera.requestNavigationCameraToOverview()
+        guidance.text = "Route preview\n$destinationLabel"
+        trip.text = "${routeSummary(route)} · Tap Start"
+        status.text = "${if (simulation) "SIMULATION" else "LIVE GPS"} · Route ${selectedRoute + 1} of ${previewRoutes.size}"
+        routeButton.text = "Start"
+    }
+
+    private fun startPreview() {
+        val nav = attachedNav ?: return
+        val route = previewRoutes.getOrNull(selectedRoute) ?: return
+        if (!simulation && !fresh) { toast("Reconnect GPS before starting"); return }
+        if (simulation) {
+            val events = ReplayRouteMapper().mapDirectionsRouteGeometry(route.directionsRoute)
+            if (events.isEmpty()) { toast("Route has no replay geometry"); return }
+            nav.mapboxReplayer.stop()
+            nav.mapboxReplayer.clearEvents()
+            nav.mapboxReplayer.pushEvents(events)
+            nav.mapboxReplayer.seekTo(events.first())
+        }
+        previewRoutes = emptyList()
+        active = true
+        arrived = false
+        nav.setNavigationRoutes(listOf(route))
+        sessionRequested = true
+        startSession()
+        routeButton.text = "Trip"
+        guidance.text = "Starting guidance…\n$destinationLabel"
+        camera.requestNavigationCameraToFollowing()
+    }
+
+    private fun tripMenu() {
+        if (previewRoutes.isNotEmpty()) {
+            AlertDialog.Builder(UiScale.context(this)).setTitle("Choose your route")
+                .setSingleChoiceItems(previewRoutes.mapIndexed { i, r -> "Route ${i + 1} · ${routeSummary(r)}" }.toTypedArray(), selectedRoute) { _, i ->
+                    selectedRoute = i; showPreview()
+                }.setPositiveButton(if (simulation) "Start demo" else "Start drive") { _, _ -> startPreview() }
+                .setNeutralButton("Turns") { _, _ -> showTurns(previewRoutes.getOrNull(selectedRoute)) }
+                .setNegativeButton("Close", null).show()
+        } else if (active) {
+            showTurns(attachedNav?.getNavigationRoutes()?.firstOrNull())
+        } else if (styleReady) camera.requestNavigationCameraToOverview()
+    }
+
+    private fun showTurns(route: NavigationRoute?) {
+        val turns = route?.directionsRoute?.legs().orEmpty().flatMap { it.steps().orEmpty() }
+            .map { "${turnSymbol(it.maneuver().modifier())} ${it.maneuver().instruction().orEmpty()} · ${PrototypePolicy.formatDistance(it.distance())}" }
+        AlertDialog.Builder(UiScale.context(this)).setTitle(destinationLabel)
+            .setItems(turns.toTypedArray(), null).setPositiveButton("Close", null).show()
+    }
+
+    private fun confirmEnd() {
+        if (!active && previewRoutes.isEmpty()) { endRoute(); return }
+        AlertDialog.Builder(UiScale.context(this)).setTitle("End this trip?")
+            .setPositiveButton("End trip") { _, _ -> endRoute() }.setNegativeButton("Keep trip", null).show()
     }
 
     private fun endRoute() {
@@ -378,9 +453,16 @@ class NavigationActivity : AppCompatActivity() {
         searchRequests.next()
         searchClient?.cancel()
         pendingDestination = null
+        previewRoutes = emptyList()
+        arrived = false
+        routeButton.text = "Trip"
         active = false
         attachedNav?.setNavigationRoutes(emptyList())
-        if (simulation) { attachedNav?.mapboxReplayer?.stop(); attachedNav?.mapboxReplayer?.clearEvents() }
+        if (simulation) {
+            sessionRequested = false
+            attachedNav?.mapboxReplayer?.stop(); attachedNav?.mapboxReplayer?.clearEvents()
+            attachedNav?.stopTripSession()
+        }
         speech?.stop()
         guidance.text = "Where to?\nFind an address or hold a point on the map"
         trip.text = "No active route"
@@ -388,42 +470,80 @@ class NavigationActivity : AppCompatActivity() {
     }
 
     private fun applyStyle() {
+        preferences.edit().putBoolean("night", night).putBoolean("buildings", buildings).apply()
+        if (!::map.isInitialized) return
         map.mapboxMap.setStyleImportConfigProperty("basemap", "lightPreset", Value(if (night) "night" else "day"))
         map.mapboxMap.setStyleImportConfigProperty("basemap", "show3dObjects", Value(buildings))
     }
 
     private fun search() {
-        val input = EditText(UiScale.context(this)).apply { hint = "Address or city"; setSingleLine(true) }
-        AlertDialog.Builder(UiScale.context(this)).setTitle("Find an address").setView(input)
-            .setPositiveButton("Find") { _, _ ->
-                val query = input.text.toString().trim()
-                if (query.length < 3) { toast("Enter at least three characters"); return@setPositiveButton }
-                status.text = "Searching addresses…"
-                val searchEpoch = searchRequests.next()
-                searchClient?.search(query) { result ->
-                    runOnUiThread {
-                        if (!searchRequests.current(searchEpoch) || isDestroyed || isFinishing || !lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED)) return@runOnUiThread
-                        result.fold(onSuccess = { places ->
-                            status.text = if (simulation) "SIMULATION · Choose a result" else "LIVE GPS · Choose a result"
-                            if (places.isEmpty()) toast("No addresses found")
-                            else AlertDialog.Builder(UiScale.context(this)).setTitle("Choose destination")
-                                .setItems(places.map { it.label }.toTypedArray()) { _, index -> confirmDestination(places[index].point, places[index].label) }
-                                .setNegativeButton("Cancel", null).show()
-                        }, onFailure = { status.text = "Address search unavailable · check connection and token" })
+        val choices = arrayOf("Find an address", "Home", "Work", "Saved addresses")
+        AlertDialog.Builder(UiScale.context(this)).setTitle("Where to?")
+            .setItems(choices) { _, i ->
+                when (i) {
+                    0 -> addressInput()
+                    1 -> savedAddress("Home")
+                    2 -> savedAddress("Work")
+                    3 -> {
+                        val keys = preferences.all.keys.filter { it.startsWith("address:") }.sorted()
+                        AlertDialog.Builder(UiScale.context(this)).setTitle("Saved addresses")
+                            .setItems(keys.map { it.removePrefix("address:") }.toTypedArray()) { _, n -> savedAddress(keys[n].removePrefix("address:")) }
+                            .setPositiveButton("Add address") { _, _ ->
+                                val name = EditText(UiScale.context(this)).apply { hint = "Name"; setSingleLine(true) }
+                                AlertDialog.Builder(UiScale.context(this)).setTitle("Name this place").setView(name)
+                                    .setPositiveButton("Next") { _, _ -> name.text.toString().trim().takeIf { it.isNotEmpty() }?.let { addressInput(it) } }
+                                    .setNegativeButton("Cancel", null).show()
+                            }.setNegativeButton("Close", null).show()
                     }
                 }
             }.setNegativeButton("Cancel", null).show()
     }
 
+    private fun savedAddress(name: String) {
+        val query = preferences.getString("address:$name", null)
+        if (query == null) { addressInput(name); return }
+        AlertDialog.Builder(UiScale.context(this)).setTitle(name).setMessage(query)
+            .setPositiveButton("Find route") { _, _ -> findAddress(query) }
+            .setNeutralButton("Edit") { _, _ -> addressInput(name, query) }
+            .setNegativeButton("Remove") { _, _ -> preferences.edit().remove("address:$name").apply() }.show()
+    }
+
+    private fun addressInput(saveAs: String? = null, existing: String = "") {
+        val input = EditText(UiScale.context(this)).apply { hint = "Street address and city"; setSingleLine(true); setText(existing) }
+        AlertDialog.Builder(UiScale.context(this)).setTitle(saveAs?.let { "$it address" } ?: "Find an address").setView(input)
+            .setPositiveButton(if (saveAs == null) "Find" else "Save and find") { _, _ ->
+                val query = input.text.toString().trim()
+                if (query.length < 3) { toast("Enter at least three characters"); return@setPositiveButton }
+                // Save only user-authored text. Provider results remain temporary.
+                if (saveAs != null) preferences.edit().putString("address:$saveAs", query).apply()
+                findAddress(query)
+            }.setNegativeButton("Cancel", null).show()
+    }
+
+    private fun findAddress(query: String) {
+        status.text = "Searching addresses…"
+        val searchEpoch = searchRequests.next()
+        searchClient?.search(query) { result -> runOnUiThread {
+            if (!searchRequests.current(searchEpoch) || isDestroyed || isFinishing || !lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED)) return@runOnUiThread
+            result.fold(onSuccess = { places ->
+                status.text = if (simulation) "SIMULATION · Choose a result" else "LIVE GPS · Choose a result"
+                if (places.isEmpty()) toast("No addresses found")
+                else AlertDialog.Builder(UiScale.context(this)).setTitle("Choose destination")
+                    .setItems(places.map { it.label }.toTypedArray()) { _, index -> confirmDestination(places[index].point, places[index].label) }
+                    .setNegativeButton("Cancel", null).show()
+            }, onFailure = { status.text = "Address search unavailable · check connection and token" })
+        } }
+    }
+
     private fun settings() {
         val metrics = resources.displayMetrics
-        AlertDialog.Builder(UiScale.context(this)).setTitle("Mapbox Lab 0.1.3")
+        AlertDialog.Builder(UiScale.context(this)).setTitle("TRX Navigation 0.2.0")
             .setItems(arrayOf(if (night) "Switch to day" else "Switch to night", if (buildings) "Hide 3D scenery" else "Show 3D scenery", "Display and prototype details", "Return to token / mode setup")) { _, index ->
                 when (index) {
                     0 -> { night = !night; applyStyle() }
                     1 -> { buildings = !buildings; applyStyle() }
                     2 -> AlertDialog.Builder(UiScale.context(this)).setTitle("Device details")
-                        .setMessage("Viewport: ${map.width} × ${map.height} px\nAndroid density: ${metrics.densityDpi} dpi\nMapbox Standard · Navigation SDK 3.31.1\n\nNative map and pixel-scaled controls. Original low-poly pickup proxy. Buildings depend on provider coverage. No 3D Lanes private-preview data. Guidance pauses in the background. Device render performance remains unverified.")
+                        .setMessage("Viewport: ${map.width} × ${map.height} px\nAndroid density: ${metrics.densityDpi} dpi\nMapbox Standard · Navigation SDK 3.31.1\n\nNative map and pixel-scaled controls. Original low-poly pickup proxy. Buildings depend on provider coverage. No 3D Lanes private-preview data. Guidance pauses in the background. Live road guidance requires device validation.")
                         .setPositiveButton("OK", null).show()
                     3 -> finish()
                 }
@@ -456,18 +576,18 @@ class NavigationActivity : AppCompatActivity() {
         button("◎", "Recenter", 352f, 59f, 56f, 52f) { if (styleReady) camera.requestNavigationCameraToFollowing() }
         button("☼", "Day or night map", 352f, 121f, 56f, 52f) { night = !night; applyStyle() }
         var voiceButton: TextView? = null
-        voiceButton = button("Voice", "Toggle voice guidance", 352f, 183f, 56f, 52f) {
-            voice = !voice; voiceButton?.text = if (voice) "Voice" else "Muted"
+        voiceButton = button(if (voice) "Voice" else "Muted", "Toggle voice guidance", 352f, 183f, 56f, 52f) {
+            voice = !voice; preferences.edit().putBoolean("voice", voice).apply(); voiceButton?.text = if (voice) "Voice" else "Muted"
             if (!voice) speech?.stop()
             if (voice && !speechReady) toast("English speech engine is not ready on this device")
         }
         trip = label("No active route", 12f, 602f, 308f, 47f, 14f)
-        button("End", "End navigation", 330f, 602f, 78f, 47f, true) { endRoute() }
+        button("End", "End navigation", 330f, 602f, 78f, 47f, true) { confirmEnd() }
         button("Find", "Find address", 12f, 659f, 92f, 49f) { search() }
         button(if (simulation) "Demo" else "GPS", "Start demo or recenter GPS", 113f, 659f, 92f, 49f) {
             if (simulation) requestRoute(demoDestination) else if (fresh && styleReady) camera.requestNavigationCameraToFollowing() else { sessionRequested = true; permissionRequested = false; startSession() }
         }
-        button("Overview", "Route overview", 214f, 659f, 92f, 49f) { if (styleReady) camera.requestNavigationCameraToOverview() }
+        routeButton = button("Trip", "Start preview or review trip", 214f, 659f, 92f, 49f) { tripMenu() }
         button("Setup", "Map settings", 315f, 659f, 93f, 49f) { settings() }
         frame.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> updateViewportPadding() }
     }

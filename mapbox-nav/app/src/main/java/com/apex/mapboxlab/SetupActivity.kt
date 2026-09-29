@@ -21,7 +21,7 @@ class SetupActivity : AppCompatActivity() {
             setPadding(0, 12, 0, 12); body.addView(this)
         }
         label("TRX APEX · MAPBOX LAB", 24f)
-        label("0.1.3 · Map surface sizing fix", 16f)
+        label("0.2.0 · Route preview and saved addresses", 16f)
         label("Enter your Mapbox public access token (starts with pk.). It stays in this app on this device. Do not enter a secret token. Maps, search and route simulation require internet and use your Mapbox account.", 16f)
         val token = EditText(ui).apply {
             hint = "Mapbox public token: pk.…"
