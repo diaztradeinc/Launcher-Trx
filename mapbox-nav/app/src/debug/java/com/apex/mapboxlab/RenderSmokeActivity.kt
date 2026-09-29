@@ -28,7 +28,7 @@ class RenderSmokeActivity : AppCompatActivity() {
         val root = FrameLayout(this)
         root.addView(map)
         val message = TextView(context).apply { text = "OFFLINE RENDER CHECK · NOT NAVIGATION"; setTextColor(Color.WHITE); setBackgroundColor(Color.BLACK) }
-        root.addView(message)
+        root.addView(message, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT))
         setContentView(root)
         val point = Point.fromLngLat(-122.33517,47.6080)
         map.mapboxMap.setCamera(CameraOptions.Builder().center(point).zoom(19.0).pitch(55.0).build())
