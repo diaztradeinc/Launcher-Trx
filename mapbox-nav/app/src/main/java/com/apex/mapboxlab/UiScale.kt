@@ -14,6 +14,9 @@ object UiScale {
         val scale = min(metrics.widthPixels / 420f, metrics.heightPixels / 720f).coerceAtLeast(.5f)
         val config = Configuration(base.resources.configuration)
         config.densityDpi = (160 * scale).roundToInt()
-        return android.view.ContextThemeWrapper(base.createConfigurationContext(config), R.style.AppTheme)
+        // Keep the Activity in the ContextWrapper chain for attribution dialogs and SDK plugins.
+        return android.view.ContextThemeWrapper(base, R.style.AppTheme).apply {
+            applyOverrideConfiguration(config)
+        }
     }
 }
