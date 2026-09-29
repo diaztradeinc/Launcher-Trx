@@ -22,12 +22,21 @@ object CrashReport {
         app.getSharedPreferences("startup-diagnostics", Context.MODE_PRIVATE).edit()
             .putString("stage", value).putLong("time", System.currentTimeMillis()).commit()
     }
+    private var lastSurface = ""
+    fun surface(width: Int, height: Int, pixelRatio: Float) {
+        val value = "${width}x${height} px, ratio=$pixelRatio"
+        if (value == lastSurface) return
+        lastSurface = value
+        app.getSharedPreferences("startup-diagnostics", Context.MODE_PRIVATE).edit()
+            .putString("surface", value).commit()
+    }
     fun read(): String = buildString {
         val info = app.packageManager.getPackageInfo(app.packageName, 0)
         appendLine("TRX Mapbox Lab ${info.versionName}")
         appendLine("${Build.MANUFACTURER} ${Build.MODEL} · Android ${Build.VERSION.RELEASE} · ${Build.SUPPORTED_ABIS.joinToString()}")
         val prefs = app.getSharedPreferences("startup-diagnostics", Context.MODE_PRIVATE)
         appendLine("Last stage: ${prefs.getString("stage", "Not started")}")
+        appendLine("Map surface: ${prefs.getString("surface", "Not recorded")}")
         appendLine("Stage time: ${prefs.getLong("time", 0)}")
         if (Build.VERSION.SDK_INT >= 30) runCatching {
             val manager = app.getSystemService(ActivityManager::class.java)

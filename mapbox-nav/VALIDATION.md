@@ -27,3 +27,10 @@ The delivered build is a device-test prototype. No claim is made of Ottocast fra
 - Added bounded, selective AOSP tombstone decoding and asynchronous local report reading. Tests cover crashing-thread selection, omission of memory/log data, unknown fields and malformed/oversized records.
 - Removed automatic trip activation on map entry; replay begins after Demo returns a route and events are prepared. Live trip begins with GPS.
 - Local empty-token build and six unit tests pass. No Android 16 runtime verification or claimed root-cause fix.
+
+## 0.1.3 map size correction
+
+- Fresh 0.1.2 device trace confirms the same native resize exception before replay (last stage Loading truck model). Last-stage labels are chronological breadcrumbs, not proof that the named component caused the native crash.
+- Removed 1x1 layout placeholders; apply child bounds in parent onMeasure before the SDK receives its first measured size. Clamp map dimensions against pixel ratio and retain valid bounds during zero-size parent transitions.
+- Nine local unit tests passed with an empty embedded token, including high-density/zero-size regression cases. Android compile/package passed.
+- Device-specific crash resolution and complete 3D navigation still require the user's OnePlus/Ottocast test.

@@ -95,6 +95,7 @@ class NavigationActivity : AppCompatActivity() {
     private val positioned = mutableListOf<Pair<View, FloatArray>>()
     private val textSizes = mutableMapOf<TextView, Float>()
     private val fresh: Boolean get() = simulation || PrototypePolicy.freshFix(System.currentTimeMillis(), rawFixTime)
+    private var mapPixelRatio = 1f
     private var layoutWidth = 420f
     private var layoutHeight = 720f
     private val staleCheck = object : Runnable {
@@ -416,7 +417,7 @@ class NavigationActivity : AppCompatActivity() {
 
     private fun settings() {
         val metrics = resources.displayMetrics
-        AlertDialog.Builder(UiScale.context(this)).setTitle("Mapbox Lab 0.1.2")
+        AlertDialog.Builder(UiScale.context(this)).setTitle("Mapbox Lab 0.1.3")
             .setItems(arrayOf(if (night) "Switch to day" else "Switch to night", if (buildings) "Hide 3D scenery" else "Show 3D scenery", "Display and prototype details", "Return to token / mode setup")) { _, index ->
                 when (index) {
                     0 -> { night = !night; applyStyle() }
@@ -430,14 +431,20 @@ class NavigationActivity : AppCompatActivity() {
     }
 
     private fun buildUi() {
-        frame = FrameLayout(this).apply { setBackgroundColor(Color.rgb(12, 17, 23)) }
+        frame = object : FrameLayout(this) {
+            override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+                // Assign actual child bounds BEFORE MapView is first measured/layouted.
+                layoutUi(View.MeasureSpec.getSize(widthMeasureSpec), View.MeasureSpec.getSize(heightMeasureSpec))
+                super.onMeasure(widthMeasureSpec, heightMeasureSpec)
+            }
+        }.apply { setBackgroundColor(Color.rgb(12, 17, 23)) }
         setContentView(frame)
         androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(frame) { v, insets ->
             val bars = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.systemBars())
             v.setPadding(bars.left, bars.top, bars.right, bars.bottom); insets
         }
         val metrics = resources.displayMetrics
-        val mapPixelRatio = min(metrics.widthPixels / 420f, metrics.heightPixels / 720f).coerceAtLeast(.5f)
+        mapPixelRatio = min(metrics.widthPixels / 420f, metrics.heightPixels / 720f).coerceAtLeast(.5f)
         val mapContext = UiScale.context(this)
         map = MapView(mapContext, MapInitOptions(mapContext, mapOptions = MapOptions.Builder().pixelRatio(mapPixelRatio).build()))
         map.setMaximumFps(30)
@@ -462,12 +469,17 @@ class NavigationActivity : AppCompatActivity() {
         }
         button("Overview", "Route overview", 214f, 659f, 92f, 49f) { if (styleReady) camera.requestNavigationCameraToOverview() }
         button("Setup", "Map settings", 315f, 659f, 93f, 49f) { settings() }
-        frame.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> layoutUi() }
+        frame.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> updateViewportPadding() }
     }
 
     private fun place(view: View, x: Float, y: Float, width: Float, height: Float) {
         positioned.add(view to floatArrayOf(x, y, width, height))
-        frame.addView(view, FrameLayout.LayoutParams(1, 1))
+        // Never insert the native map at a 1-pixel placeholder size.
+        val metrics = resources.displayMetrics
+        val initial = MapSurfaceSize.safe(
+            (width * metrics.widthPixels / layoutWidth).toInt(),
+            (height * metrics.heightPixels / layoutHeight).toInt(), mapPixelRatio)
+        frame.addView(view, FrameLayout.LayoutParams(initial.first, initial.second))
     }
     private fun label(text: String, x: Float, y: Float, w: Float, h: Float, size: Float): TextView {
         val view = TextView(this).apply {
@@ -486,16 +498,20 @@ class NavigationActivity : AppCompatActivity() {
             if (red) background = GradientDrawable().apply { setColor(Color.rgb(195, 28, 55)); cornerRadius = 14f }
             setOnClickListener { click() }
         }
-    private fun layoutUi() {
-        val w = (frame.width - frame.paddingLeft - frame.paddingRight).toFloat()
-        val h = (frame.height - frame.paddingTop - frame.paddingBottom).toFloat()
+    private fun layoutUi(parentWidth: Int, parentHeight: Int) {
+        val w = (parentWidth - frame.paddingLeft - frame.paddingRight).toFloat()
+        val h = (parentHeight - frame.paddingTop - frame.paddingBottom).toFloat()
         if (w <= 0 || h <= 0) return
         val sx = w / layoutWidth
         val sy = h / layoutHeight
         val textScale = min(sx, sy)
         positioned.forEach { (view, p) ->
             val lp = view.layoutParams as FrameLayout.LayoutParams
-            val vw = (p[2] * sx).toInt(); val vh = (p[3] * sy).toInt()
+            val requestedWidth = (p[2] * sx).toInt()
+            val requestedHeight = (p[3] * sy).toInt()
+            val size = if (view === map) MapSurfaceSize.safe(requestedWidth, requestedHeight, mapPixelRatio)
+                else requestedWidth.coerceAtLeast(1) to requestedHeight.coerceAtLeast(1)
+            val vw = size.first; val vh = size.second
             val vx = (p[0] * sx).toInt(); val vy = (p[1] * sy).toInt()
             if (lp.width != vw || lp.height != vh || lp.leftMargin != vx || lp.topMargin != vy) {
                 lp.width = vw; lp.height = vh; lp.leftMargin = vx; lp.topMargin = vy; view.layoutParams = lp
@@ -505,7 +521,11 @@ class NavigationActivity : AppCompatActivity() {
                 view.setPadding((10 * textScale).toInt(), 0, (10 * textScale).toInt(), 0)
             }
         }
-        if (::viewport.isInitialized) {
+    }
+    private fun updateViewportPadding() {
+        if (!::map.isInitialized) return
+        CrashReport.surface(map.width, map.height, mapPixelRatio)
+        if (::viewport.isInitialized && map.width > 1 && map.height > 1) {
             viewport.followingPadding = EdgeInsets(map.height * .35, map.width * .05, map.height * .08, map.width * .18)
             viewport.overviewPadding = EdgeInsets(map.height * .28, map.width * .08, map.height * .10, map.width * .18)
             evaluateViewport()

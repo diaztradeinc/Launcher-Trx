@@ -1,4 +1,4 @@
-# TRX APEX Mapbox Lab 0.1.2
+# TRX APEX Mapbox Lab 0.1.3
 
 Standalone Android prototype: `com.diaztradeinc.trxmapboxlab`.
 It installs alongside the existing launcher and Google navigation lab.
@@ -67,3 +67,7 @@ The supplied OnePlus Android 16 report identifies REASON_CRASH_NATIVE / signal 6
 Opening the map no longer automatically starts a trip session. Demo requests a route, prepares replay events and then starts replay; GPS starts live tracking. This separates map rendering from session activation for diagnosis. A confirmed native-crash fix is still pending the detailed trace.
 
 Schema reference: https://android.googlesource.com/platform/system/core/+/refs/heads/main/debuggerd/proto/tombstone.proto
+
+## Map surface sizing fix (0.1.3)
+
+The device trace reports an uncaught native `failed to resize: size is empty` exception. The HUD layout was inserting MapView at 1x1 physical pixels, then resizing it from a post-layout listener. This is unsafe at high map pixel ratios. MapView now receives realistic initial dimensions, child bounds are applied before measurement, and transient dimensions are clamped to at least two logical map pixels. Existing layout proportions and map pixel ratio are preserved. The local report also includes measured map dimensions and ratio. Device confirmation is still required.
