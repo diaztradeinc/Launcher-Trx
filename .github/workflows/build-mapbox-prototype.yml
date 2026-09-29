@@ -1,0 +1,56 @@
+name: Build TRX APEX Mapbox Lab
+on:
+  push:
+    branches: [prototype/mapbox-3d]
+    paths: ['mapbox-nav/**', '.github/workflows/build-mapbox-prototype.yml']
+  workflow_dispatch:
+concurrency:
+  group: mapbox-lab-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  device-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      MAPBOX_PUBLIC_TOKEN: ${{ secrets.MAPBOX_PUBLIC_TOKEN }}
+      APEX_KEYSTORE_BASE64: ${{ secrets.APEX_KEYSTORE_BASE64 }}
+      APEX_KEYSTORE_PASSWORD: ${{ secrets.APEX_KEYSTORE_PASSWORD }}
+      APEX_KEYSTORE_PATH: ${{ github.workspace }}/mapbox-nav/lab.jks
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.13'
+      - name: Prepare existing permanent key
+        shell: bash
+        run: |
+          test -n "$APEX_KEYSTORE_BASE64"
+          test -n "$APEX_KEYSTORE_PASSWORD"
+          printf '%s' "$APEX_KEYSTORE_BASE64" | base64 --decode > "$APEX_KEYSTORE_PATH"
+      - name: Compile and run unit tests
+        run: gradle -p mapbox-nav testDebugUnitTest assembleDebug --no-daemon
+      - name: Verify permanent signing identity
+        run: |
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --print-certs mapbox-nav/app/build/outputs/apk/debug/app-debug.apk | grep -Fi 'Signer #1 certificate SHA-1 digest: 0304af48b67072be313f17c2d8f7176d6c78d3bc'
+      - name: Save tests
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: TRX-Mapbox-Lab-v0.1.0-unit-tests
+          path: mapbox-nav/app/build/reports/tests/
+      - name: Save device-test APK (runtime not verified)
+        uses: actions/upload-artifact@v4
+        with:
+          name: TRX-Mapbox-Lab-v0.1.0-SIGNED-DEVICE-TEST-APK
+          path: mapbox-nav/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 30
+      - name: Remove signing file
+        if: always()
+        run: rm -f "$APEX_KEYSTORE_PATH"
