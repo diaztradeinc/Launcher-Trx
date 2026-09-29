@@ -21,7 +21,7 @@ class SetupActivity : AppCompatActivity() {
             setPadding(0, 12, 0, 12); body.addView(this)
         }
         label("TRX APEX · MAPBOX LAB", 24f)
-        label("0.1.0 · Device-test prototype", 16f)
+        label("0.1.1 · Startup repair", 16f)
         label("Enter your Mapbox public access token (starts with pk.). It stays in this app on this device. Do not enter a secret token. Maps, search and route simulation require internet and use your Mapbox account.", 16f)
         val token = EditText(ui).apply {
             hint = "Mapbox public token: pk.…"
@@ -34,19 +34,36 @@ class SetupActivity : AppCompatActivity() {
             tag = "public-token"
         }
         body.addView(token)
+        val truck = CheckBox(ui).apply {
+            text = "Use experimental 3D truck model"
+            setTextColor(Color.WHITE)
+            isChecked = prefs.getBoolean("truck-model", false)
+        }
+        body.addView(truck)
         fun open(simulation: Boolean) {
             val value = token.text.toString().trim()
             if (!PrototypePolicy.publicTokenValid(value)) {
                 token.error = "Enter a public Mapbox token beginning pk. (not sk.)."
                 return
             }
-            prefs.edit().putString("public-token", value).apply()
+            prefs.edit().putString("public-token", value).putBoolean("truck-model", truck.isChecked).commit()
+            com.mapbox.common.MapboxOptions.accessToken = value
+            CrashReport.stage(if (simulation) "Opening simulation" else "Opening live GPS")
             startActivity(Intent(this, NavigationActivity::class.java).putExtra("simulation", simulation))
         }
         body.addView(Button(ui).apply { text = "Open 3D route simulation"; tag = "open-simulation"; setOnClickListener { open(true) } })
         body.addView(Button(ui).apply { text = "Open live GPS test"; setOnClickListener { open(false) } })
         body.addView(Button(ui).apply { text = "Forget saved token"; setOnClickListener { prefs.edit().remove("public-token").apply(); token.text.clear() } })
         label("Simulation is labeled throughout. Live mode requires precise location and pauses when this screen is backgrounded. No background guidance in this first prototype.\n\nUses the original red pickup proxy from your earlier lab. Detailed 3D lanes, flyovers and a licensed TRX model are not included.", 15f)
+        body.addView(Button(ui).apply { text = "View / copy crash report"; setOnClickListener {
+            val report = CrashReport.read()
+            androidx.appcompat.app.AlertDialog.Builder(ui).setTitle("Startup diagnostics")
+                .setMessage(report).setPositiveButton("Copy") { _, _ ->
+                    val clipboard = getSystemService(android.content.ClipboardManager::class.java)
+                    clipboard.setPrimaryClip(android.content.ClipData.newPlainText("TRX crash report", report))
+                    Toast.makeText(this@SetupActivity, "Report copied", Toast.LENGTH_SHORT).show()
+                }.setNegativeButton("Close", null).show()
+        } })
         val scroll = ScrollView(ui).apply { setBackgroundColor(Color.rgb(16, 21, 28)); addView(body) }
         setContentView(scroll)
         androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(scroll) { v, insets ->

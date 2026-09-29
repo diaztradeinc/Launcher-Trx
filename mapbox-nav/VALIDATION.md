@@ -10,3 +10,13 @@
 - Current permanent certificate SHA-1: 03:04:AF:48:B6:70:72:BE:31:3F:17:C2:D8:F7:17:6D:6C:78:D3:BC.
 
 The delivered build is a device-test prototype. No claim is made of Ottocast frame rate, live GPS behavior, on-road rerouting or full mockup fidelity. Use DEVICE_TEST.md to record the next results.
+
+## 0.1.1 startup repair candidate
+
+- User reports both simulation and live mode force-closing in the delivered 0.1.0 APK. Treat 0.1.0 as unsuccessful on that device.
+- Fixed initialization ordering risks: apply stored token in Application and setup before constructing SDK-backed navigation objects; delay camera evaluation and trip observer startup until the map style is ready.
+- Custom truck now opt-in, off by default, while Standard 3D scenery remains enabled.
+- Added a local crash report button with token/URL redaction, startup stage, Java stack and Android 11+ process-exit reasons. No automatic reporting.
+- Local compilation and three unit tests pass with the embedded token intentionally empty, matching CI.
+- Exact 0.1.0 signed APK launches in the offline emulator; device-specific online failure is not reproduced. Earlier emulator SystemUI crashes at high density are separate from this app. No claim of a confirmed device crash fix.
+- Device test: install 0.1.1 as an update; leave truck off; open simulation and live GPS. If either closes, reopen setup and copy diagnostics. Record the device and Android version.

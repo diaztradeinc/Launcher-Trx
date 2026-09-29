@@ -1,4 +1,4 @@
-# TRX APEX Mapbox Lab 0.1.0
+# TRX APEX Mapbox Lab 0.1.1
 
 Standalone Android prototype: `com.diaztradeinc.trxmapboxlab`.
 It installs alongside the existing launcher and Google navigation lab.
@@ -8,10 +8,14 @@ It installs alongside the existing launcher and Google navigation lab.
 1. Install the device-test APK and open **TRX Mapbox Lab**.
 2. A privately configured build has the public token filled in. Otherwise paste your own Mapbox `pk.` token. Secret `sk.` tokens are rejected.
 3. Choose **Open 3D route simulation**, wait for the map, then tap **Demo**.
-4. Check the route, moving red pickup, buildings, turn banner, voice, overview and End.
+4. Keep the experimental truck checkbox off for the first test. Check the route, default location marker, buildings, turn banner, voice, overview and End. The bundled truck can be enabled separately after the base map is stable.
 5. Use **Setup → Return to token / mode setup** and choose **Open live GPS test** for a separate GPS session. Grant precise location. Find an address, select a result, and confirm Navigate. Long-pressing the map also selects a destination.
 
 Simulation always starts in Seattle and never consumes live GPS. Live mode never silently substitutes simulated positions. This version pauses the trip session when backgrounded; keep it foregrounded for testing. End clears guidance and ignores late route responses. Stale live positions suppress spoken and displayed instructions after eight seconds.
+
+## Startup repair candidate (0.1.1)
+
+Token initialization now occurs before navigation activity construction. Camera evaluation and observer/trip startup wait for a loaded map style. The experimental truck is opt-in. Setup includes local, redacted crash diagnostics with Android process-exit reasons where available; nothing is uploaded automatically. The device-reported force close is not yet root-caused without its crash report.
 
 ## Included
 

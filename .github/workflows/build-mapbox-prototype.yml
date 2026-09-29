@@ -43,12 +43,12 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: TRX-Mapbox-Lab-v0.1.0-unit-tests
+          name: TRX-Mapbox-Lab-v0.1.1-unit-tests
           path: mapbox-nav/app/build/reports/tests/
       - name: Save device-test APK (runtime not verified)
         uses: actions/upload-artifact@v4
         with:
-          name: TRX-Mapbox-Lab-v0.1.0-SIGNED-DEVICE-TEST-APK
+          name: TRX-Mapbox-Lab-v0.1.1-SIGNED-DEVICE-TEST-APK
           path: mapbox-nav/app/build/outputs/apk/debug/app-debug.apk
           retention-days: 30
       - name: Remove signing file

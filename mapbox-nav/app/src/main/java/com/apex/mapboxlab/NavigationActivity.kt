@@ -72,6 +72,7 @@ class NavigationActivity : AppCompatActivity() {
     private var attachedNav: MapboxNavigation? = null
     private var active = false
     private var styleReady = false
+    private var observingNavigation = false
     private var night = true
     private var buildings = true
     private var voice = true
@@ -116,8 +117,8 @@ class NavigationActivity : AppCompatActivity() {
             currentLocation = location
             locationProvider.changePosition(location, locationMatcherResult.keyPoints)
             viewport.onLocationChanged(location)
-            viewport.evaluate()
-            if (!hasCentered) {
+            evaluateViewport()
+            if (!hasCentered && styleReady) {
                 hasCentered = true
                 camera.requestNavigationCameraToFollowing()
             }
@@ -129,7 +130,7 @@ class NavigationActivity : AppCompatActivity() {
     private val progressObserver = RouteProgressObserver { progress ->
         if (active && fresh) {
             viewport.onRouteProgressChanged(progress)
-            viewport.evaluate()
+            evaluateViewport()
             val leg = progress.currentLegProgress
             val next = leg?.upcomingStep?.maneuver()
             val meters = leg?.currentStepProgress?.distanceRemaining?.toDouble() ?: 0.0
@@ -157,34 +158,27 @@ class NavigationActivity : AppCompatActivity() {
                 if (!isDestroyed && active && renderRequests.current(renderEpoch)) map.mapboxMap.style?.let { lineView.renderRouteDrawData(it, draw) }
             }
             viewport.onRouteChanged(update.navigationRoutes.first())
-            viewport.evaluate()
+            evaluateViewport()
         } else {
             map.mapboxMap.style?.let { style ->
                 lineApi.clearRouteLine { if (!isDestroyed && renderRequests.current(renderEpoch)) lineView.renderClearRouteLineValue(style, it) }
                 arrowView.render(style, arrowApi.clearArrows())
             }
             viewport.clearRouteData()
-            viewport.evaluate()
+            evaluateViewport()
         }
     }
 
     private val navigation: MapboxNavigation by requireMapboxNavigation(
         onResumedObserver = object : MapboxNavigationObserver {
             override fun onAttached(mapboxNavigation: MapboxNavigation) {
+                CrashReport.stage("Attaching navigation observers")
                 attachedNav = mapboxNavigation
-                mapboxNavigation.registerRoutesObserver(routesObserver)
-                mapboxNavigation.registerLocationObserver(locationObserver)
-                mapboxNavigation.registerRouteProgressObserver(progressObserver)
-                mapboxNavigation.registerVoiceInstructionsObserver(voiceObserver)
-                if (simulation) {
-                    replayObserver = ReplayProgressObserver(mapboxNavigation.mapboxReplayer).also {
-                        mapboxNavigation.registerRouteProgressObserver(it)
-                    }
-                }
-                startSession()
+                if (styleReady) attachNavigationObservers(mapboxNavigation)
             }
             override fun onDetached(mapboxNavigation: MapboxNavigation) {
                 requests.next()
+                observingNavigation = false
                 mapboxNavigation.unregisterRoutesObserver(routesObserver)
                 mapboxNavigation.unregisterLocationObserver(locationObserver)
                 mapboxNavigation.unregisterRouteProgressObserver(progressObserver)
@@ -197,9 +191,30 @@ class NavigationActivity : AppCompatActivity() {
             }
         },
         onInitialize = {
-            MapboxNavigationApp.setup(NavigationOptions.Builder(this).build())
+            CrashReport.stage("Creating navigation engine")
+            if (!MapboxNavigationApp.isSetup()) MapboxNavigationApp.setup(NavigationOptions.Builder(applicationContext).build())
         }
     )
+
+    private fun attachNavigationObservers(mapboxNavigation: MapboxNavigation) {
+        if (observingNavigation || !styleReady || !lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED)) return
+        observingNavigation = true
+                mapboxNavigation.registerRoutesObserver(routesObserver)
+                mapboxNavigation.registerLocationObserver(locationObserver)
+                mapboxNavigation.registerRouteProgressObserver(progressObserver)
+                mapboxNavigation.registerVoiceInstructionsObserver(voiceObserver)
+                if (simulation) {
+                    replayObserver = ReplayProgressObserver(mapboxNavigation.mapboxReplayer).also {
+                        mapboxNavigation.registerRouteProgressObserver(it)
+                    }
+                }
+                startSession()
+    }
+
+    private fun evaluateViewport() {
+        // Native camera calculations need the style and a measured map surface.
+        if (styleReady && map.width > 1 && map.height > 1) viewport.evaluate()
+    }
 
     override fun onCreate(state: Bundle?) {
         super.onCreate(state)
@@ -211,7 +226,9 @@ class NavigationActivity : AppCompatActivity() {
         window.statusBarColor = Color.BLACK
         window.navigationBarColor = Color.BLACK
         searchClient = PlaceSearch(token)
+        CrashReport.stage("Creating map and HUD")
         buildUi()
+        CrashReport.stage("Creating camera and route layers")
         viewport = MapboxNavigationViewportDataSource(map.mapboxMap)
         viewport.options.followingFrameOptions.defaultPitch = 55.0
         viewport.options.followingFrameOptions.minZoom = 16.0
@@ -234,16 +251,25 @@ class NavigationActivity : AppCompatActivity() {
         map.mapboxMap.subscribeMapLoadingError {
             runOnUiThread { if (!isDestroyed) status.text = "Map load error · check token, connection and account" }
         }
+        CrashReport.stage("Loading Mapbox Standard")
         map.mapboxMap.loadStyle(Style.STANDARD) { style ->
-            styleReady = true
+            CrashReport.stage("Standard loaded; configuring style")
             applyStyle()
+            CrashReport.stage("Initializing route layers")
             lineView.initializeLayers(style)
+            if (getSharedPreferences("mapbox-setup", MODE_PRIVATE).getBoolean("truck-model", false)) {
+            CrashReport.stage("Loading truck model")
             map.location.locationPuck = LocationPuck3D(
                 modelUri = "asset://apex-truck.glb",
                 modelScale = listOf(18f, 18f, 18f),
                 modelEmissiveStrength = 0f,
                 modelRotation = listOf(0f, 0f, 180f)
             )
+            }
+
+            styleReady = true
+            evaluateViewport()
+            attachedNav?.let { attachNavigationObservers(it) }
             status.text = if (simulation) "SIMULATION · Tap Demo to start" else "Map ready · waiting for GPS"
         }
         map.gestures.addOnMapLongClickListener { point ->
@@ -263,6 +289,8 @@ class NavigationActivity : AppCompatActivity() {
     @SuppressLint("MissingPermission")
     private fun startSession() {
         val nav = attachedNav ?: return
+        if (!styleReady || !observingNavigation) return
+        CrashReport.stage(if (simulation) "Starting replay session" else "Starting live session")
         if (simulation) {
             nav.startReplayTripSession(withForegroundService = false)
             if (!active) {
@@ -285,7 +313,7 @@ class NavigationActivity : AppCompatActivity() {
 
     override fun onRequestPermissionsResult(code: Int, permissions: Array<out String>, results: IntArray) {
         super.onRequestPermissionsResult(code, permissions, results)
-        if (code == 71) {
+        if (code == 71 && styleReady) {
             if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) startSession()
             else AlertDialog.Builder(UiScale.context(this)).setTitle("Precise location is off")
                 .setMessage("Live navigation needs precise location. You can return to setup and use simulation without GPS.")
@@ -385,7 +413,7 @@ class NavigationActivity : AppCompatActivity() {
 
     private fun settings() {
         val metrics = resources.displayMetrics
-        AlertDialog.Builder(UiScale.context(this)).setTitle("Mapbox Lab 0.1.0")
+        AlertDialog.Builder(UiScale.context(this)).setTitle("Mapbox Lab 0.1.1")
             .setItems(arrayOf(if (night) "Switch to day" else "Switch to night", if (buildings) "Hide 3D scenery" else "Show 3D scenery", "Display and prototype details", "Return to token / mode setup")) { _, index ->
                 when (index) {
                     0 -> { night = !night; applyStyle() }
@@ -415,7 +443,7 @@ class NavigationActivity : AppCompatActivity() {
         title = label("TRX APEX  ·  MAPBOX", 0f, 0f, 420f, 43f, 19f)
         guidance = label("Loading 3D map…", 12f, 57f, 328f, 87f, 21f)
         status = label(if (simulation) "SIMULATION · NOT LIVE GPS" else "LIVE GPS · Connecting", 12f, 151f, 328f, 29f, 11f)
-        button("◎", "Recenter", 352f, 59f, 56f, 52f) { camera.requestNavigationCameraToFollowing() }
+        button("◎", "Recenter", 352f, 59f, 56f, 52f) { if (styleReady) camera.requestNavigationCameraToFollowing() }
         button("☼", "Day or night map", 352f, 121f, 56f, 52f) { night = !night; applyStyle() }
         var voiceButton: TextView? = null
         voiceButton = button("Voice", "Toggle voice guidance", 352f, 183f, 56f, 52f) {
@@ -427,9 +455,9 @@ class NavigationActivity : AppCompatActivity() {
         button("End", "End navigation", 330f, 602f, 78f, 47f, true) { endRoute() }
         button("Find", "Find address", 12f, 659f, 92f, 49f) { search() }
         button(if (simulation) "Demo" else "GPS", "Start demo or recenter GPS", 113f, 659f, 92f, 49f) {
-            if (simulation) requestRoute(demoDestination) else if (fresh) camera.requestNavigationCameraToFollowing() else { permissionRequested = false; startSession() }
+            if (simulation) requestRoute(demoDestination) else if (fresh && styleReady) camera.requestNavigationCameraToFollowing() else { permissionRequested = false; startSession() }
         }
-        button("Overview", "Route overview", 214f, 659f, 92f, 49f) { camera.requestNavigationCameraToOverview() }
+        button("Overview", "Route overview", 214f, 659f, 92f, 49f) { if (styleReady) camera.requestNavigationCameraToOverview() }
         button("Setup", "Map settings", 315f, 659f, 93f, 49f) { settings() }
         frame.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> layoutUi() }
     }
@@ -477,7 +505,7 @@ class NavigationActivity : AppCompatActivity() {
         if (::viewport.isInitialized) {
             viewport.followingPadding = EdgeInsets(map.height * .35, map.width * .05, map.height * .08, map.width * .18)
             viewport.overviewPadding = EdgeInsets(map.height * .28, map.width * .08, map.height * .10, map.width * .18)
-            viewport.evaluate()
+            evaluateViewport()
         }
     }
     private fun turnSymbol(modifier: String?): String = when (modifier) {
