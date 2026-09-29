@@ -227,11 +227,6 @@ class NavigationActivity : AppCompatActivity() {
         arrowView = MapboxRouteArrowView(RouteArrowOptions.Builder(UiScale.context(this)).build())
         map.location.apply {
             setLocationProvider(locationProvider)
-            locationPuck = LocationPuck3D(
-                modelUri = "asset://apex-truck.glb",
-                modelScale = listOf(2.2f, 2.2f, 2.2f),
-                modelRotation = listOf(0f, 0f, 180f)
-            )
             puckBearingEnabled = true
             enabled = true
         }
@@ -243,6 +238,11 @@ class NavigationActivity : AppCompatActivity() {
             styleReady = true
             applyStyle()
             lineView.initializeLayers(style)
+            map.location.locationPuck = LocationPuck3D(
+                modelUri = "asset://apex-truck.glb",
+                modelScale = listOf(2.2f, 2.2f, 2.2f),
+                modelRotation = listOf(0f, 0f, 180f)
+            )
             status.text = if (simulation) "SIMULATION · Tap Demo to start" else "Map ready · waiting for GPS"
         }
         map.gestures.addOnMapLongClickListener { point ->
